@@ -14,77 +14,153 @@ let btn4 = document.getElementById("btn4");
 let btn5 = document.getElementById("btn5");
 let btn6 = document.getElementById("btn6");
 
-btn1.addEventListener("click", function(){
-	if (tg.MainButton.isVisible) {
-		tg.MainButton.hide();
-	}
-	else {
-		tg.MainButton.setText("Вы выбрали товар 1!");
-		item = "1";
-		tg.MainButton.show();
-	}
-});
+// Переменные для бесконечной прокрутки
+let currentPage = 0;
+let isLoading = false;
+let hasMoreProducts = true;
+const productsPerPage = 60;
+const maxProducts = 377;
 
-btn2.addEventListener("click", function(){
-	if (tg.MainButton.isVisible) {
-		tg.MainButton.hide();
-	}
-	else {
-		tg.MainButton.setText("Вы выбрали товар 2!");
-		item = "2";
-		tg.MainButton.show();
-	}
-});
+// Функция загрузки товаров с сайта
+async function loadProducts(page = 0) {
+    if (isLoading || !hasMoreProducts) return;
+    
+    isLoading = true;
+    const start = page * productsPerPage;
+    
+    try {
+        // API запрос к серверу для получения товаров
+        const response = await fetch(`api.php?start=${start}&limit=${productsPerPage}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            if (data.products.length === 0 || !data.hasMore) {
+                hasMoreProducts = false;
+            }
+            
+            renderProducts(data.products);
+            currentPage = page;
+        } else {
+            console.error('Ошибка API:', data.error);
+            // Если API недоступен, используем моковые данные
+            const products = generateMockProducts(start, productsPerPage);
+            renderProducts(products);
+            currentPage = page;
+        }
+        
+    } catch (error) {
+        console.error('Ошибка загрузки товаров:', error);
+        // При ошибке используем моковые данные
+        const products = generateMockProducts(start, productsPerPage);
+        renderProducts(products);
+        currentPage = page;
+    } finally {
+        isLoading = false;
+    }
+}
 
-btn3.addEventListener("click", function(){
-	if (tg.MainButton.isVisible) {
-		tg.MainButton.hide();
-	}
-	else {
-		tg.MainButton.setText("Вы выбрали товар 3!");
-		item = "3";
-		tg.MainButton.show();
-	}
-});
+// Генерация моковых товаров для демонстрации
+function generateMockProducts(start, limit) {
+    const products = [];
+    const productNames = [
+        'Ernie Ball 2221 Regular Slinky 10-46',
+        'Rotosound R13 Roto Greys 13-54',
+        'Dunlop DEN1046 Nickel Wound Light 10-46',
+        'GHS Boomers GBTM 11-50 Medium',
+        'Fender 250M Nickel-Plated Steel 11-49 Medium'
+    ];
+    
+    for (let i = 0; i < limit && (start + i) < maxProducts; i++) {
+        const productIndex = (start + i) % productNames.length;
+        products.push({
+            id: start + i + 1,
+            name: productNames[productIndex],
+            oldPrice: 400 + Math.floor(Math.random() * 100),
+            newPrice: 350 + Math.floor(Math.random() * 50),
+            image: 'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg',
+            inStock: true
+        });
+    }
+    
+    return products;
+}
 
-btn4.addEventListener("click", function(){
-	if (tg.MainButton.isVisible) {
-		tg.MainButton.hide();
-	}
-	else {
-		tg.MainButton.setText("Вы выбрали товар 4!");
-		item = "4";
-		tg.MainButton.show();
-	}
-});
+// Функция рендеринга товаров
+function renderProducts(products) {
+    const container = document.querySelector('.inner');
+    
+    products.forEach((product, index) => {
+        const productCard = createProductCard(product, currentPage * productsPerPage + index + 1);
+        container.appendChild(productCard);
+    });
+}
 
-btn5.addEventListener("click", function(){
-	if (tg.MainButton.isVisible) {
-		tg.MainButton.hide();
-	}
-	else {
-		tg.MainButton.setText("Вы выбрали товар 5!");
-		item = "5";
-		tg.MainButton.show();
-	}
-});
+// Создание карточки товара
+function createProductCard(product, btnId) {
+    const card = document.createElement('div');
+    card.className = 'product-card';
+    
+    // Проверяем наличие изображения
+    const imageSrc = product.image || 'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg';
+    
+    // Проверяем наличие цен
+    const oldPrice = product.oldPrice || 400;
+    const newPrice = product.newPrice || 350;
+    
+    // Статус товара
+    const status = product.inStock ? 'В наличии' : 'Нет в наличии';
+    const statusClass = product.inStock ? 'product-status' : 'product-status out-of-stock';
+    
+    card.innerHTML = `
+        <img src="${imageSrc}" alt="${product.name}" class="img">
+        <div class="product-title" style="text-align:center;">${product.name}</div>
+        <div class="${statusClass}">${status}</div>
+        <div class="product-bottom-row">
+            <div class="product-prices">
+                <div class="old-price">${oldPrice} грн</div>
+                <div class="new-price">${newPrice} грн</div>
+            </div>
+            <button class="btn" id="btn${btnId}">Купить</button>
+        </div>
+    `;
+    
+    // Добавляем обработчик для кнопки
+    const btn = card.querySelector(`#btn${btnId}`);
+    btn.addEventListener("click", function(){
+        if (tg.MainButton.isVisible) {
+            tg.MainButton.hide();
+        }
+        else {
+            tg.MainButton.setText(`Вы выбрали товар ${btnId}!`);
+            item = btnId.toString();
+            tg.MainButton.show();
+        }
+    });
+    
+    return card;
+}
 
-btn6.addEventListener("click", function(){
-	if (tg.MainButton.isVisible) {
-		tg.MainButton.hide();
-	}
-	else {
-		tg.MainButton.setText("Вы выбрали товар 6!");
-		item = "6";
-		tg.MainButton.show();
-	}
-});
+// Обработчик прокрутки для бесконечной загрузки
+function handleScroll() {
+    if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 1000) {
+        if (!isLoading && hasMoreProducts) {
+            loadProducts(currentPage + 1);
+        }
+    }
+}
 
+// Инициализация
+document.addEventListener('DOMContentLoaded', function() {
+    // Загружаем первую страницу товаров
+    loadProducts(0);
+    
+    // Добавляем обработчик прокрутки
+    window.addEventListener('scroll', handleScroll);
+});
 
 Telegram.WebApp.onEvent("mainButtonClicked", function(){
 	tg.sendData(item);
 });
-
 
 let usercard = document.getElementById("usercard");
 

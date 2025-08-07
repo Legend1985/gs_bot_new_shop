@@ -167,6 +167,16 @@ body {
     padding-left: 12px;
 }
 
+.product-status.out-of-stock {
+    color: #f44336;
+    font-size: 13px;
+    font-weight: bold;
+    text-align: left;
+    margin: 4px 0;
+    margin-left: 0;
+    padding-left: 12px;
+}
+
 
 
 
