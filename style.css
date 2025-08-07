@@ -67,8 +67,8 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
-    margin-top: 16px;
-    padding: 0 12px 8px 12px;
+    margin-top: 6px;
+    padding: 0 12px 0 12px;
     width: 100%;
     box-sizing: border-box;
     gap: 8px;
@@ -108,8 +108,8 @@ body {
     position: static;
 }
 .product-card {
-    min-height: 250px;
-    padding: 16px 0 8px 2px;
+    min-height: 240px;
+    padding: 16px 0 0 2px;
     width: 182px;
     max-width: 182px;
     box-sizing: border-box;
@@ -118,7 +118,7 @@ body {
     margin-right: 0;
     background: #fff;
     border-radius: 16px;
-    box-shadow: 0 2px 9px rgba(0,0,0,0.10);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.10);
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
