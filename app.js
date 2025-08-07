@@ -310,39 +310,12 @@ function startAutoUpdate() {
     setInterval(updateProductPrices, 30 * 60 * 1000);
 }
 
-// Добавляем кнопку для ручного обновления
-function addUpdateButton() {
-    const container = document.querySelector('.container');
-    if (container) {
-        const updateButton = document.createElement('button');
-        updateButton.textContent = 'Обновить цены';
-        updateButton.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 10px 20px;
-            background: #007bff;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            z-index: 1000;
-        `;
-        updateButton.onclick = manualUpdate;
-        document.body.appendChild(updateButton);
-    }
-}
-
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Система обновления цен инициализирована');
-    addUpdateButton();
     
-    // Запуск автоматического обновления
-    // startAutoUpdate();
-    
-    // Для тестирования можно запустить ручное обновление
-    // manualUpdate();
+    // Автоматическое обновление при загрузке страницы
+    updateProductPrices();
 });
 
 // Экспорт функций для использования в консоли
