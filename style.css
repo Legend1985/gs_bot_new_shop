@@ -86,7 +86,7 @@ body {
     margin-left: 0;
     margin-top: 0;
     position: relative;
-    top: 2px;
+    top: 4px;
 }
 .new-price {
     color: #e53935;
@@ -100,6 +100,8 @@ body {
     justify-content: flex-start;
     background: none;
     margin-right: 0;
+    position: relative;
+    top: 2px;
 }
 .product-card {
     min-height: 250px;
@@ -120,10 +122,10 @@ body {
 }
 .btn {
     font-weight: bold;
-    margin-left: 2px;
+    margin-left: 0px;
     height: 36px;
-    min-width: 70px;
-    max-width: 90px;
+    min-width: 72px;
+    max-width: 92px;
     padding: 6px 14px;
     display: flex;
     align-items: center;
