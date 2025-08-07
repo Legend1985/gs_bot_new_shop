@@ -19,7 +19,8 @@ let currentPage = 0;
 let isLoading = false;
 let hasMoreProducts = true;
 const productsPerPage = 60;
-const maxProducts = 377;
+let maxProducts = 377; // Будет обновляться из API
+let loadedProductNames = new Set(); // Для отслеживания уже загруженных товаров
 
 // Функция загрузки товаров с сайта
 async function loadProducts(page = 0) {
@@ -34,12 +35,28 @@ async function loadProducts(page = 0) {
         const data = await response.json();
         
         if (data.success) {
-            if (data.products.length === 0 || !data.hasMore) {
+            // Обновляем общее количество товаров из API
+            if (data.totalProducts) {
+                maxProducts = data.totalProducts;
+            }
+            
+            // Фильтруем дубликаты
+            const uniqueProducts = data.products.filter(product => {
+                if (loadedProductNames.has(product.name)) {
+                    return false; // Пропускаем дубликат
+                }
+                loadedProductNames.add(product.name);
+                return true;
+            });
+            
+            if (uniqueProducts.length === 0 || !data.hasMore) {
                 hasMoreProducts = false;
             }
             
-            renderProducts(data.products);
+            renderProducts(uniqueProducts);
             currentPage = page;
+            
+            console.log(`Загружено ${uniqueProducts.length} товаров. Всего загружено: ${loadedProductNames.size} из ${maxProducts}`);
         } else {
             console.error('Ошибка API:', data.error);
             // Если API недоступен, используем моковые данные
@@ -101,7 +118,10 @@ function createProductCard(product, btnId) {
     card.className = 'product-card';
     
     // Проверяем наличие изображения
-    const imageSrc = product.image || 'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg';
+    let imageSrc = product.image;
+    if (!imageSrc || imageSrc === '') {
+        imageSrc = 'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg';
+    }
     
     // Проверяем наличие цен
     const oldPrice = product.oldPrice || 400;
@@ -111,9 +131,12 @@ function createProductCard(product, btnId) {
     const status = product.inStock ? 'В наличии' : 'Нет в наличии';
     const statusClass = product.inStock ? 'product-status' : 'product-status out-of-stock';
     
+    // Обработка названия товара
+    const productName = product.name || 'Название товара не указано';
+    
     card.innerHTML = `
-        <img src="${imageSrc}" alt="${product.name}" class="img">
-        <div class="product-title" style="text-align:center;">${product.name}</div>
+        <img src="${imageSrc}" alt="${productName}" class="img" onerror="this.src='Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg'">
+        <div class="product-title" style="text-align:center;">${productName}</div>
         <div class="${statusClass}">${status}</div>
         <div class="product-bottom-row">
             <div class="product-prices">

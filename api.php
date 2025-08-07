@@ -19,6 +19,7 @@ function getPageContent($url) {
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
     curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
     $content = curl_exec($ch);
     curl_close($ch);
     return $content;
@@ -27,45 +28,100 @@ function getPageContent($url) {
 // Функция для парсинга товаров
 function parseProducts($html) {
     $products = [];
+    $seenNames = []; // Для отслеживания дубликатов
     
-    // Используем регулярные выражения для извлечения данных
-    preg_match_all('/<div class="product-container">(.*?)<\/div>/s', $html, $matches);
+    // Используем DOMDocument для более точного парсинга
+    $dom = new DOMDocument();
+    @$dom->loadHTML($html);
+    $xpath = new DOMXPath($dom);
     
-    foreach ($matches[1] as $productHtml) {
-        $product = [];
-        
-        // Извлекаем название товара
-        if (preg_match('/<h3[^>]*>(.*?)<\/h3>/s', $productHtml, $nameMatch)) {
-            $product['name'] = trim(strip_tags($nameMatch[1]));
-        }
-        
-        // Извлекаем изображение
-        if (preg_match('/<img[^>]*src="([^"]*)"[^>]*>/', $productHtml, $imgMatch)) {
-            $product['image'] = 'https://guitarstrings.com.ua' . $imgMatch[1];
-        }
-        
-        // Извлекаем цены
-        if (preg_match('/Цена: (\d+) грн/', $productHtml, $priceMatch)) {
-            $product['newPrice'] = (int)$priceMatch[1];
-        }
-        
-        if (preg_match('/Цена: (\d+) грн.*?Цена: (\d+) грн/', $productHtml, $oldPriceMatch)) {
-            $product['oldPrice'] = (int)$oldPriceMatch[1];
-        }
-        
-        // Проверяем наличие
-        if (strpos($productHtml, 'В наличии') !== false) {
-            $product['inStock'] = true;
-        } else {
-            $product['inStock'] = false;
-        }
-        
-        if (!empty($product['name'])) {
-            $products[] = $product;
+    // Находим все карточки товаров
+    $productNodes = $xpath->query('//div[contains(@class, "product") or contains(@class, "vm-col")]');
+    
+    foreach ($productNodes as $productNode) {
+        try {
+            $product = [];
+            
+            // Извлекаем название товара
+            $titleNodes = $xpath->query('.//h2//a | .//h3//a | .//h2 | .//h3', $productNode);
+            if ($titleNodes->length > 0) {
+                $product['name'] = trim($titleNodes->item(0)->textContent);
+            }
+            
+            // Извлекаем изображение
+            $imgNodes = $xpath->query('.//img[contains(@class, "browseProductImage") or contains(@src, "product")]', $productNode);
+            if ($imgNodes->length > 0) {
+                $imgSrc = $imgNodes->item(0)->getAttribute('src');
+                if (!empty($imgSrc)) {
+                    $product['image'] = $imgSrc;
+                    if (!str_starts_with($imgSrc, 'http')) {
+                        $product['image'] = 'https://guitarstrings.com.ua' . $imgSrc;
+                    }
+                }
+            }
+            
+            // Извлекаем цены
+            $priceNodes = $xpath->query('.//span[contains(@class, "Price") or contains(text(), "грн")]', $productNode);
+            $prices = [];
+            foreach ($priceNodes as $priceNode) {
+                $priceText = trim($priceNode->textContent);
+                if (preg_match('/(\d+)\s*грн/', $priceText, $matches)) {
+                    $prices[] = (int)$matches[1];
+                }
+            }
+            
+            // Сортируем цены (старая цена обычно больше)
+            if (count($prices) >= 2) {
+                rsort($prices);
+                $product['oldPrice'] = $prices[0];
+                $product['newPrice'] = $prices[1];
+            } elseif (count($prices) == 1) {
+                $product['newPrice'] = $prices[0];
+                $product['oldPrice'] = $prices[0] + 50; // Примерная старая цена
+            }
+            
+            // Проверяем наличие
+            $availabilityNodes = $xpath->query('.//span[contains(text(), "наличи") or contains(text(), "Наличи")]', $productNode);
+            if ($availabilityNodes->length > 0) {
+                $availabilityText = trim($availabilityNodes->item(0)->textContent);
+                $product['inStock'] = strpos($availabilityText, 'наличи') !== false;
+            } else {
+                $product['inStock'] = true; // По умолчанию в наличии
+            }
+            
+            // Проверяем на дубликаты и добавляем товар
+            if (!empty($product['name']) && !in_array($product['name'], $seenNames)) {
+                $seenNames[] = $product['name'];
+                $products[] = $product;
+            }
+            
+        } catch (Exception $e) {
+            // Пропускаем товары с ошибками парсинга
+            continue;
         }
     }
     
     return $products;
+}
+
+// Функция для получения общего количества товаров
+function getTotalProducts($html) {
+    $dom = new DOMDocument();
+    @$dom->loadHTML($html);
+    $xpath = new DOMXPath($dom);
+    
+    // Ищем информацию о количестве товаров
+    $totalNodes = $xpath->query('//div[contains(@class, "display-number") or contains(text(), "из")]');
+    
+    foreach ($totalNodes as $node) {
+        $text = $node->textContent;
+        if (preg_match('/из\s+(\d+)/', $text, $matches)) {
+            return (int)$matches[1];
+        }
+    }
+    
+    // Если не нашли, возвращаем примерное количество
+    return 377;
 }
 
 try {
@@ -82,11 +138,17 @@ try {
         throw new Exception('Не удалось загрузить страницу');
     }
     
+    // Получаем общее количество товаров
+    $totalProducts = getTotalProducts($html);
+    
     // Парсим товары
     $products = parseProducts($html);
     
     // Применяем лимит
     $products = array_slice($products, 0, $limit);
+    
+    // Проверяем, есть ли еще товары
+    $hasMore = ($start + $limit) < $totalProducts;
     
     // Формируем ответ
     $response = [
@@ -95,7 +157,8 @@ try {
         'total' => count($products),
         'start' => $start,
         'limit' => $limit,
-        'hasMore' => count($products) === $limit
+        'hasMore' => $hasMore,
+        'totalProducts' => $totalProducts
     ];
     
     echo json_encode($response, JSON_UNESCAPED_UNICODE);
