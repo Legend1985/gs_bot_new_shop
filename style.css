@@ -126,7 +126,8 @@ body {
 }
 .btn {
     font-weight: bold;
-    margin-left: -4px;
+    margin-left: 0;
+    margin-right: 0;
     height: 36px;
     min-width: 72px;
     max-width: 92px;
