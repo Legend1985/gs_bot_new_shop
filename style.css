@@ -21,6 +21,9 @@ body {
 
 .img {
 	width: 150px;
+	display: block;
+	margin-left: auto;
+	margin-right: auto;
 }
 
 .item {
@@ -57,6 +60,7 @@ body {
     text-align: center;
     line-height: 1.2;
     font-weight: normal;
+    display: block;
 }
 
 .product-bottom-row {
@@ -105,9 +109,9 @@ body {
 }
 .product-card {
     min-height: 250px;
-    padding: 16px 0 8px 0;
-    width: 184px;
-    max-width: 184px;
+    padding: 16px 0 8px 2px;
+    width: 182px;
+    max-width: 182px;
     box-sizing: border-box;
     margin-bottom: 0;
     margin-left: 0;
@@ -122,7 +126,7 @@ body {
 }
 .btn {
     font-weight: bold;
-    margin-left: 0px;
+    margin-left: -4px;
     height: 36px;
     min-width: 72px;
     max-width: 92px;
