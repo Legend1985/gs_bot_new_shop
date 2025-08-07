@@ -45,6 +45,14 @@ body {
 	text-align: center;
 }
 
+.product-title {
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin: 5px 0;
+}
+
 
 
 
