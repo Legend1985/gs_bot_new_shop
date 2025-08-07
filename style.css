@@ -62,7 +62,7 @@ body {
 .product-bottom-row {
     display: flex;
     justify-content: space-between;
-    align-items: baseline;
+    align-items: flex-end;
     margin-top: 16px;
     padding: 0 12px 8px 12px;
     width: 100%;
@@ -75,18 +75,19 @@ body {
     align-items: flex-start;
     justify-content: flex-end;
     min-width: 90px;
+    margin-bottom: 0;
 }
 .old-price {
     color: #222;
     font-size: 13px;
     text-decoration: line-through;
-    margin-bottom: 0;
     font-weight: normal;
     text-align: left;
     margin-left: 0;
-    margin-top: 8px;
+    margin-top: 0;
+    margin-bottom: -8px;
     position: relative;
-    top: 8px;
+    top: -6px;
 }
 .new-price {
     color: #e53935;
@@ -100,8 +101,7 @@ body {
     justify-content: flex-start;
     background: none;
     margin-right: 0;
-    position: relative;
-    top: -4px;
+    position: static;
 }
 .product-card {
     min-height: 250px;
