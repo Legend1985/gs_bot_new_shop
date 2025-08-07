@@ -43,6 +43,7 @@ async function loadProducts(page = 0) {
             // Фильтруем дубликаты
             const uniqueProducts = data.products.filter(product => {
                 if (loadedProductNames.has(product.name)) {
+                    console.log(`Пропускаем дубликат: ${product.name}`);
                     return false; // Пропускаем дубликат
                 }
                 loadedProductNames.add(product.name);
@@ -51,12 +52,14 @@ async function loadProducts(page = 0) {
             
             if (uniqueProducts.length === 0 || !data.hasMore) {
                 hasMoreProducts = false;
+                console.log('Больше товаров нет или все дубликаты');
             }
             
             renderProducts(uniqueProducts);
             currentPage = page;
             
             console.log(`Загружено ${uniqueProducts.length} товаров. Всего загружено: ${loadedProductNames.size} из ${maxProducts}`);
+            console.log(`Страница: ${page + 1}, start: ${start}`);
         } else {
             console.error('Ошибка API:', data.error);
             // Если API недоступен, используем моковые данные

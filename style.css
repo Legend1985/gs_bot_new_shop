@@ -95,7 +95,7 @@ body {
 }
 .new-price {
     color: #e53935;
-    font-size: 16px;
+    font-size: 14px;
     font-weight: bold;
     display: flex;
     align-items: flex-end;
@@ -106,6 +106,9 @@ body {
     background: none;
     margin-right: 0;
     position: static;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 .product-card {
     min-height: 240px;

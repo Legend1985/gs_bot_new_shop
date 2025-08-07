@@ -35,21 +35,21 @@ function parseProducts($html) {
     @$dom->loadHTML($html);
     $xpath = new DOMXPath($dom);
     
-    // Находим все карточки товаров
-    $productNodes = $xpath->query('//div[contains(@class, "product") or contains(@class, "vm-col")]');
+    // Находим все карточки товаров - используем более точные селекторы
+    $productNodes = $xpath->query('//div[contains(@class, "product") or contains(@class, "vm-col") or contains(@class, "browseProductContainer")]');
     
     foreach ($productNodes as $productNode) {
         try {
             $product = [];
             
-            // Извлекаем название товара
-            $titleNodes = $xpath->query('.//h2//a | .//h3//a | .//h2 | .//h3', $productNode);
+            // Извлекаем название товара - ищем в разных местах
+            $titleNodes = $xpath->query('.//h2//a | .//h3//a | .//h2 | .//h3 | .//div[contains(@class, "product-title")]//a', $productNode);
             if ($titleNodes->length > 0) {
                 $product['name'] = trim($titleNodes->item(0)->textContent);
             }
             
-            // Извлекаем изображение
-            $imgNodes = $xpath->query('.//img[contains(@class, "browseProductImage") or contains(@src, "product")]', $productNode);
+            // Извлекаем изображение - ищем в разных местах
+            $imgNodes = $xpath->query('.//img[contains(@class, "browseProductImage") or contains(@src, "product") or contains(@src, "resized")]', $productNode);
             if ($imgNodes->length > 0) {
                 $imgSrc = $imgNodes->item(0)->getAttribute('src');
                 if (!empty($imgSrc)) {
@@ -60,8 +60,8 @@ function parseProducts($html) {
                 }
             }
             
-            // Извлекаем цены
-            $priceNodes = $xpath->query('.//span[contains(@class, "Price") or contains(text(), "грн")]', $productNode);
+            // Извлекаем цены - ищем в разных форматах
+            $priceNodes = $xpath->query('.//span[contains(@class, "Price") or contains(text(), "грн")] | .//div[contains(text(), "грн")]', $productNode);
             $prices = [];
             foreach ($priceNodes as $priceNode) {
                 $priceText = trim($priceNode->textContent);
@@ -81,7 +81,7 @@ function parseProducts($html) {
             }
             
             // Проверяем наличие
-            $availabilityNodes = $xpath->query('.//span[contains(text(), "наличи") or contains(text(), "Наличи")]', $productNode);
+            $availabilityNodes = $xpath->query('.//span[contains(text(), "наличи") or contains(text(), "Наличи")] | .//div[contains(text(), "наличи")]', $productNode);
             if ($availabilityNodes->length > 0) {
                 $availabilityText = trim($availabilityNodes->item(0)->textContent);
                 $product['inStock'] = strpos($availabilityText, 'наличи') !== false;
@@ -150,6 +150,16 @@ try {
     // Проверяем, есть ли еще товары
     $hasMore = ($start + $limit) < $totalProducts;
     
+    // Добавляем отладочную информацию
+    $debug = [
+        'url' => $url,
+        'start' => $start,
+        'limit' => $limit,
+        'totalProducts' => $totalProducts,
+        'parsedCount' => count($products),
+        'hasMore' => $hasMore
+    ];
+    
     // Формируем ответ
     $response = [
         'success' => true,
@@ -158,7 +168,8 @@ try {
         'start' => $start,
         'limit' => $limit,
         'hasMore' => $hasMore,
-        'totalProducts' => $totalProducts
+        'totalProducts' => $totalProducts,
+        'debug' => $debug
     ];
     
     echo json_encode($response, JSON_UNESCAPED_UNICODE);
