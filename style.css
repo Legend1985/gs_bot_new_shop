@@ -138,7 +138,10 @@ body {
     font-size: 16px;
 }
 .product-card:first-child {
-    margin-left: 2px;
+    margin-left: 4px;
+}
+.product-card:nth-child(2) {
+    margin-left: -4px;
 }
 
 
