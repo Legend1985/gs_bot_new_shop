@@ -83,7 +83,7 @@ body {
 }
 .old-price {
     color: #222;
-    font-size: 13px;
+    font-size: 11px;
     text-decoration: line-through;
     font-weight: normal;
     text-align: left;
@@ -95,7 +95,7 @@ body {
 }
 .new-price {
     color: #e53935;
-    font-size: 18px;
+    font-size: 16px;
     font-weight: bold;
     display: flex;
     align-items: flex-end;
