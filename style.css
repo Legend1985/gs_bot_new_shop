@@ -15,7 +15,7 @@ body {
 	display: flex;
 	flex-wrap: wrap;
 	justify-content: space-between;
-	row-gap: 36px;
+	row-gap: 4px;
 	column-gap: 0;
 }
 
@@ -142,6 +142,18 @@ body {
     margin-left: 4px;
 }
 .product-card:nth-child(2) {
+    margin-left: -4px;
+}
+.product-card:nth-child(3) {
+    margin-left: 4px;
+}
+.product-card:nth-child(4) {
+    margin-left: -4px;
+}
+.product-card:nth-child(5) {
+    margin-left: 4px;
+}
+.product-card:nth-child(6) {
     margin-left: -4px;
 }
 
