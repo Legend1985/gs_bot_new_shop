@@ -91,7 +91,7 @@ body {
     margin-top: 0;
     margin-bottom: -2px;
     position: relative;
-    top: 10px;
+    top: 12px;
 }
 .new-price {
     color: #e53935;
@@ -127,7 +127,7 @@ body {
 .btn {
     font-weight: bold;
     margin-left: -8px;
-    margin-right: 14px;
+    margin-right: 12px;
     height: 36px;
     min-width: 72px;
     max-width: 92px;
