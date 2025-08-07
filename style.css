@@ -61,7 +61,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
-    margin-top: 32px;
+    margin-top: 16px;
     padding: 0 16px 8px 16px;
     width: 100%;
     box-sizing: border-box;
@@ -80,11 +80,11 @@ body {
 }
 .new-price {
     color: #e53935;
-    font-size: 16px;
+    font-size: 18px;
     font-weight: bold;
 }
 .product-card {
-    min-height: 320px;
+    min-height: 250px;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
@@ -92,10 +92,10 @@ body {
     background: #fff;
     border-radius: 16px;
     box-shadow: 0 2px 12px rgba(0,0,0,0.10);
-    padding: 20px 0 16px 0;
+    padding: 16px 0 8px 0;
     margin-bottom: 16px;
     width: 100%;
-    max-width: none;
+    max-width: 160px;
     box-sizing: border-box;
 }
 
