@@ -8,13 +8,15 @@ body {
 
 .container {
 	max-width: 390px;
+	margin: 0 auto;
 }
 
 .inner {
-	display: grid;
-	grid-template-columns: 1fr 1fr;
-	grid-template-rows: 1fr 200px 200px;
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
 	row-gap: 36px;
+	column-gap: 0;
 }
 
 .img {
@@ -78,7 +80,7 @@ body {
     color: #222;
     font-size: 13px;
     text-decoration: line-through;
-    margin-bottom: -2px;
+    margin-bottom: -4px;
     font-weight: normal;
     text-align: left;
     margin-left: 0;
@@ -102,9 +104,12 @@ body {
 .product-card {
     min-height: 250px;
     padding: 16px 0 8px 0;
-    max-width: 240px;
-    width: 100%;
+    width: 184px;
+    max-width: 184px;
     box-sizing: border-box;
+    margin-bottom: 0;
+    margin-left: 0;
+    margin-right: 0;
 }
 
 
