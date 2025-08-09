@@ -766,8 +766,7 @@ function showDiscontinuedPopup() {
     const popup = document.getElementById('discontinuedPopup');
     if (popup) {
         popup.classList.add('show');
-        // Блокируем прокрутку страницы
-        document.body.style.overflow = 'hidden';
+        document.body.classList.add('popup-open');
     }
 }
 
@@ -775,8 +774,7 @@ function hideDiscontinuedPopup() {
     const popup = document.getElementById('discontinuedPopup');
     if (popup) {
         popup.classList.remove('show');
-        // Восстанавливаем прокрутку страницы
-        document.body.style.overflow = '';
+        document.body.classList.remove('popup-open');
     }
 }
 

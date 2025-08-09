@@ -358,11 +358,20 @@ body {
     opacity: 0;
     visibility: hidden;
     transition: all 0.3s ease;
+    /* Предотвращаем смещение контента */
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .popup-overlay.show {
     opacity: 1;
     visibility: visible;
+}
+
+/* Предотвращаем смещение контента при открытии попапа */
+body.popup-open {
+    overflow: hidden;
+    padding-right: 0; /* Убираем компенсацию для скроллбара */
 }
 
 .popup-content {

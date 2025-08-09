@@ -66,8 +66,7 @@
             const popup = document.getElementById('discontinuedPopup');
             if (popup) {
                 popup.classList.add('show');
-                // Блокируем прокрутку страницы
-                document.body.style.overflow = 'hidden';
+                document.body.classList.add('popup-open');
             }
         }
 
@@ -75,8 +74,7 @@
             const popup = document.getElementById('discontinuedPopup');
             if (popup) {
                 popup.classList.remove('show');
-                // Восстанавливаем прокрутку страницы
-                document.body.style.overflow = '';
+                document.body.classList.remove('popup-open');
             }
         }
 
