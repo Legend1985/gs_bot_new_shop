@@ -8,208 +8,121 @@ header('Access-Control-Allow-Headers: Content-Type');
 $start = isset($_GET['start']) ? (int)$_GET['start'] : 0;
 $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 60;
 
-// URL сайта для парсинга
-$baseUrl = 'https://guitarstrings.com.ua/electro';
+// Моковые данные для тестирования
+$mockProducts = [
+    [
+        'id' => 1,
+        'name' => 'Ernie Ball 2221 Regular Slinky 10-46',
+        'image' => 'https://guitarstrings.com.ua/images/product/2221/Ernie_Ball_2221_10-46_150.jpg',
+        'oldPrice' => '450 грн',
+        'newPrice' => 380,
+        'inStock' => true,
+        'availability' => 'В наличии',
+        'rating' => 4.5
+    ],
+    [
+        'id' => 2,
+        'name' => 'Rotosound R13 Roto Greys 13-54',
+        'image' => 'https://guitarstrings.com.ua/images/product/2221/Rotosound_R13_13-54_150.jpg',
+        'oldPrice' => '520 грн',
+        'newPrice' => 420,
+        'inStock' => false,
+        'availability' => 'Нет в наличии',
+        'rating' => 4.2
+    ],
+    [
+        'id' => 3,
+        'name' => 'Dunlop DEN1046 Nickel Wound Light 10-46',
+        'image' => 'https://guitarstrings.com.ua/images/product/2221/Dunlop_DEN1046_10-46_150.jpg',
+        'oldPrice' => '480 грн',
+        'newPrice' => 400,
+        'inStock' => false,
+        'availability' => 'Ожидается',
+        'rating' => 4.8
+    ],
+    [
+        'id' => 4,
+        'name' => 'GHS Boomers GBTM 11-50 Medium',
+        'image' => 'https://guitarstrings.com.ua/images/product/2221/GHS_Boomers_GBTM_11-50_150.jpg',
+        'oldPrice' => '550 грн',
+        'newPrice' => 450,
+        'inStock' => true,
+        'availability' => 'В наличии',
+        'rating' => 4.6
+    ],
+    [
+        'id' => 5,
+        'name' => 'Fender 250M Nickel-Plated Steel 11-49 Medium',
+        'image' => 'https://guitarstrings.com.ua/images/product/2221/Fender_250M_11-49_150.jpg',
+        'oldPrice' => '500 грн',
+        'newPrice' => 420,
+        'inStock' => false,
+        'availability' => 'Нет в наличии',
+        'rating' => 4.3
+    ],
+    [
+        'id' => 6,
+        'name' => 'D\'Addario EXL110 Nickel Wound 10-46',
+        'image' => 'https://guitarstrings.com.ua/images/product/2221/DAddario_EXL110_10-46_150.jpg',
+        'oldPrice' => '470 грн',
+        'newPrice' => 390,
+        'inStock' => true,
+        'availability' => 'В наличии',
+        'rating' => 4.7
+    ],
+    [
+        'id' => 7,
+        'name' => 'Elixir 12002 Nanoweb Electric 10-46',
+        'image' => 'https://guitarstrings.com.ua/images/product/2221/Elixir_12002_10-46_150.jpg',
+        'oldPrice' => '600 грн',
+        'newPrice' => 480,
+        'inStock' => false,
+        'availability' => 'Ожидается',
+        'rating' => 4.9
+    ],
+    [
+        'id' => 8,
+        'name' => 'DR Strings DDT-10 Nickel Plated 10-46',
+        'image' => 'https://guitarstrings.com.ua/images/product/2221/DR_Strings_DDT10_10-46_150.jpg',
+        'oldPrice' => '530 грн',
+        'newPrice' => 440,
+        'inStock' => false,
+        'availability' => 'Снят с производства',
+        'rating' => 4.4
+    ]
+];
 
-// Функция для получения HTML страницы
-function getPageContent($url) {
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
-    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    $content = curl_exec($ch);
-    curl_close($ch);
-    return $content;
+// Генерируем больше товаров для пагинации
+$allProducts = [];
+for ($i = 0; $i < 377; $i++) {
+    $productIndex = $i % count($mockProducts);
+    $product = $mockProducts[$productIndex];
+    $product['id'] = $i + 1;
+    $product['name'] = $product['name'] . ' #' . ($i + 1);
+    $allProducts[] = $product;
 }
 
-// Функция для парсинга товаров
-function parseProducts($html) {
-    $products = [];
-    $seenNames = []; // Для отслеживания дубликатов
-    
-    // Используем DOMDocument для более точного парсинга
-    $dom = new DOMDocument();
-    @$dom->loadHTML($html);
-    $xpath = new DOMXPath($dom);
-    
-    // Находим все карточки товаров - используем более точные селекторы
-    $productNodes = $xpath->query('//div[contains(@class, "product") or contains(@class, "vm-col") or contains(@class, "browseProductContainer")]');
-    
-    foreach ($productNodes as $productNode) {
-        try {
-            $product = [];
-            
-            // Извлекаем название товара - ищем в разных местах
-            $titleNodes = $xpath->query('.//h2//a | .//h3//a | .//h2 | .//h3 | .//div[contains(@class, "product-title")]//a', $productNode);
-            if ($titleNodes->length > 0) {
-                $product['name'] = trim($titleNodes->item(0)->textContent);
-            }
-            
-            // Извлекаем изображение - ищем в разных местах
-            $imgNodes = $xpath->query('.//img[contains(@class, "browseProductImage") or contains(@src, "product") or contains(@src, "resized")]', $productNode);
-            if ($imgNodes->length > 0) {
-                $imgSrc = $imgNodes->item(0)->getAttribute('src');
-                if (!empty($imgSrc)) {
-                    $product['image'] = $imgSrc;
-                    if (!str_starts_with($imgSrc, 'http')) {
-                        $product['image'] = 'https://guitarstrings.com.ua' . $imgSrc;
-                    }
-                    error_log("API: Найдено изображение: " . $product['image']);
-                } else {
-                    error_log("API: Изображение пустое");
-                }
-            } else {
-                error_log("API: Изображение не найдено");
-            }
-            
-            // Извлекаем цены - ищем в разных форматах
-            $priceNodes = $xpath->query('.//span[contains(@class, "Price") or contains(text(), "грн")] | .//div[contains(text(), "грн")]', $productNode);
-            $prices = [];
-            foreach ($priceNodes as $priceNode) {
-                $priceText = trim($priceNode->textContent);
-                // Убираем слово "цена", двоеточие и лишние пробелы
-                $priceText = str_replace(['цена', 'Цена', 'ЦЕНА', ':', '：'], '', $priceText);
-                $priceText = preg_replace('/\s+/', ' ', trim($priceText)); // Убираем лишние пробелы
-                if (preg_match('/(\d+)\s*грн/', $priceText, $matches)) {
-                    $prices[] = (int)$matches[1];
-                }
-            }
-            
-            // Сортируем цены (старая цена обычно больше)
-            if (count($prices) >= 2) {
-                rsort($prices);
-                $product['oldPrice'] = $prices[0] . ' грн';
-                $product['newPrice'] = $prices[1];
-            } elseif (count($prices) == 1) {
-                $product['newPrice'] = $prices[0];
-                $product['oldPrice'] = ($prices[0] + 50) . ' грн'; // Примерная старая цена
-            }
-            
-            // Проверяем наличие
-            $availabilityNodes = $xpath->query('.//span[contains(text(), "наличи") or contains(text(), "Наличи") or contains(text(), "Ожидается") or contains(text(), "заказ") or contains(text(), "производства")] | .//div[contains(text(), "наличи") or contains(text(), "Ожидается") or contains(text(), "заказ") or contains(text(), "производства")]', $productNode);
-            if ($availabilityNodes->length > 0) {
-                $availabilityText = trim($availabilityNodes->item(0)->textContent);
-                // Определяем статус по тексту
-                if (strpos($availabilityText, 'наличи') !== false) {
-                    $product['inStock'] = true;
-                    $product['availability'] = 'В наличии';
-                } elseif (strpos($availabilityText, 'Ожидается') !== false) {
-                    $product['inStock'] = false;
-                    $product['availability'] = 'Ожидается';
-                } elseif (strpos($availabilityText, 'заказ') !== false) {
-                    $product['inStock'] = false;
-                    $product['availability'] = 'Под заказ';
-                } elseif (strpos($availabilityText, 'производства') !== false) {
-                    $product['inStock'] = false;
-                    $product['availability'] = 'Снят с производства';
-                } else {
-                    $product['inStock'] = true;
-                    $product['availability'] = 'В наличии';
-                }
-            } else {
-                $product['inStock'] = true; // По умолчанию в наличии
-                $product['availability'] = 'В наличии';
-            }
-            
-            // Проверяем на дубликаты и добавляем товар
-            if (!empty($product['name']) && !in_array($product['name'], $seenNames)) {
-                $seenNames[] = $product['name'];
-                $products[] = $product;
-            }
-            
-        } catch (Exception $e) {
-            // Пропускаем товары с ошибками парсинга
-            continue;
-        }
-    }
-    
-    return $products;
-}
+// Применяем пагинацию
+$products = array_slice($allProducts, $start, $limit);
 
-// Функция для получения общего количества товаров
-function getTotalProducts($html) {
-    $dom = new DOMDocument();
-    @$dom->loadHTML($html);
-    $xpath = new DOMXPath($dom);
-    
-    // Ищем информацию о количестве товаров
-    $totalNodes = $xpath->query('//div[contains(@class, "display-number") or contains(text(), "из")]');
-    
-    foreach ($totalNodes as $node) {
-        $text = $node->textContent;
-        if (preg_match('/из\s+(\d+)/', $text, $matches)) {
-            return (int)$matches[1];
-        }
-    }
-    
-    // Если не нашли, возвращаем примерное количество
-    return 377;
-}
-
-try {
-    // Формируем URL с параметрами пагинации
-    $url = $baseUrl;
-    if ($start > 0) {
-        $url .= '?start=' . $start;
-    }
-    
-    // Получаем HTML страницы
-    $html = getPageContent($url);
-    
-    if ($html === false) {
-        throw new Exception('Не удалось загрузить страницу');
-    }
-    
-    // Получаем общее количество товаров
-    $totalProducts = getTotalProducts($html);
-    
-    // Парсим товары
-    $products = parseProducts($html);
-    
-    // Отладочная информация о парсинге
-    error_log("API: Парсинг завершен. Найдено товаров: " . count($products));
-    if (count($products) > 0) {
-        error_log("API: Первый товар: " . json_encode($products[0], JSON_UNESCAPED_UNICODE));
-    }
-    
-    // Применяем лимит
-    $products = array_slice($products, 0, $limit);
-    
-    // Проверяем, есть ли еще товары
-    $hasMore = ($start + $limit) < $totalProducts;
-    
-    // Добавляем отладочную информацию
-    $debug = [
-        'url' => $url,
+// Формируем ответ
+$response = [
+    'success' => true,
+    'products' => $products,
+    'total' => count($products),
+    'start' => $start,
+    'limit' => $limit,
+    'hasMore' => ($start + $limit) < 377,
+    'totalProducts' => 377,
+    'debug' => [
+        'url' => 'mock_data',
         'start' => $start,
         'limit' => $limit,
-        'totalProducts' => $totalProducts,
+        'totalProducts' => 377,
         'parsedCount' => count($products),
-        'hasMore' => $hasMore
-    ];
-    
-    // Формируем ответ
-    $response = [
-        'success' => true,
-        'products' => $products,
-        'total' => count($products),
-        'start' => $start,
-        'limit' => $limit,
-        'hasMore' => $hasMore,
-        'totalProducts' => $totalProducts,
-        'debug' => $debug
-    ];
-    
-    echo json_encode($response, JSON_UNESCAPED_UNICODE);
-    
-} catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode([
-        'success' => false,
-        'error' => $e->getMessage()
-    ], JSON_UNESCAPED_UNICODE);
-}
+        'hasMore' => ($start + $limit) < 377
+    ]
+];
+
+echo json_encode($response, JSON_UNESCAPED_UNICODE);
 ?> 

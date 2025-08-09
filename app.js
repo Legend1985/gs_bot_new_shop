@@ -129,20 +129,20 @@ function createProductCard(product, btnId) {
     
     // Определяем классы для статуса
     let statusClass = 'in-stock';
-    let buttonClass = 'buy-btn';
+    let buttonClass = 'btn';
     let buttonText = 'Купить';
     
     if (availability.includes('Нет в наличии')) {
         statusClass = 'out-of-stock';
-        buttonClass = 'out-of-stock-btn';
+        buttonClass = 'btn';
         buttonText = 'Нет в наличии';
     } else if (availability.includes('Ожидается')) {
         statusClass = 'expected';
-        buttonClass = 'expected-btn';
+        buttonClass = 'btn';
         buttonText = 'Ожидается';
     } else if (availability.includes('производства') || availability.includes('снят')) {
         statusClass = 'discontinued';
-        buttonClass = 'discontinued-btn';
+        buttonClass = 'btn discontinued';
         buttonText = 'Снят с производства';
     }
     
@@ -151,20 +151,22 @@ function createProductCard(product, btnId) {
     const newPriceClass = newPrice < parseInt(oldPriceFormatted) ? 'new-price' : 'price';
     
     card.innerHTML = `
-        <div class="product-image">
-            <img src="${product.image}" alt="${productName}" onerror="this.src='Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg'">
-        </div>
-        <div class="product-info">
+        <div class="product-card-top">
+            <img src="${product.image}" alt="${productName}" class="img" onerror="this.src='Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg'">
             <h3 class="product-title">${productName}</h3>
             <div class="product-rating">
                 ${createRatingStars(rating)}
             </div>
             <div class="product-status ${statusClass}">${availability}</div>
-            <div class="product-prices">
-                <div class="old-price">${oldPriceFormatted} грн</div>
-                <div class="${newPriceClass}">${newPrice} грн</div>
+        </div>
+        <div class="product-card-bottom">
+            <div class="product-bottom-row">
+                <div class="product-prices">
+                    <div class="old-price">${oldPriceFormatted} грн</div>
+                    <div class="${newPriceClass}">${newPrice} грн</div>
+                </div>
+                <button class="${buttonClass}" onclick="handleBuyClick(${btnId})">${buttonText}</button>
             </div>
-            <button class="${buttonClass}" onclick="handleBuyClick(${btnId})">${buttonText}</button>
         </div>
     `;
     
