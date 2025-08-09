@@ -110,6 +110,9 @@ function generateMockProducts(start, limit) {
 function renderProducts(products) {
     const container = document.querySelector('.inner');
     
+    // Скрываем заставку загрузки при первом рендеринге
+    hideLoadingScreen();
+    
     products.forEach((product, index) => {
         const productCard = createProductCard(product, currentPage * productsPerPage + index + 1);
         container.appendChild(productCard);
@@ -282,38 +285,25 @@ function showEndMessage() {
 function createLoadingScreen() {
     const container = document.querySelector('.inner');
     container.innerHTML = `
-        <div class="loading-screen" style="
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 300px;
-            width: 100%;
-            text-align: center;
-        ">
-            <div class="loading-spinner" style="
-                width: 50px;
-                height: 50px;
-                border: 4px solid #f3f3f3;
-                border-top: 4px solid #007bff;
-                border-radius: 50%;
-                animation: spin 1s linear infinite;
-                margin-bottom: 20px;
-            "></div>
-            <h3 style="color: #333; margin-bottom: 10px;">Загружаем товары...</h3>
-            <p style="color: #666; font-size: 14px;">Получаем актуальные цены с сайта</p>
+        <div class="loading-screen">
+            <div class="loading-spinner"></div>
+            <h3>Загружаем товары...</h3>
+            <p>Получаем актуальные цены с сайта</p>
         </div>
     `;
-    
-    // Добавляем CSS анимацию
-    const style = document.createElement('style');
-    style.textContent = `
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-    `;
-    document.head.appendChild(style);
+}
+
+// Скрытие заставки загрузки
+function hideLoadingScreen() {
+    const loadingScreen = document.querySelector('.loading-screen');
+    if (loadingScreen) {
+        loadingScreen.style.opacity = '0';
+        setTimeout(() => {
+            if (loadingScreen.parentNode) {
+                loadingScreen.parentNode.removeChild(loadingScreen);
+            }
+        }, 300);
+    }
 }
 
 // Инициализация
@@ -324,15 +314,17 @@ document.addEventListener('DOMContentLoaded', function() {
     // Показываем заставку загрузки
     createLoadingScreen();
     
-    // Загружаем реальные товары с сайта
-    loadRealProducts();
-    
     // Добавляем обработчик прокрутки
     window.addEventListener('scroll', handleScroll);
     
     // Настраиваем автосохранение состояния
     startAutoSave();
     setupBeforeUnload();
+    
+    // Загружаем реальные товары с сайта с небольшой задержкой
+    setTimeout(() => {
+        loadRealProducts();
+    }, 100);
     
     console.log('Приложение инициализировано с автосохранением состояния и всплывающими окнами');
 });
@@ -353,6 +345,8 @@ async function loadRealProducts() {
         
     } catch (error) {
         console.error('Ошибка загрузки реальных товаров:', error);
+        // Скрываем заставку загрузки
+        hideLoadingScreen();
         // При ошибке используем моковые данные
         loadProducts(0);
     }
@@ -366,6 +360,9 @@ async function loadFirstPage() {
         // Очищаем контейнер
         const container = document.querySelector('.inner');
         container.innerHTML = '';
+        
+        // Скрываем заставку загрузки
+        hideLoadingScreen();
         
         // Рендерим товары первой страницы
         siteData.forEach((product, index) => {
@@ -441,6 +438,9 @@ async function restoreAllProducts() {
     }
     
     console.log(`Восстановление завершено. Всего товаров: ${loadedProductNames.size}`);
+    
+    // Скрываем заставку загрузки
+    hideLoadingScreen();
     
     // Обновляем hasMoreProducts на основе реального количества загруженных товаров
     // Проверяем, есть ли еще товары для загрузки
