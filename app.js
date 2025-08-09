@@ -840,7 +840,9 @@ function createProductCardWithPopup(product, btnId, buttonClass) {
     
     card.innerHTML = `
         <div class="product-card-top">
-            <img src="${imageSrc}" alt="${productName}" class="img" onerror="this.src='Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg'">
+            <div class="img-container">
+                <img src="${imageSrc}" alt="${productName}" class="img" onerror="this.src='Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg'">
+            </div>
             <div class="product-title" style="text-align:center;">${productName}</div>
         </div>
         <div class="product-card-bottom">
@@ -937,7 +939,9 @@ function createProductCardFromSiteDataWithPopup(product, btnId, buttonClass) {
     
     card.innerHTML = `
         <div class="product-card-top">
-            <img src="${imageSrc}" alt="${productName}" class="img" onerror="this.src='Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg'">
+            <div class="img-container">
+                <img src="${imageSrc}" alt="${productName}" class="img" onerror="this.src='Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg'">
+            </div>
             <div class="product-title" style="text-align:center;">${productName}</div>
         </div>
         <div class="product-card-bottom">
