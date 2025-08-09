@@ -61,6 +61,7 @@ body {
     line-height: 1.2;
     font-weight: normal;
     display: block;
+    font-family: "Roboto", Arial, Helvetica, sans-serif;
 }
 
 .product-bottom-row {
@@ -92,6 +93,7 @@ body {
     margin-bottom: -2px;
     position: relative;
     top: 12px;
+    font-family: "Roboto", Arial, Helvetica, sans-serif;
 }
 .new-price {
     color: #d30000;
@@ -109,6 +111,7 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    font-family: "Roboto", Arial, Helvetica, sans-serif;
 }
 .product-card {
     min-height: 240px;
@@ -163,26 +166,26 @@ body {
     margin-left: 4px;
 }
 .product-card:nth-child(2) {
-    margin-left: -5px;
+    margin-left: -7px;
 }
 .product-card:nth-child(3) {
     margin-left: 4px;
 }
 .product-card:nth-child(4) {
-    margin-left: -5px;
+    margin-left: -7px;
 }
 .product-card:nth-child(5) {
     margin-left: 4px;
 }
 .product-card:nth-child(6) {
-    margin-left: -5px;
+    margin-left: -7px;
 }
 /* Правила для всех остальных карточек */
 .product-card:nth-child(odd) {
     margin-left: 4px;
 }
 .product-card:nth-child(even) {
-    margin-left: -5px;
+    margin-left: -7px;
 }
 
 .product-status {
@@ -203,10 +206,6 @@ body {
     margin: 4px 0;
     margin-left: 0;
     padding-left: 12px;
-}
-
-.product-card:first-child .new-price {
-    font-family: "Roboto", Arial, Helvetica, sans-serif;
 }
 
 
