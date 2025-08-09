@@ -138,15 +138,19 @@ function createProductCard(product, btnId) {
     const productName = product.name || 'Название товара не указано';
     
     card.innerHTML = `
-        <img src="${imageSrc}" alt="${productName}" class="img" onerror="this.src='Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg'">
-        <div class="product-title" style="text-align:center;">${productName}</div>
-        <div class="${statusClass}">${status}</div>
-        <div class="product-bottom-row">
-            <div class="product-prices">
-                <div class="old-price">${oldPrice} грн</div>
-                <div class="new-price">${newPrice} грн</div>
+        <div class="product-card-top">
+            <img src="${imageSrc}" alt="${productName}" class="img" onerror="this.src='Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg'">
+            <div class="product-title" style="text-align:center;">${productName}</div>
+        </div>
+        <div class="product-card-bottom">
+            <div class="${statusClass}">${status}</div>
+            <div class="product-bottom-row">
+                <div class="product-prices">
+                    <div class="old-price">${oldPrice} грн</div>
+                    <div class="new-price">${newPrice} грн</div>
+                </div>
+                <button class="btn" id="btn${btnId}">Купить</button>
             </div>
-            <button class="btn" id="btn${btnId}">Купить</button>
         </div>
     `;
     
@@ -281,15 +285,19 @@ function createProductCardFromSiteData(product, btnId) {
     const productName = product.title || 'Название товара не указано';
     
     card.innerHTML = `
-        <img src="${imageSrc}" alt="${productName}" class="img" style="width: 150px; height: 150px; object-fit: cover;" onerror="this.src='Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg'">
-        <div class="product-title" style="text-align:center;">${productName}</div>
-        <div class="${statusClass}">${status}</div>
-        <div class="product-bottom-row">
-            <div class="product-prices">
-                <div class="old-price">${oldPrice}</div>
-                <div class="new-price">${newPrice}</div>
+        <div class="product-card-top">
+            <img src="${imageSrc}" alt="${productName}" class="img" style="width: 150px; height: 150px; object-fit: cover;" onerror="this.src='Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg'">
+            <div class="product-title" style="text-align:center;">${productName}</div>
+        </div>
+        <div class="product-card-bottom">
+            <div class="${statusClass}">${status}</div>
+            <div class="product-bottom-row">
+                <div class="product-prices">
+                    <div class="old-price">${oldPrice}</div>
+                    <div class="new-price">${newPrice}</div>
+                </div>
+                <button class="btn" id="btn${btnId}">Купить</button>
             </div>
-            <button class="btn" id="btn${btnId}">Купить</button>
         </div>
     `;
     
