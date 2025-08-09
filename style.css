@@ -253,11 +253,11 @@ body {
 .btn.discontinued {
     background: #808080;
     color: #fff;
-    font-size: 10px;
+    font-size: 12px;
     line-height: 1.0;
     text-align: center;
     white-space: pre-line;
-    padding: 3px 6px;
+    padding: 2px 6px;
     height: 34px;
     display: flex;
     align-items: center;
@@ -270,9 +270,10 @@ body {
 .btn.discontinued::after {
     content: "с производства";
     display: block;
-    font-size: 7px;
+    font-size: 8px;
     line-height: 1.0;
     margin-top: 1px;
+    text-align: center;
 }
 
 .new-price.discontinued {
