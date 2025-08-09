@@ -144,7 +144,7 @@ function createProductCard(product, btnId) {
     
     if (status.includes('производства')) {
         buttonClass = 'btn discontinued';
-        buttonText = 'Снят\nс производства';
+        buttonText = 'Снят';
         newPriceClass = 'new-price discontinued';
     }
     
