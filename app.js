@@ -273,23 +273,33 @@ function generateMockProducts(start, limit) {
         'Снят с производства'
     ];
     
+    // Фиксированные цены для каждого товара
+    const productPrices = [
+        { old: '450', new: 380 },
+        { old: '520', new: 420 },
+        { old: '480', new: 400 },
+        { old: '550', new: 450 },
+        { old: '500', new: 420 },
+        { old: '470', new: 390 },
+        { old: '600', new: 480 },
+        { old: '530', new: 440 }
+    ];
+    
     for (let i = 0; i < limit && (start + i) < maxProducts; i++) {
         const productIndex = (start + i) % productNames.length;
         const imageIndex = (start + i) % productImages.length;
         const statusIndex = (start + i) % statuses.length;
+        const priceIndex = (start + i) % productPrices.length;
         
         const status = statuses[statusIndex];
         const isInStock = status === 'В наличии';
-        
-        // Генерируем реалистичные цены
-        const oldPrice = (400 + Math.floor(Math.random() * 100)).toString();
-        const newPrice = 350 + Math.floor(Math.random() * 50);
+        const prices = productPrices[priceIndex];
         
         products.push({
             id: start + i + 1,
             name: productNames[productIndex],
-            oldPrice: oldPrice,
-            newPrice: newPrice,
+            oldPrice: prices.old,
+            newPrice: prices.new,
             image: productImages[imageIndex],
             inStock: isInStock,
             availability: status,
@@ -385,7 +395,7 @@ function createProductCard(product, btnId) {
             <div class="product-bottom-row">
                 <div class="product-prices">
                     <div class="old-price">${oldPrice} грн</div>
-                    <div class="${newPriceClass}">${newPrice}</div>
+                    <div class="${newPriceClass}">${newPrice} грн</div>
                 </div>
                 <button class="${buttonClass}" id="btn${btnId}">${buttonText}</button>
             </div>

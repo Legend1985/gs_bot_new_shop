@@ -22,7 +22,7 @@ $testData = [
             'id' => 2,
             'name' => 'Test Product 2',
             'image' => 'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46.jpg',
-            'oldPrice' => '500',
+            'oldPrice' => '520',
             'newPrice' => 420,
             'inStock' => false,
             'availability' => 'Нет в наличии',
@@ -42,6 +42,5 @@ $testData = [
     'totalProducts' => 3,
     'hasMore' => false
 ];
-
 echo json_encode($testData, JSON_UNESCAPED_UNICODE);
 ?> 

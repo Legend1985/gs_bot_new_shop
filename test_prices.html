@@ -14,11 +14,16 @@
         .status.out-of-stock { color: red; }
         .status.expected { color: orange; }
         .rating { color: gold; }
+        .debug-info { background: #f0f0f0; padding: 10px; margin: 10px 0; font-family: monospace; font-size: 12px; }
+        .error { color: red; }
+        .success { color: green; }
     </style>
 </head>
 <body>
     <h1>Тест цен и изображений</h1>
     <button onclick="testPrices()">Тест цен</button>
+    <button onclick="testAPI()">Тест API</button>
+    <button onclick="clearResults()">Очистить</button>
     <div id="result"></div>
 
     <script src="api.js"></script>
@@ -29,50 +34,76 @@
             // Тестируем моковые данные
             const mockData = api.getMockProducts(0, 5);
             
-            // Тестируем test_api.php
-            fetch('test_api.php')
-                .then(response => response.json())
-                .then(data => {
-                    let html = '<h2>Результаты тестирования:</h2>';
-                    
-                    // Показываем моковые данные
-                    html += '<h3>Моковые данные:</h3>';
-                    mockData.products.forEach((product, index) => {
-                        html += `
-                            <div class="product">
-                                <h4>${product.name}</h4>
-                                <img src="${product.image}" alt="${product.name}">
-                                <p class="old-price">${product.oldPrice} грн</p>
-                                <p class="new-price">${product.newPrice} грн</p>
-                                <p class="status ${product.inStock ? 'in-stock' : 'out-of-stock'}">${product.availability}</p>
-                                <p class="rating">Рейтинг: ${product.rating.toFixed(1)}</p>
-                            </div>
-                        `;
-                    });
-                    
-                    // Показываем данные из test_api.php
-                    html += '<h3>Данные из test_api.php:</h3>';
+            let html = '<h2>Результаты тестирования моковых данных:</h2>';
+            
+            // Показываем моковые данные
+            html += '<h3>Моковые данные:</h3>';
+            mockData.products.forEach((product, index) => {
+                html += `
+                    <div class="product">
+                        <h4>${product.name}</h4>
+                        <img src="${product.image}" alt="${product.name}" onerror="this.style.border='2px solid red'">
+                        <p class="old-price">${product.oldPrice} грн</p>
+                        <p class="new-price">${product.newPrice} грн</p>
+                        <p class="status ${product.inStock ? 'in-stock' : 'out-of-stock'}">${product.availability}</p>
+                        <p class="rating">Рейтинг: ${product.rating.toFixed(1)}</p>
+                        <div class="debug-info">
+                            ID: ${product.id}<br>
+                            inStock: ${product.inStock}<br>
+                            Тип oldPrice: ${typeof product.oldPrice}<br>
+                            Тип newPrice: ${typeof product.newPrice}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            document.getElementById('result').innerHTML = html;
+        }
+        
+        async function testAPI() {
+            const api = new ProductAPI();
+            
+            try {
+                const data = await api.fetchProducts(0, 3);
+                
+                let html = '<h2>Результаты тестирования API:</h2>';
+                
+                if (data.success && data.products) {
+                    html += '<h3>Данные из API:</h3>';
                     data.products.forEach((product, index) => {
                         html += `
                             <div class="product">
                                 <h4>${product.name}</h4>
-                                <img src="${product.image}" alt="${product.name}">
+                                <img src="${product.image}" alt="${product.name}" onerror="this.style.border='2px solid red'">
                                 <p class="old-price">${product.oldPrice} грн</p>
                                 <p class="new-price">${product.newPrice} грн</p>
                                 <p class="status ${product.inStock ? 'in-stock' : 'out-of-stock'}">${product.availability}</p>
                                 <p class="rating">Рейтинг: ${product.rating}</p>
+                                <div class="debug-info">
+                                    ID: ${product.id}<br>
+                                    inStock: ${product.inStock}<br>
+                                    Тип oldPrice: ${typeof product.oldPrice}<br>
+                                    Тип newPrice: ${typeof product.newPrice}<br>
+                                    Источник: ${data.message || 'API'}
+                                </div>
                             </div>
                         `;
                     });
-                    
-                    document.getElementById('result').innerHTML = html;
-                })
-                .catch(error => {
-                    document.getElementById('result').innerHTML = `
-                        <h2>Ошибка:</h2>
-                        <p style="color: red;">${error.message}</p>
-                    `;
-                });
+                } else {
+                    html += '<p class="error">Ошибка API: ' + (data.error || 'Неизвестная ошибка') + '</p>';
+                }
+                
+                document.getElementById('result').innerHTML = html;
+            } catch (error) {
+                document.getElementById('result').innerHTML = `
+                    <h2>Ошибка:</h2>
+                    <p class="error">${error.message}</p>
+                `;
+            }
+        }
+        
+        function clearResults() {
+            document.getElementById('result').innerHTML = '';
         }
     </script>
 </body>

@@ -109,6 +109,8 @@ class ProductAPI {
     parseProductNode(node) {
         const product = {};
         
+        console.log('Парсинг узла товара:', node.outerHTML.substring(0, 200) + '...');
+        
         // Название товара - пробуем разные селекторы
         const titleSelectors = [
             'h2 a', 'h3 a', '.product-title a', '.product-name a', 
@@ -119,6 +121,7 @@ class ProductAPI {
             const titleElement = node.querySelector(selector);
             if (titleElement && titleElement.textContent.trim()) {
                 product.name = titleElement.textContent.trim();
+                console.log('Найдено название:', product.name);
                 break;
             }
         }
@@ -138,6 +141,7 @@ class ProductAPI {
                         imgSrc = 'https://guitarstrings.com.ua' + imgSrc;
                     }
                     product.image = imgSrc;
+                    console.log('Найдено изображение:', product.image);
                     break;
                 }
             }
@@ -147,11 +151,16 @@ class ProductAPI {
         const priceElements = node.querySelectorAll('[class*="Price"], [class*="price"], [class*="cost"]');
         const prices = [];
         
+        console.log('Найдено элементов с ценами:', priceElements.length);
+        
         priceElements.forEach(el => {
             const text = el.textContent.trim();
+            console.log('Текст элемента с ценой:', text);
             const match = text.match(/(\d+)\s*грн/);
             if (match) {
-                prices.push(parseInt(match[1]));
+                const price = parseInt(match[1]);
+                prices.push(price);
+                console.log('Извлечена цена:', price);
             }
         });
         
@@ -159,9 +168,15 @@ class ProductAPI {
             prices.sort((a, b) => b - a);
             product.oldPrice = prices[0].toString();
             product.newPrice = prices[1];
+            console.log('Установлены цены - старая:', product.oldPrice, 'новая:', product.newPrice);
         } else if (prices.length === 1) {
             product.newPrice = prices[0];
             product.oldPrice = (prices[0] + 50).toString();
+            console.log('Установлена одна цена - новая:', product.newPrice, 'старая (вычислена):', product.oldPrice);
+        } else {
+            console.log('Цены не найдены, используем значения по умолчанию');
+            product.oldPrice = '450';
+            product.newPrice = 380;
         }
         
         // Наличие - пробуем разные селекторы
@@ -175,15 +190,18 @@ class ProductAPI {
             const availabilityElement = node.querySelector(selector);
             if (availabilityElement) {
                 const text = availabilityElement.textContent.trim().toLowerCase();
+                console.log('Найден элемент доступности:', text);
                 if (text.includes('наличи') || text.includes('есть') || text.includes('доступен')) {
                     product.inStock = true;
                     product.availability = 'В наличии';
                     availabilityFound = true;
+                    console.log('Товар в наличии');
                     break;
                 } else if (text.includes('ожидается') || text.includes('нет') || text.includes('заказ')) {
                     product.inStock = false;
                     product.availability = text.includes('ожидается') ? 'Ожидается' : 'Нет в наличии';
                     availabilityFound = true;
+                    console.log('Товар не в наличии:', product.availability);
                     break;
                 }
             }
@@ -192,8 +210,10 @@ class ProductAPI {
         if (!availabilityFound) {
             product.inStock = true;
             product.availability = 'В наличии';
+            console.log('Статус доступности не найден, устанавливаем "В наличии"');
         }
         
+        console.log('Итоговый товар:', product);
         return product;
     }
 
@@ -232,23 +252,33 @@ class ProductAPI {
             'Снят с производства'
         ];
         
+        // Фиксированные цены для каждого товара
+        const productPrices = [
+            { old: '450', new: 380 },
+            { old: '520', new: 420 },
+            { old: '480', new: 400 },
+            { old: '550', new: 450 },
+            { old: '500', new: 420 },
+            { old: '470', new: 390 },
+            { old: '600', new: 480 },
+            { old: '530', new: 440 }
+        ];
+        
         for (let i = 0; i < limit && (start + i) < 377; i++) {
             const productIndex = (start + i) % productNames.length;
             const imageIndex = (start + i) % productImages.length;
             const statusIndex = (start + i) % statuses.length;
+            const priceIndex = (start + i) % productPrices.length;
             
             const status = statuses[statusIndex];
             const isInStock = status === 'В наличии';
-            
-            // Генерируем реалистичные цены
-            const oldPrice = (400 + Math.floor(Math.random() * 100)).toString();
-            const newPrice = 350 + Math.floor(Math.random() * 50);
+            const prices = productPrices[priceIndex];
             
             products.push({
                 id: start + i + 1,
                 name: productNames[productIndex],
-                oldPrice: oldPrice,
-                newPrice: newPrice,
+                oldPrice: prices.old,
+                newPrice: prices.new,
                 image: productImages[imageIndex],
                 inStock: isInStock,
                 availability: status,
