@@ -175,14 +175,139 @@ function handleScroll() {
     }
 }
 
+// Создание заставки загрузки
+function createLoadingScreen() {
+    const container = document.querySelector('.inner');
+    container.innerHTML = `
+        <div class="loading-screen" style="
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 300px;
+            width: 100%;
+            text-align: center;
+        ">
+            <div class="loading-spinner" style="
+                width: 50px;
+                height: 50px;
+                border: 4px solid #f3f3f3;
+                border-top: 4px solid #007bff;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+                margin-bottom: 20px;
+            "></div>
+            <h3 style="color: #333; margin-bottom: 10px;">Загружаем товары...</h3>
+            <p style="color: #666; font-size: 14px;">Получаем актуальные цены с сайта</p>
+        </div>
+    `;
+    
+    // Добавляем CSS анимацию
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    `;
+    document.head.appendChild(style);
+}
+
 // Инициализация
 document.addEventListener('DOMContentLoaded', function() {
-    // Загружаем первую страницу товаров
-    loadProducts(0);
+    // Показываем заставку загрузки
+    createLoadingScreen();
+    
+    // Загружаем реальные товары с сайта
+    loadRealProducts();
     
     // Добавляем обработчик прокрутки
     window.addEventListener('scroll', handleScroll);
 });
+
+// Функция загрузки реальных товаров с сайта
+async function loadRealProducts() {
+    try {
+        console.log('Загружаем реальные товары с сайта...');
+        
+        // Получаем данные с сайта
+        const siteData = await fetchProductData();
+        
+        if (siteData && siteData.length > 0) {
+            // Очищаем контейнер
+            const container = document.querySelector('.inner');
+            container.innerHTML = '';
+            
+            // Рендерим реальные товары
+            siteData.forEach((product, index) => {
+                const productCard = createProductCardFromSiteData(product, index + 1);
+                container.appendChild(productCard);
+            });
+            
+            console.log(`Загружено ${siteData.length} реальных товаров с сайта`);
+        } else {
+            // Если не удалось загрузить, используем моковые данные
+            console.log('Не удалось загрузить товары с сайта, используем моковые данные');
+            loadProducts(0);
+        }
+        
+    } catch (error) {
+        console.error('Ошибка загрузки реальных товаров:', error);
+        // При ошибке используем моковые данные
+        loadProducts(0);
+    }
+}
+
+// Создание карточки товара из данных сайта
+function createProductCardFromSiteData(product, btnId) {
+    const card = document.createElement('div');
+    card.className = 'product-card';
+    
+    // Проверяем наличие изображения
+    let imageSrc = product.imageSrc;
+    if (!imageSrc || imageSrc === '') {
+        imageSrc = 'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg';
+    }
+    
+    // Проверяем наличие цен
+    const oldPrice = product.oldPrice || '400 грн';
+    const newPrice = product.newPrice || '350 грн';
+    
+    // Статус товара
+    const status = product.availability || 'В наличии';
+    const statusClass = status.includes('наличии') ? 'product-status' : 'product-status out-of-stock';
+    
+    // Обработка названия товара
+    const productName = product.title || 'Название товара не указано';
+    
+    card.innerHTML = `
+        <img src="${imageSrc}" alt="${productName}" class="img" style="width: 150px; height: 150px; object-fit: cover;" onerror="this.src='Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg'">
+        <div class="product-title" style="text-align:center;">${productName}</div>
+        <div class="${statusClass}">${status}</div>
+        <div class="product-bottom-row">
+            <div class="product-prices">
+                <div class="old-price">${oldPrice}</div>
+                <div class="new-price">${newPrice}</div>
+            </div>
+            <button class="btn" id="btn${btnId}">Купить</button>
+        </div>
+    `;
+    
+    // Добавляем обработчик для кнопки
+    const btn = card.querySelector(`#btn${btnId}`);
+    btn.addEventListener("click", function(){
+        if (tg.MainButton.isVisible) {
+            tg.MainButton.hide();
+        }
+        else {
+            tg.MainButton.setText(`Вы выбрали товар ${btnId}!`);
+            item = btnId.toString();
+            tg.MainButton.show();
+        }
+    });
+    
+    return card;
+}
 
 Telegram.WebApp.onEvent("mainButtonClicked", function(){
 	tg.sendData(item);
@@ -412,12 +537,12 @@ function startAutoUpdate() {
     setInterval(updateProductPrices, 30 * 60 * 1000);
 }
 
-// Инициализация при загрузке страницы
+// Инициализация при загрузке страницы (для обновления существующих карточек)
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Система обновления цен инициализирована');
     
-    // Автоматическое обновление при загрузке страницы
-    updateProductPrices();
+    // Автоматическое обновление при загрузке страницы (только для существующих карточек)
+    // updateProductPrices(); // Отключено, так как теперь загружаем сразу реальные товары
 });
 
 // Экспорт функций для использования в консоли
