@@ -234,7 +234,7 @@ async function loadRealProducts() {
     try {
         console.log('Загружаем реальные товары с сайта...');
         
-        // Получаем данные с сайта (только первые 60 товаров)
+        // Получаем данные с сайта
         const siteData = await fetchProductData();
         
         if (siteData && siteData.length > 0) {
@@ -242,7 +242,7 @@ async function loadRealProducts() {
             const container = document.querySelector('.inner');
             container.innerHTML = '';
             
-            // Ограничиваем количество товаров до 60
+            // Ограничиваем количество товаров до 60 на первой странице
             const limitedData = siteData.slice(0, productsPerPage);
             
             // Рендерим реальные товары (максимум 60)
@@ -357,7 +357,7 @@ async function updateProductPrices() {
     try {
         console.log('Начинаем обновление цен...');
         
-        // 1. Получение данных с сайта (только первые 60 товаров)
+        // 1. Получение данных с сайта
         const siteData = await fetchProductData();
         console.log('Данные с сайта получены:', siteData);
         
@@ -365,7 +365,7 @@ async function updateProductPrices() {
         const currentData = parseCurrentHTML();
         console.log('Текущие данные:', currentData);
         
-        // 3. Сравнение и обновление (только для отображаемых товаров)
+        // 3. Сравнение и обновление
         const updatedData = compareAndUpdate(siteData, currentData);
         
         // 4. Применение изменений к DOM
@@ -381,27 +381,17 @@ async function updateProductPrices() {
 // Получение данных с сайта guitarstrings.com.ua
 async function fetchProductData() {
     try {
-        // Используем наш API для получения данных с ограничением
-        const response = await fetch(`api.php?start=0&limit=${productsPerPage}`);
+        // Используем прокси для обхода CORS
+        const proxyUrl = 'https://api.allorigins.win/raw?url=';
+        const targetUrl = 'https://guitarstrings.com.ua/electro';
+        const response = await fetch(proxyUrl + encodeURIComponent(targetUrl));
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
-        const data = await response.json();
-        
-        if (data.success) {
-            // Преобразуем данные в нужный формат
-            return data.products.map(product => ({
-                title: product.name,
-                imageSrc: product.image,
-                availability: product.availability,
-                oldPrice: product.oldPrice + ' грн',
-                newPrice: product.newPrice + ' грн'
-            }));
-        } else {
-            throw new Error('API вернул ошибку: ' + data.error);
-        }
+        const html = await response.text();
+        return parseSiteHTML(html);
         
     } catch (error) {
         console.error('Ошибка получения данных с сайта:', error);
