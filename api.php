@@ -82,12 +82,29 @@ function parseProducts($html) {
             }
             
             // Проверяем наличие
-            $availabilityNodes = $xpath->query('.//span[contains(text(), "наличи") or contains(text(), "Наличи")] | .//div[contains(text(), "наличи")]', $productNode);
+            $availabilityNodes = $xpath->query('.//span[contains(text(), "наличи") or contains(text(), "Наличи") or contains(text(), "Ожидается") or contains(text(), "заказ") or contains(text(), "производства")] | .//div[contains(text(), "наличи") or contains(text(), "Ожидается") or contains(text(), "заказ") or contains(text(), "производства")]', $productNode);
             if ($availabilityNodes->length > 0) {
                 $availabilityText = trim($availabilityNodes->item(0)->textContent);
-                $product['inStock'] = strpos($availabilityText, 'наличи') !== false;
+                // Определяем статус по тексту
+                if (strpos($availabilityText, 'наличи') !== false) {
+                    $product['inStock'] = true;
+                    $product['availability'] = 'В наличии';
+                } elseif (strpos($availabilityText, 'Ожидается') !== false) {
+                    $product['inStock'] = false;
+                    $product['availability'] = 'Ожидается';
+                } elseif (strpos($availabilityText, 'заказ') !== false) {
+                    $product['inStock'] = false;
+                    $product['availability'] = 'Под заказ';
+                } elseif (strpos($availabilityText, 'производства') !== false) {
+                    $product['inStock'] = false;
+                    $product['availability'] = 'Снят с производства';
+                } else {
+                    $product['inStock'] = true;
+                    $product['availability'] = 'В наличии';
+                }
             } else {
                 $product['inStock'] = true; // По умолчанию в наличии
+                $product['availability'] = 'В наличии';
             }
             
             // Проверяем на дубликаты и добавляем товар

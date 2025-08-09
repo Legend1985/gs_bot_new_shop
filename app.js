@@ -279,7 +279,20 @@ function createProductCardFromSiteData(product, btnId) {
     
     // Статус товара
     const status = product.availability || 'В наличии';
-    const statusClass = status.includes('наличии') ? 'product-status' : 'product-status out-of-stock';
+    let statusClass = 'product-status';
+    
+    // Определяем класс статуса в зависимости от текста
+    if (status.includes('наличии')) {
+        statusClass = 'product-status';
+    } else if (status.includes('Ожидается')) {
+        statusClass = 'product-status expected';
+    } else if (status.includes('заказ')) {
+        statusClass = 'product-status on-order';
+    } else if (status.includes('производства')) {
+        statusClass = 'product-status discontinued';
+    } else {
+        statusClass = 'product-status out-of-stock';
+    }
     
     // Обработка названия товара
     const productName = product.title || 'Название товара не указано';
