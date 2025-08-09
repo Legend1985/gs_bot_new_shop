@@ -121,71 +121,19 @@ function renderProducts(products) {
 
 // Создание карточки товара
 function createProductCard(product, btnId) {
-    const card = document.createElement('div');
-    card.className = 'product-card';
-    
-    // Проверяем наличие изображения
-    let imageSrc = product.image;
-    if (!imageSrc || imageSrc === '') {
-        imageSrc = 'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg';
-    }
-    
-    // Проверяем наличие цен
-    const oldPrice = product.oldPrice || 400;
-    let newPrice = product.newPrice || 350;
-    
-    // Убираем "грн" из красной цены, так как оно добавляется через CSS
-    newPrice = newPrice.replace(/\s*грн\s*/g, '').trim();
-    
-    // Статус товара
-    const status = product.inStock ? 'В наличии' : 'Нет в наличии';
-    const statusClass = product.inStock ? 'product-status' : 'product-status out-of-stock';
-    
     // Определяем класс кнопки и текст
     let buttonClass = 'btn';
     let buttonText = 'Купить';
-    let newPriceClass = 'new-price';
+    
+    // Статус товара
+    const status = product.inStock ? 'В наличии' : 'Нет в наличии';
     
     if (status.includes('производства')) {
         buttonClass = 'btn discontinued';
         buttonText = 'Снят';
-        newPriceClass = 'new-price discontinued';
     }
     
-    // Обработка названия товара
-    const productName = product.name || 'Название товара не указано';
-    
-    card.innerHTML = `
-        <div class="product-card-top">
-            <img src="${imageSrc}" alt="${productName}" class="img" onerror="this.src='Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg'">
-            <div class="product-title" style="text-align:center;">${productName}</div>
-        </div>
-        <div class="product-card-bottom">
-            <div class="${statusClass}">${status}</div>
-            <div class="product-bottom-row">
-                <div class="product-prices">
-                    <div class="old-price">${oldPrice} грн</div>
-                    <div class="${newPriceClass}">${newPrice}</div>
-                </div>
-                <button class="${buttonClass}" id="btn${btnId}">${buttonText}</button>
-            </div>
-        </div>
-    `;
-    
-    // Добавляем обработчик для кнопки
-    const btn = card.querySelector(`#btn${btnId}`);
-    btn.addEventListener("click", function(){
-        if (tg.MainButton.isVisible) {
-            tg.MainButton.hide();
-        }
-        else {
-            tg.MainButton.setText(`Вы выбрали товар ${btnId}!`);
-            item = btnId.toString();
-            tg.MainButton.show();
-        }
-    });
-    
-    return card;
+    return createProductCardWithPopup(product, btnId, buttonClass);
 }
 
 // Обработчик прокрутки для бесконечной загрузки
@@ -370,6 +318,9 @@ function createLoadingScreen() {
 
 // Инициализация
 document.addEventListener('DOMContentLoaded', function() {
+    // Инициализируем обработчики всплывающего окна
+    initPopupHandlers();
+    
     // Показываем заставку загрузки
     createLoadingScreen();
     
@@ -383,7 +334,7 @@ document.addEventListener('DOMContentLoaded', function() {
     startAutoSave();
     setupBeforeUnload();
     
-    console.log('Приложение инициализировано с автосохранением состояния');
+    console.log('Приложение инициализировано с автосохранением состояния и всплывающими окнами');
 });
 
 // Функция загрузки реальных товаров с сайта
@@ -550,47 +501,8 @@ function createRatingStars(rating) {
 
 // Создание карточки товара из данных сайта
 function createProductCardFromSiteData(product, btnId) {
-    const card = document.createElement('div');
-    card.className = 'product-card';
-    
-    // Проверяем наличие изображения
-    let imageSrc = product.imageSrc;
-    if (!imageSrc || imageSrc === '') {
-        imageSrc = 'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg';
-    }
-    
-    // Исправляем URL изображения, если он относительный
-    if (imageSrc && !imageSrc.startsWith('http') && !imageSrc.startsWith('data:')) {
-        if (imageSrc.startsWith('/')) {
-            imageSrc = 'https://guitarstrings.com.ua' + imageSrc;
-        } else if (!imageSrc.startsWith('Goods/')) {
-            imageSrc = 'https://guitarstrings.com.ua/' + imageSrc;
-        }
-    }
-    
-    // Проверяем наличие цен
-    const oldPrice = product.oldPrice || '400 грн';
-    let newPrice = product.newPrice || '350 грн';
-    
-    // Убираем "грн" из красной цены, так как оно добавляется через CSS
-    newPrice = newPrice.replace(/\s*грн\s*/g, '').trim();
-    
     // Статус товара
     const status = product.availability || 'В наличии';
-    let statusClass = 'product-status';
-    
-    // Определяем класс статуса в зависимости от текста
-    if (status.includes('наличии')) {
-        statusClass = 'product-status';
-    } else if (status.includes('Ожидается')) {
-        statusClass = 'product-status expected';
-    } else if (status.includes('заказ')) {
-        statusClass = 'product-status on-order';
-    } else if (status.includes('производства')) {
-        statusClass = 'product-status discontinued';
-    } else {
-        statusClass = 'product-status out-of-stock';
-    }
     
     // Определяем класс кнопки и текст
     let buttonClass = 'btn';
@@ -601,48 +513,7 @@ function createProductCardFromSiteData(product, btnId) {
         buttonText = 'Снят';
     }
     
-    // Обработка названия товара
-    const productName = product.title || 'Название товара не указано';
-    
-    // Создание звездочек рейтинга
-    const rating = product.rating || 0;
-    const ratingText = product.ratingText || '';
-    const starsHTML = createRatingStars(rating);
-    
-    card.innerHTML = `
-        <div class="product-card-top">
-            <img src="${imageSrc}" alt="${productName}" class="img" onerror="this.src='Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg'">
-            <div class="product-title" style="text-align:center;">${productName}</div>
-        </div>
-        <div class="product-card-bottom">
-            <div class="${statusClass}">${status}</div>
-            <div class="product-rating" style="margin: 5px 0; text-align: left;">
-                ${starsHTML}
-            </div>
-            <div class="product-bottom-row">
-                <div class="product-prices">
-                    <div class="old-price">${oldPrice}</div>
-                    <div class="new-price" data-price="${newPrice}">${newPrice}</div>
-                </div>
-                <button class="${buttonClass}" id="btn${btnId}">${buttonText}</button>
-            </div>
-        </div>
-    `;
-    
-    // Добавляем обработчик для кнопки
-    const btn = card.querySelector(`#btn${btnId}`);
-    btn.addEventListener("click", function(){
-        if (tg.MainButton.isVisible) {
-            tg.MainButton.hide();
-        }
-        else {
-            tg.MainButton.setText(`Вы выбрали товар ${btnId}!`);
-            item = btnId.toString();
-            tg.MainButton.show();
-        }
-    });
-    
-    return card;
+    return createProductCardFromSiteDataWithPopup(product, btnId, buttonClass);
 }
 
 Telegram.WebApp.onEvent("mainButtonClicked", function(){
@@ -889,6 +760,223 @@ window.saveState = saveState;
 window.loadState = loadState;
 window.clearState = clearState;
 window.resetState = resetState;
+
+// Функции для работы с всплывающим окном
+function showDiscontinuedPopup() {
+    const popup = document.getElementById('discontinuedPopup');
+    if (popup) {
+        popup.classList.add('show');
+        // Блокируем прокрутку страницы
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function hideDiscontinuedPopup() {
+    const popup = document.getElementById('discontinuedPopup');
+    if (popup) {
+        popup.classList.remove('show');
+        // Восстанавливаем прокрутку страницы
+        document.body.style.overflow = '';
+    }
+}
+
+// Инициализация обработчиков всплывающего окна
+function initPopupHandlers() {
+    const popup = document.getElementById('discontinuedPopup');
+    const closeBtn = document.getElementById('popupClose');
+    
+    if (closeBtn) {
+        closeBtn.addEventListener('click', hideDiscontinuedPopup);
+    }
+    
+    if (popup) {
+        // Закрытие по клику вне окна
+        popup.addEventListener('click', function(e) {
+            if (e.target === popup) {
+                hideDiscontinuedPopup();
+            }
+        });
+        
+        // Закрытие по нажатию Escape
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && popup.classList.contains('show')) {
+                hideDiscontinuedPopup();
+            }
+        });
+    }
+}
+
+// Обновленная функция создания карточки товара с проверкой на discontinued
+function createProductCardWithPopup(product, btnId, buttonClass) {
+    const card = document.createElement('div');
+    card.className = 'product-card';
+    
+    // Проверяем наличие изображения
+    let imageSrc = product.image;
+    if (!imageSrc || imageSrc === '') {
+        imageSrc = 'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg';
+    }
+    
+    // Проверяем наличие цен
+    const oldPrice = product.oldPrice || 400;
+    let newPrice = product.newPrice || 350;
+    
+    // Убираем "грн" из красной цены, так как оно добавляется через CSS
+    newPrice = newPrice.replace(/\s*грн\s*/g, '').trim();
+    
+    // Статус товара
+    const status = product.inStock ? 'В наличии' : 'Нет в наличии';
+    const statusClass = product.inStock ? 'product-status' : 'product-status out-of-stock';
+    
+    // Определяем класс кнопки и текст
+    let buttonText = 'Купить';
+    let newPriceClass = 'new-price';
+    
+    if (status.includes('производства')) {
+        buttonText = 'Снят';
+        newPriceClass = 'new-price discontinued';
+    }
+    
+    // Обработка названия товара
+    const productName = product.name || 'Название товара не указано';
+    
+    card.innerHTML = `
+        <div class="product-card-top">
+            <img src="${imageSrc}" alt="${productName}" class="img" onerror="this.src='Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg'">
+            <div class="product-title" style="text-align:center;">${productName}</div>
+        </div>
+        <div class="product-card-bottom">
+            <div class="${statusClass}">${status}</div>
+            <div class="product-bottom-row">
+                <div class="product-prices">
+                    <div class="old-price">${oldPrice} грн</div>
+                    <div class="${newPriceClass}">${newPrice}</div>
+                </div>
+                <button class="${buttonClass}" id="btn${btnId}">${buttonText}</button>
+            </div>
+        </div>
+    `;
+    
+    // Добавляем обработчик для кнопки
+    const btn = card.querySelector(`#btn${btnId}`);
+    btn.addEventListener("click", function(){
+        // Проверяем, является ли товар снятым с производства
+        if (buttonClass.includes('discontinued')) {
+            showDiscontinuedPopup();
+        } else {
+            if (tg.MainButton.isVisible) {
+                tg.MainButton.hide();
+            }
+            else {
+                tg.MainButton.setText(`Вы выбрали товар ${btnId}!`);
+                item = btnId.toString();
+                tg.MainButton.show();
+            }
+        }
+    });
+    
+    return card;
+}
+
+// Обновленная функция создания карточки товара из данных сайта с проверкой на discontinued
+function createProductCardFromSiteDataWithPopup(product, btnId, buttonClass) {
+    const card = document.createElement('div');
+    card.className = 'product-card';
+    
+    // Проверяем наличие изображения
+    let imageSrc = product.imageSrc;
+    if (!imageSrc || imageSrc === '') {
+        imageSrc = 'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg';
+    }
+    
+    // Исправляем URL изображения, если он относительный
+    if (imageSrc && !imageSrc.startsWith('http') && !imageSrc.startsWith('data:')) {
+        if (imageSrc.startsWith('/')) {
+            imageSrc = 'https://guitarstrings.com.ua' + imageSrc;
+        } else if (!imageSrc.startsWith('Goods/')) {
+            imageSrc = 'https://guitarstrings.com.ua/' + imageSrc;
+        }
+    }
+    
+    // Проверяем наличие цен
+    const oldPrice = product.oldPrice || '400 грн';
+    let newPrice = product.newPrice || '350 грн';
+    
+    // Убираем "грн" из красной цены, так как оно добавляется через CSS
+    newPrice = newPrice.replace(/\s*грн\s*/g, '').trim();
+    
+    // Статус товара
+    const status = product.availability || 'В наличии';
+    let statusClass = 'product-status';
+    
+    // Определяем класс статуса в зависимости от текста
+    if (status.includes('наличии')) {
+        statusClass = 'product-status';
+    } else if (status.includes('Ожидается')) {
+        statusClass = 'product-status expected';
+    } else if (status.includes('заказ')) {
+        statusClass = 'product-status on-order';
+    } else if (status.includes('производства')) {
+        statusClass = 'product-status discontinued';
+    } else {
+        statusClass = 'product-status out-of-stock';
+    }
+    
+    // Определяем класс кнопки и текст
+    let buttonText = 'Купить';
+    
+    if (status.includes('производства')) {
+        buttonText = 'Снят';
+    }
+    
+    // Обработка названия товара
+    const productName = product.title || 'Название товара не указано';
+    
+    // Создание звездочек рейтинга
+    const rating = product.rating || 0;
+    const ratingText = product.ratingText || '';
+    const starsHTML = createRatingStars(rating);
+    
+    card.innerHTML = `
+        <div class="product-card-top">
+            <img src="${imageSrc}" alt="${productName}" class="img" onerror="this.src='Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg'">
+            <div class="product-title" style="text-align:center;">${productName}</div>
+        </div>
+        <div class="product-card-bottom">
+            <div class="${statusClass}">${status}</div>
+            <div class="product-rating" style="margin: 5px 0; text-align: left;">
+                ${starsHTML}
+            </div>
+            <div class="product-bottom-row">
+                <div class="product-prices">
+                    <div class="old-price">${oldPrice}</div>
+                    <div class="new-price" data-price="${newPrice}">${newPrice}</div>
+                </div>
+                <button class="${buttonClass}" id="btn${btnId}">${buttonText}</button>
+            </div>
+        </div>
+    `;
+    
+    // Добавляем обработчик для кнопки
+    const btn = card.querySelector(`#btn${btnId}`);
+    btn.addEventListener("click", function(){
+        // Проверяем, является ли товар снятым с производства
+        if (buttonClass.includes('discontinued')) {
+            showDiscontinuedPopup();
+        } else {
+            if (tg.MainButton.isVisible) {
+                tg.MainButton.hide();
+            }
+            else {
+                tg.MainButton.setText(`Вы выбрали товар ${btnId}!`);
+                item = btnId.toString();
+                tg.MainButton.show();
+            }
+        }
+    });
+    
+    return card;
+}
 
 
 

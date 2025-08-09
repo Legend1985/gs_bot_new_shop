@@ -89,6 +89,26 @@ $mockProducts = [
         'inStock' => false,
         'availability' => 'Снят с производства',
         'rating' => 4.4
+    ],
+    [
+        'id' => 9,
+        'name' => 'Dean Markley Blue Steel 10-46',
+        'image' => 'https://guitarstrings.com.ua/images/product/2221/Dean_Markley_Blue_Steel_10-46_150.jpg',
+        'oldPrice' => '480 грн',
+        'newPrice' => 390,
+        'inStock' => false,
+        'availability' => 'Снят с производства',
+        'rating' => 4.1
+    ],
+    [
+        'id' => 10,
+        'name' => 'La Bella Electric Guitar Strings 10-46',
+        'image' => 'https://guitarstrings.com.ua/images/product/2221/La_Bella_Electric_10-46_150.jpg',
+        'oldPrice' => '520 грн',
+        'newPrice' => 420,
+        'inStock' => false,
+        'availability' => 'Снят с производства',
+        'rating' => 4.3
     ]
 ];
 
