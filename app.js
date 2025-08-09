@@ -180,14 +180,22 @@ async function loadProducts(page = 0) {
     const start = page * productsPerPage;
     
     try {
-        // API запрос к серверу для получения товаров
-        const response = await fetch(`api.php?start=${start}&limit=${productsPerPage}`);
-        const data = await response.json();
+        // Используем новый JavaScript API
+        const api = new ProductAPI();
+        const data = await api.fetchProducts(start, productsPerPage);
+        
+        // Отладочная информация
+        console.log('API ответ:', data);
+        if (data.products && data.products.length > 0) {
+            console.log('Первый товар из API:', data.products[0]);
+        }
         
         if (data.success) {
             // Обновляем общее количество товаров из API
             if (data.totalProducts) {
                 maxProducts = data.totalProducts;
+            } else {
+                maxProducts = 377; // По умолчанию
             }
             
             // Фильтруем дубликаты
@@ -240,15 +248,25 @@ function generateMockProducts(start, limit) {
         'Fender 250M Nickel-Plated Steel 11-49 Medium'
     ];
     
+    const productImages = [
+        'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg',
+        'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46.jpg',
+        'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg',
+        'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46.jpg',
+        'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg'
+    ];
+    
     for (let i = 0; i < limit && (start + i) < maxProducts; i++) {
         const productIndex = (start + i) % productNames.length;
+        const imageIndex = (start + i) % productImages.length;
         products.push({
             id: start + i + 1,
             name: productNames[productIndex],
             oldPrice: 400 + Math.floor(Math.random() * 100),
             newPrice: 350 + Math.floor(Math.random() * 50),
-            image: 'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg',
-            inStock: true
+            image: productImages[imageIndex],
+            inStock: Math.random() > 0.3, // 70% товаров в наличии
+            availability: Math.random() > 0.3 ? 'В наличии' : 'Нет в наличии'
         });
     }
     
@@ -270,7 +288,11 @@ function createProductCard(product, btnId) {
     card.className = 'product-card';
     
     // Отладочная информация
-    console.log(`Создаем карточку товара: ${product.name || product.title || 'Без названия'}`);
+    console.log(`Создаем карточку товара:`, product);
+    console.log(`Название: ${product.name || product.title || 'Без названия'}`);
+    console.log(`Изображение: ${product.image || 'Нет изображения'}`);
+    console.log(`Статус: ${product.inStock ? 'В наличии' : 'Нет в наличии'}`);
+    console.log(`Доступность: ${product.availability || 'Не указано'}`);
     
     // Проверяем наличие изображения
     let imageSrc = product.image;

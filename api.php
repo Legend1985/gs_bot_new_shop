@@ -57,7 +57,12 @@ function parseProducts($html) {
                     if (!str_starts_with($imgSrc, 'http')) {
                         $product['image'] = 'https://guitarstrings.com.ua' . $imgSrc;
                     }
+                    error_log("API: Найдено изображение: " . $product['image']);
+                } else {
+                    error_log("API: Изображение пустое");
                 }
+            } else {
+                error_log("API: Изображение не найдено");
             }
             
             // Извлекаем цены - ищем в разных форматах
@@ -163,6 +168,12 @@ try {
     
     // Парсим товары
     $products = parseProducts($html);
+    
+    // Отладочная информация о парсинге
+    error_log("API: Парсинг завершен. Найдено товаров: " . count($products));
+    if (count($products) > 0) {
+        error_log("API: Первый товар: " . json_encode($products[0], JSON_UNESCAPED_UNICODE));
+    }
     
     // Применяем лимит
     $products = array_slice($products, 0, $limit);
