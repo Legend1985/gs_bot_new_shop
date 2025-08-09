@@ -128,7 +128,10 @@ function createProductCard(product, btnId) {
     
     // Проверяем наличие цен
     const oldPrice = product.oldPrice || 400;
-    const newPrice = product.newPrice || 350;
+    let newPrice = product.newPrice || 350;
+    
+    // Убираем "грн" из красной цены, так как оно добавляется через CSS
+    newPrice = newPrice.replace(/\s*грн\s*/g, '').trim();
     
     // Статус товара
     const status = product.inStock ? 'В наличии' : 'Нет в наличии';
@@ -406,7 +409,10 @@ function createProductCardFromSiteData(product, btnId) {
     
     // Проверяем наличие цен
     const oldPrice = product.oldPrice || '400 грн';
-    const newPrice = product.newPrice || '350 грн';
+    let newPrice = product.newPrice || '350 грн';
+    
+    // Убираем "грн" из красной цены, так как оно добавляется через CSS
+    newPrice = newPrice.replace(/\s*грн\s*/g, '').trim();
     
     // Статус товара
     const status = product.availability || 'В наличии';
@@ -438,7 +444,7 @@ function createProductCardFromSiteData(product, btnId) {
             <div class="product-bottom-row">
                 <div class="product-prices">
                     <div class="old-price">${oldPrice}</div>
-                    <div class="new-price">${newPrice}</div>
+                    <div class="new-price" data-price="${newPrice}">${newPrice}</div>
                 </div>
                 <button class="btn" id="btn${btnId}">Купить</button>
             </div>
@@ -569,10 +575,12 @@ function parseSiteHTML(html) {
             oldPrice = oldPrice.replace(/цена/gi, '').trim();
             newPrice = newPrice.replace(/цена/gi, '').trim();
             
-            // Если нет старой цены, используем новую как старую
-            if (!oldPrice && newPrice) {
-                oldPrice = newPrice;
-            }
+            // Убираем двоеточие и лишние пробелы
+            oldPrice = oldPrice.replace(/[:：]/g, '').replace(/\s+/g, ' ').trim();
+            newPrice = newPrice.replace(/[:：]/g, '').replace(/\s+/g, ' ').trim();
+            
+            // Убираем дублирующееся "грн" из красной цены
+            newPrice = newPrice.replace(/\s*грн\s*грн\s*/g, ' грн ').trim();
             
             if (title) {
                 products.push({
