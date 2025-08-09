@@ -558,7 +558,7 @@ function createProductCardFromSiteData(product, btnId) {
     
     if (status.includes('производства')) {
         buttonClass = 'btn discontinued';
-        buttonText = 'Снят\nс производства';
+        buttonText = 'Снят';
     }
     
     // Обработка названия товара
