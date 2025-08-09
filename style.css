@@ -145,19 +145,26 @@ body {
     margin-left: 4px;
 }
 .product-card:nth-child(2) {
-    margin-left: -4px;
+    margin-left: -5px;
 }
 .product-card:nth-child(3) {
     margin-left: 4px;
 }
 .product-card:nth-child(4) {
-    margin-left: -4px;
+    margin-left: -5px;
 }
 .product-card:nth-child(5) {
     margin-left: 4px;
 }
 .product-card:nth-child(6) {
-    margin-left: -4px;
+    margin-left: -5px;
+}
+/* Правила для всех остальных карточек */
+.product-card:nth-child(odd) {
+    margin-left: 4px;
+}
+.product-card:nth-child(even) {
+    margin-left: -5px;
 }
 
 .product-status {
