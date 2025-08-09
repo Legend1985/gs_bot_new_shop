@@ -245,7 +245,10 @@ function generateMockProducts(start, limit) {
         'Rotosound R13 Roto Greys 13-54',
         'Dunlop DEN1046 Nickel Wound Light 10-46',
         'GHS Boomers GBTM 11-50 Medium',
-        'Fender 250M Nickel-Plated Steel 11-49 Medium'
+        'Fender 250M Nickel-Plated Steel 11-49 Medium',
+        'D\'Addario EXL110 Nickel Wound 10-46',
+        'Elixir 12002 Nanoweb Electric 10-46',
+        'DR Strings DDT-10 Nickel Plated 10-46'
     ];
     
     const productImages = [
@@ -253,16 +256,30 @@ function generateMockProducts(start, limit) {
         'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46.jpg',
         'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg',
         'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46.jpg',
-        'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg'
+        'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg',
+        'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46.jpg',
+        'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg',
+        'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46.jpg'
+    ];
+    
+    const statuses = [
+        'В наличии',
+        'Нет в наличии',
+        'Ожидается',
+        'В наличии',
+        'Нет в наличии',
+        'В наличии',
+        'Ожидается',
+        'Снят с производства'
     ];
     
     for (let i = 0; i < limit && (start + i) < maxProducts; i++) {
         const productIndex = (start + i) % productNames.length;
         const imageIndex = (start + i) % productImages.length;
+        const statusIndex = (start + i) % statuses.length;
         
-        // Создаем разные статусы для разнообразия
-        const isInStock = Math.random() > 0.3;
-        const availability = isInStock ? 'В наличии' : 'Нет в наличии';
+        const status = statuses[statusIndex];
+        const isInStock = status === 'В наличии';
         
         products.push({
             id: start + i + 1,
@@ -271,11 +288,10 @@ function generateMockProducts(start, limit) {
             newPrice: 350 + Math.floor(Math.random() * 50),
             image: productImages[imageIndex],
             inStock: isInStock,
-            availability: availability,
+            availability: status,
             rating: 4 + Math.random() // Рейтинг от 4 до 5
         });
     }
-    
     return products;
 }
 
@@ -316,16 +332,25 @@ function createProductCard(product, btnId) {
         newPrice = newPrice.replace(/\s*грн\s*/g, '').trim();
     }
     
-    // Статус товара
+    // Статус товара - исправляем логику
     const status = product.availability || (product.inStock ? 'В наличии' : 'Нет в наличии');
-    const statusClass = product.inStock ? 'product-status' : 'product-status out-of-stock';
+    
+    // Определяем правильный класс статуса
+    let statusClass = 'product-status';
+    if (status.includes('Нет в наличии') || status.includes('нет') || status.includes('заказ')) {
+        statusClass = 'product-status out-of-stock';
+    } else if (status.includes('Ожидается')) {
+        statusClass = 'product-status expected';
+    } else if (status.includes('производства') || status.includes('снят')) {
+        statusClass = 'product-status discontinued';
+    }
     
     // Определяем класс кнопки и текст
     let buttonClass = 'btn';
     let buttonText = 'Купить';
     let newPriceClass = 'new-price';
     
-    if (status.includes('производства')) {
+    if (status.includes('производства') || status.includes('снят')) {
         buttonClass = 'btn discontinued';
         buttonText = 'Снят';
         newPriceClass = 'new-price discontinued';
@@ -593,35 +618,45 @@ async function loadRealProducts() {
 
 // Загрузка первой страницы
 async function loadFirstPage() {
-    const siteData = await fetchProductData(0);
-    
-    if (siteData && siteData.length > 0) {
-        // Очищаем общий массив товаров
-        allProducts = [];
+    try {
+        console.log('Загружаем первую страницу товаров...');
         
-        // Добавляем товары в общий массив
-        allProducts = siteData;
+        // Используем новый ProductAPI
+        const api = new ProductAPI();
+        const data = await api.fetchProducts(0, productsPerPage);
         
-        // Сортируем и отображаем товары
-        sortAndRenderProducts();
-        
-        console.log(`Загружено ${siteData.length} товаров с первой страницы сайта`);
-        
-        // Обновляем переменные для пагинации
-        maxProducts = Math.max(377, siteData.length);
-        hasMoreProducts = siteData.length >= productsPerPage;
-        
-        // Добавляем загруженные товары в отслеживание
-        siteData.forEach(product => {
-            loadedProductNames.add(product.title);
-        });
-        
-        // Сохраняем состояние
-        saveState();
-        
-    } else {
-        // Если не удалось загрузить, используем моковые данные
-        console.log('Не удалось загрузить товары с сайта, используем моковые данные');
+        if (data.success && data.products && data.products.length > 0) {
+            // Очищаем общий массив товаров
+            allProducts = [];
+            
+            // Добавляем товары в общий массив
+            allProducts = data.products;
+            
+            // Сортируем и отображаем товары
+            sortAndRenderProducts();
+            
+            console.log(`Загружено ${data.products.length} товаров с первой страницы`);
+            
+            // Обновляем переменные для пагинации
+            maxProducts = data.totalProducts || Math.max(377, data.products.length);
+            hasMoreProducts = data.hasMore !== false;
+            
+            // Добавляем загруженные товары в отслеживание
+            data.products.forEach(product => {
+                loadedProductNames.add(product.name || product.title);
+            });
+            
+            // Сохраняем состояние
+            saveState();
+            
+        } else {
+            // Если не удалось загрузить, используем моковые данные
+            console.log('Не удалось загрузить товары, используем моковые данные');
+            loadProducts(0);
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки первой страницы:', error);
+        // При ошибке используем моковые данные
         loadProducts(0);
     }
 }
@@ -633,16 +668,19 @@ async function restoreAllProducts() {
     // Очищаем общий массив товаров
     allProducts = [];
     
+    // Используем новый ProductAPI
+    const api = new ProductAPI();
+    
     // Загружаем все страницы по порядку
     for (let page = 0; page <= currentPage; page++) {
         try {
             console.log(`Восстанавливаем страницу ${page + 1}...`);
-            const siteData = await fetchProductData(page);
+            const data = await api.fetchProducts(page * productsPerPage, productsPerPage);
             
-            if (siteData && siteData.length > 0) {
+            if (data.success && data.products && data.products.length > 0) {
                 // Фильтруем только те товары, которые были загружены ранее
-                const restoredProducts = siteData.filter(product => 
-                    loadedProductNames.has(product.title)
+                const restoredProducts = data.products.filter(product => 
+                    loadedProductNames.has(product.name || product.title)
                 );
                 
                 // Добавляем товары в общий массив

@@ -15,7 +15,7 @@ class ProductAPI {
         // Сначала пробуем использовать локальный PHP API
         try {
             console.log('Пробуем локальный PHP API...');
-            const response = await fetch(`api.php?start=${start}&limit=${limit}`);
+            const response = await fetch(`test_api.php?start=${start}&limit=${limit}`);
             if (response.ok) {
                 const data = await response.json();
                 console.log('PHP API ответ:', data);
@@ -208,9 +208,7 @@ class ProductAPI {
             'Fender 250M Nickel-Plated Steel 11-49 Medium',
             'D\'Addario EXL110 Nickel Wound 10-46',
             'Elixir 12002 Nanoweb Electric 10-46',
-            'DR Strings DDT-10 10-46 Drop Down Tuning',
-            'Dean Markley Blue Steel 10-46',
-            'Rotosound R12 Roto Yellows 12-52'
+            'DR Strings DDT-10 Nickel Plated 10-46'
         ];
         
         const productImages = [
@@ -221,18 +219,27 @@ class ProductAPI {
             'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg',
             'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46.jpg',
             'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg',
-            'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46.jpg',
-            'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg',
             'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46.jpg'
+        ];
+        
+        const statuses = [
+            'В наличии',
+            'Нет в наличии',
+            'Ожидается',
+            'В наличии',
+            'Нет в наличии',
+            'В наличии',
+            'Ожидается',
+            'Снят с производства'
         ];
         
         for (let i = 0; i < limit && (start + i) < 377; i++) {
             const productIndex = (start + i) % productNames.length;
             const imageIndex = (start + i) % productImages.length;
+            const statusIndex = (start + i) % statuses.length;
             
-            // Создаем разные статусы для разнообразия
-            const isInStock = Math.random() > 0.3;
-            const availability = isInStock ? 'В наличии' : 'Нет в наличии';
+            const status = statuses[statusIndex];
+            const isInStock = status === 'В наличии';
             
             products.push({
                 id: start + i + 1,
@@ -241,21 +248,16 @@ class ProductAPI {
                 newPrice: 350 + Math.floor(Math.random() * 50),
                 image: productImages[imageIndex],
                 inStock: isInStock,
-                availability: availability,
-                rating: 4 + Math.random() // Добавляем рейтинг для звезд
+                availability: status,
+                rating: 4 + Math.random() // Рейтинг от 4 до 5
             });
         }
-        
-        console.log(`Создано ${products.length} моковых товаров`);
         
         return {
             success: true,
             products: products,
-            total: products.length,
-            start: start,
-            limit: limit,
-            hasMore: (start + limit) < 377,
-            totalProducts: 377
+            totalProducts: 377,
+            hasMore: (start + limit) < 377
         };
     }
 }
