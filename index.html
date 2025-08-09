@@ -8,6 +8,26 @@
 </head>
 <body>
 	<h2 style="text-align:center;">Добро пожаловать в тестовую версию магазина </h2>
+	
+	<!-- Фильтр товаров -->
+	<div class="filter-container">
+		<div class="filter-title">Сортировать по</div>
+		<div class="filter-buttons">
+			<a href="#" class="filter-btn" data-sort="availability" data-dir="DESC">
+				Наличие товара <span class="sort-arrow">+/-</span>
+			</a>
+			<a href="#" class="filter-btn" data-sort="price" data-dir="ASC">
+				Цена товара
+			</a>
+			<a href="#" class="filter-btn" data-sort="name" data-dir="ASC">
+				Название
+			</a>
+			<a href="#" class="filter-btn" data-sort="rating" data-dir="DESC">
+				Рейтинг
+			</a>
+		</div>
+	</div>
+	
 	<div class="container">
 		<div class="inner">
 			<!-- Товары будут загружаться динамически -->

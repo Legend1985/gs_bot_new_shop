@@ -14,6 +14,12 @@ let btn4 = document.getElementById("btn4");
 let btn5 = document.getElementById("btn5");
 let btn6 = document.getElementById("btn6");
 
+// Переменные для фильтрации и сортировки
+let currentSort = 'availability';
+let currentSortDir = 'DESC';
+let allProducts = []; // Массив всех загруженных товаров
+let filteredProducts = []; // Массив отфильтрованных товаров
+
 // Переменные для бесконечной прокрутки
 let currentPage = 0;
 let isLoading = false;
@@ -22,6 +28,123 @@ const productsPerPage = 60;
 let maxProducts = 377; // Будет обновляться из API
 let loadedProductNames = new Set(); // Для отслеживания уже загруженных товаров
 let savedScrollPosition = 0; // Сохраненная позиция прокрутки
+
+// Функция инициализации фильтра
+function initFilter() {
+    const filterButtons = document.querySelectorAll('.filter-btn');
+    
+    filterButtons.forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            const sortType = this.getAttribute('data-sort');
+            let sortDir = this.getAttribute('data-dir');
+            
+            // Если нажимаем на ту же кнопку, меняем направление сортировки
+            if (currentSort === sortType) {
+                sortDir = currentSortDir === 'ASC' ? 'DESC' : 'ASC';
+                this.setAttribute('data-dir', sortDir);
+                
+                // Обновляем текст стрелки для кнопки "Наличие товара"
+                const arrow = this.querySelector('.sort-arrow');
+                if (arrow) {
+                    arrow.textContent = sortDir === 'ASC' ? '+/-' : '+/-';
+                }
+            }
+            
+            // Убираем активный класс со всех кнопок
+            filterButtons.forEach(b => b.classList.remove('active'));
+            
+            // Добавляем активный класс к нажатой кнопке
+            this.classList.add('active');
+            
+            // Обновляем текущие параметры сортировки
+            currentSort = sortType;
+            currentSortDir = sortDir;
+            
+            // Сортируем и перерисовываем товары
+            sortAndRenderProducts();
+        });
+    });
+    
+    // Восстанавливаем активную кнопку из сохраненного состояния
+    const activeBtn = document.querySelector(`[data-sort="${currentSort}"]`);
+    if (activeBtn) {
+        activeBtn.classList.add('active');
+        activeBtn.setAttribute('data-dir', currentSortDir);
+    } else {
+        // Устанавливаем активную кнопку по умолчанию
+        const defaultBtn = document.querySelector('[data-sort="availability"]');
+        if (defaultBtn) {
+            defaultBtn.classList.add('active');
+        }
+    }
+}
+
+// Функция сортировки товаров
+function sortProducts(products, sortType, sortDir) {
+    return products.sort((a, b) => {
+        let aValue, bValue;
+        
+        switch (sortType) {
+            case 'availability':
+                // Сортируем по наличию: в наличии сначала, затем остальные
+                const aInStock = a.inStock || a.availability?.includes('наличии');
+                const bInStock = b.inStock || b.availability?.includes('наличии');
+                aValue = aInStock ? 1 : 0;
+                bValue = bInStock ? 1 : 0;
+                break;
+                
+            case 'price':
+                // Сортируем по цене (убираем "грн" и конвертируем в число)
+                aValue = parseInt(a.newPrice?.replace(/\D/g, '') || '0');
+                bValue = parseInt(b.newPrice?.replace(/\D/g, '') || '0');
+                break;
+                
+            case 'name':
+                // Сортируем по названию
+                aValue = a.name || a.title || '';
+                bValue = b.name || b.title || '';
+                break;
+                
+            case 'rating':
+                // Сортируем по рейтингу
+                aValue = a.rating || 0;
+                bValue = b.rating || 0;
+                break;
+                
+            default:
+                return 0;
+        }
+        
+        // Применяем направление сортировки
+        if (sortDir === 'DESC') {
+            return bValue > aValue ? 1 : bValue < aValue ? -1 : 0;
+        } else {
+            return aValue > bValue ? 1 : aValue < bValue ? -1 : 0;
+        }
+    });
+}
+
+// Функция сортировки и перерисовки товаров
+function sortAndRenderProducts() {
+    if (allProducts.length === 0) return;
+    
+    // Сортируем товары
+    filteredProducts = sortProducts([...allProducts], currentSort, currentSortDir);
+    
+    // Очищаем контейнер
+    const container = document.querySelector('.inner');
+    container.innerHTML = '';
+    
+    // Перерисовываем товары
+    filteredProducts.forEach((product, index) => {
+        const productCard = createProductCard(product, index + 1);
+        container.appendChild(productCard);
+    });
+    
+    console.log(`Товары отсортированы по ${currentSort} (${currentSortDir}). Показано ${filteredProducts.length} товаров`);
+}
 
 // Функция загрузки товаров с сайта
 async function loadProducts(page = 0) {
@@ -108,12 +231,11 @@ function generateMockProducts(start, limit) {
 
 // Функция рендеринга товаров
 function renderProducts(products) {
-    const container = document.querySelector('.inner');
+    // Добавляем новые товары в общий массив
+    allProducts = [...allProducts, ...products];
     
-    products.forEach((product, index) => {
-        const productCard = createProductCard(product, currentPage * productsPerPage + index + 1);
-        container.appendChild(productCard);
-    });
+    // Сортируем и отображаем все товары
+    sortAndRenderProducts();
 }
 
 // Создание карточки товара
@@ -231,14 +353,11 @@ async function loadMoreProducts() {
                 // Убираем индикатор загрузки
                 hideLoadingIndicator();
                 
-                // Рендерим новые товары
-                const container = document.querySelector('.inner');
-                const startIndex = loadedProductNames.size - uniqueProducts.length;
+                // Добавляем новые товары в общий массив
+                allProducts = [...allProducts, ...uniqueProducts];
                 
-                uniqueProducts.forEach((product, index) => {
-                    const productCard = createProductCardFromSiteData(product, startIndex + index + 1);
-                    container.appendChild(productCard);
-                });
+                // Сортируем и перерисовываем все товары
+                sortAndRenderProducts();
                 
                 console.log(`Загружено ${uniqueProducts.length} новых товаров со страницы ${nextPage + 1}`);
             }
@@ -377,6 +496,9 @@ document.addEventListener('DOMContentLoaded', function() {
     startAutoSave();
     setupBeforeUnload();
     
+    // Инициализируем фильтр
+    initFilter();
+    
     console.log('Приложение инициализировано с автосохранением состояния');
 });
 
@@ -406,15 +528,14 @@ async function loadFirstPage() {
     const siteData = await fetchProductData(0);
     
     if (siteData && siteData.length > 0) {
-        // Очищаем контейнер
-        const container = document.querySelector('.inner');
-        container.innerHTML = '';
+        // Очищаем общий массив товаров
+        allProducts = [];
         
-        // Рендерим товары первой страницы
-        siteData.forEach((product, index) => {
-            const productCard = createProductCardFromSiteData(product, index + 1);
-            container.appendChild(productCard);
-        });
+        // Добавляем товары в общий массив
+        allProducts = siteData;
+        
+        // Сортируем и отображаем товары
+        sortAndRenderProducts();
         
         console.log(`Загружено ${siteData.length} товаров с первой страницы сайта`);
         
@@ -441,9 +562,8 @@ async function loadFirstPage() {
 async function restoreAllProducts() {
     console.log(`Восстанавливаем ${loadedProductNames.size} товаров с ${currentPage + 1} страниц...`);
     
-    // Очищаем контейнер
-    const container = document.querySelector('.inner');
-    container.innerHTML = '';
+    // Очищаем общий массив товаров
+    allProducts = [];
     
     // Загружаем все страницы по порядку
     for (let page = 0; page <= currentPage; page++) {
@@ -457,12 +577,8 @@ async function restoreAllProducts() {
                     loadedProductNames.has(product.title)
                 );
                 
-                // Рендерим товары
-                restoredProducts.forEach((product, index) => {
-                    const globalIndex = page * productsPerPage + index;
-                    const productCard = createProductCardFromSiteData(product, globalIndex + 1);
-                    container.appendChild(productCard);
-                });
+                // Добавляем товары в общий массив
+                allProducts = [...allProducts, ...restoredProducts];
                 
                 console.log(`Восстановлено ${restoredProducts.length} товаров со страницы ${page + 1}`);
             }
@@ -477,7 +593,10 @@ async function restoreAllProducts() {
         }
     }
     
-    console.log(`Восстановление завершено. Всего товаров: ${loadedProductNames.size}`);
+    // Сортируем и отображаем все восстановленные товары
+    sortAndRenderProducts();
+    
+    console.log(`Восстановление завершено. Всего товаров: ${allProducts.length}`);
     
     // Обновляем hasMoreProducts на основе реального количества загруженных товаров
     // Проверяем, есть ли еще товары для загрузки
@@ -923,6 +1042,8 @@ function saveState() {
         maxProducts: maxProducts,
         hasMoreProducts: hasMoreProducts,
         scrollPosition: window.scrollY,
+        currentSort: currentSort,
+        currentSortDir: currentSortDir,
         timestamp: Date.now()
     };
     
@@ -949,6 +1070,8 @@ function loadState() {
                 maxProducts = state.maxProducts || 377;
                 hasMoreProducts = state.hasMoreProducts !== false;
                 savedScrollPosition = state.scrollPosition || 0;
+                currentSort = state.currentSort || 'availability';
+                currentSortDir = state.currentSortDir || 'DESC';
                 
                 console.log('Состояние восстановлено:', state);
                 return true;

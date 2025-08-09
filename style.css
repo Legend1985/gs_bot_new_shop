@@ -6,6 +6,102 @@ body {
 	background: var(--tg-theme-bg-color);
 }
 
+/* Стили для фильтра товаров */
+.filter-container {
+	max-width: 390px;
+	margin: 0 auto 20px auto;
+	padding: 15px;
+	background: #fff;
+	border-radius: 12px;
+	box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.filter-title {
+	font-size: 16px;
+	font-weight: bold;
+	color: #333;
+	margin-bottom: 12px;
+	text-align: left;
+	font-family: "Roboto", Arial, Helvetica, sans-serif;
+}
+
+.filter-buttons {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.filter-btn {
+	display: block;
+	padding: 10px 15px;
+	background: #f8f9fa;
+	border: 1px solid #e9ecef;
+	border-radius: 8px;
+	color: #495057;
+	text-decoration: none;
+	font-size: 14px;
+	font-weight: 500;
+	transition: all 0.2s ease;
+	font-family: "Roboto", Arial, Helvetica, sans-serif;
+	text-align: left;
+}
+
+.filter-btn:hover {
+	background: #e9ecef;
+	border-color: #adb5bd;
+	color: #212529;
+}
+
+.filter-btn.active {
+	background: #007bff;
+	border-color: #007bff;
+	color: #fff;
+}
+
+.sort-arrow {
+	font-weight: bold;
+	color: #6c757d;
+}
+
+.filter-btn.active .sort-arrow {
+	color: #fff;
+}
+
+/* Адаптивные стили для мобильных устройств */
+@media (max-width: 480px) {
+	.filter-container {
+		margin: 0 10px 15px 10px;
+		padding: 12px;
+		border-radius: 10px;
+	}
+	
+	.filter-title {
+		font-size: 15px;
+		margin-bottom: 10px;
+	}
+	
+	.filter-btn {
+		padding: 8px 12px;
+		font-size: 13px;
+	}
+}
+
+@media (max-width: 360px) {
+	.filter-container {
+		margin: 0 5px 10px 5px;
+		padding: 10px;
+	}
+	
+	.filter-title {
+		font-size: 14px;
+	}
+	
+	.filter-btn {
+		padding: 6px 10px;
+		font-size: 12px;
+	}
+}
+
 .container {
 	max-width: 390px;
 	margin: 0 auto;
