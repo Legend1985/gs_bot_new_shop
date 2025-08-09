@@ -234,7 +234,7 @@ async function loadRealProducts() {
     try {
         console.log('Загружаем реальные товары с сайта...');
         
-        // Получаем данные с сайта
+        // Получаем данные с сайта (только первые 60 товаров)
         const siteData = await fetchProductData();
         
         if (siteData && siteData.length > 0) {
@@ -242,13 +242,21 @@ async function loadRealProducts() {
             const container = document.querySelector('.inner');
             container.innerHTML = '';
             
-            // Рендерим реальные товары
-            siteData.forEach((product, index) => {
+            // Ограничиваем количество товаров до 60
+            const limitedData = siteData.slice(0, productsPerPage);
+            
+            // Рендерим реальные товары (максимум 60)
+            limitedData.forEach((product, index) => {
                 const productCard = createProductCardFromSiteData(product, index + 1);
                 container.appendChild(productCard);
             });
             
-            console.log(`Загружено ${siteData.length} реальных товаров с сайта`);
+            console.log(`Загружено ${limitedData.length} реальных товаров с сайта (из ${siteData.length} доступных)`);
+            
+            // Обновляем переменные для пагинации
+            maxProducts = siteData.length;
+            hasMoreProducts = siteData.length > productsPerPage;
+            
         } else {
             // Если не удалось загрузить, используем моковые данные
             console.log('Не удалось загрузить товары с сайта, используем моковые данные');
@@ -349,7 +357,7 @@ async function updateProductPrices() {
     try {
         console.log('Начинаем обновление цен...');
         
-        // 1. Получение данных с сайта
+        // 1. Получение данных с сайта (только первые 60 товаров)
         const siteData = await fetchProductData();
         console.log('Данные с сайта получены:', siteData);
         
@@ -357,7 +365,7 @@ async function updateProductPrices() {
         const currentData = parseCurrentHTML();
         console.log('Текущие данные:', currentData);
         
-        // 3. Сравнение и обновление
+        // 3. Сравнение и обновление (только для отображаемых товаров)
         const updatedData = compareAndUpdate(siteData, currentData);
         
         // 4. Применение изменений к DOM
@@ -373,17 +381,27 @@ async function updateProductPrices() {
 // Получение данных с сайта guitarstrings.com.ua
 async function fetchProductData() {
     try {
-        // Используем прокси для обхода CORS
-        const proxyUrl = 'https://api.allorigins.win/raw?url=';
-        const targetUrl = 'https://guitarstrings.com.ua/electro';
-        const response = await fetch(proxyUrl + encodeURIComponent(targetUrl));
+        // Используем наш API для получения данных с ограничением
+        const response = await fetch(`api.php?start=0&limit=${productsPerPage}`);
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
-        const html = await response.text();
-        return parseSiteHTML(html);
+        const data = await response.json();
+        
+        if (data.success) {
+            // Преобразуем данные в нужный формат
+            return data.products.map(product => ({
+                title: product.name,
+                imageSrc: product.image,
+                availability: product.availability,
+                oldPrice: product.oldPrice + ' грн',
+                newPrice: product.newPrice + ' грн'
+            }));
+        } else {
+            throw new Error('API вернул ошибку: ' + data.error);
+        }
         
     } catch (error) {
         console.error('Ошибка получения данных с сайта:', error);
