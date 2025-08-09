@@ -282,6 +282,57 @@ body {
     color: #808080;
 }
 
+/* Стили для рейтинга товаров */
+.product-rating {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 8px 0;
+    gap: 2px;
+}
+
+.product-rating span {
+    font-size: 16px;
+    line-height: 1;
+    transition: color 0.2s ease;
+}
+
+.product-rating .star-filled {
+    color: #FFD700;
+    text-shadow: 0 0 2px rgba(255, 215, 0, 0.5);
+}
+
+.product-rating .star-half {
+    color: #FFD700;
+    text-shadow: 0 0 2px rgba(255, 215, 0, 0.5);
+}
+
+.product-rating .star-empty {
+    color: #ddd;
+}
+
+/* Адаптивные стили для рейтинга */
+@media (max-width: 480px) {
+    .product-rating {
+        margin: 6px 0;
+        gap: 1px;
+    }
+    
+    .product-rating span {
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 360px) {
+    .product-rating {
+        margin: 5px 0;
+    }
+    
+    .product-rating span {
+        font-size: 13px;
+    }
+}
+
 
 
 
