@@ -281,11 +281,15 @@ function generateMockProducts(start, limit) {
         const status = statuses[statusIndex];
         const isInStock = status === 'В наличии';
         
+        // Генерируем реалистичные цены
+        const oldPrice = (400 + Math.floor(Math.random() * 100)).toString();
+        const newPrice = 350 + Math.floor(Math.random() * 50);
+        
         products.push({
             id: start + i + 1,
             name: productNames[productIndex],
-            oldPrice: (400 + Math.floor(Math.random() * 100)) + ' грн',
-            newPrice: 350 + Math.floor(Math.random() * 50),
+            oldPrice: oldPrice,
+            newPrice: newPrice,
             image: productImages[imageIndex],
             inStock: isInStock,
             availability: status,
@@ -313,6 +317,8 @@ function createProductCard(product, btnId) {
     console.log(`Создаем карточку товара:`, product);
     console.log(`Название: ${product.name || product.title || 'Без названия'}`);
     console.log(`Изображение: ${product.image || 'Нет изображения'}`);
+    console.log(`Старая цена: ${product.oldPrice || 'Не указана'}`);
+    console.log(`Новая цена: ${product.newPrice || 'Не указана'}`);
     console.log(`Статус: ${product.inStock ? 'В наличии' : 'Нет в наличии'}`);
     console.log(`Доступность: ${product.availability || 'Не указано'}`);
     console.log(`Рейтинг: ${product.rating || 'Не указан'}`);
@@ -323,11 +329,16 @@ function createProductCard(product, btnId) {
         imageSrc = 'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg';
     }
     
-    // Проверяем наличие цен
-    const oldPrice = product.oldPrice || 400;
+    // Проверяем наличие цен и правильно их форматируем
+    let oldPrice = product.oldPrice || '400';
     let newPrice = product.newPrice || 350;
     
-    // Убираем "грн" из красной цены, так как оно добавляется через CSS
+    // Убираем "грн" из старой цены, если есть
+    if (typeof oldPrice === 'string') {
+        oldPrice = oldPrice.replace(/\s*грн\s*/g, '').trim();
+    }
+    
+    // Убираем "грн" из новой цены, если есть
     if (typeof newPrice === 'string') {
         newPrice = newPrice.replace(/\s*грн\s*/g, '').trim();
     }

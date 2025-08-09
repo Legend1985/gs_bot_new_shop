@@ -12,10 +12,9 @@ class ProductAPI {
     }
 
     async fetchProducts(start = 0, limit = 60) {
-        // Сначала пробуем использовать локальный PHP API
         try {
             console.log('Пробуем локальный PHP API...');
-            const response = await fetch(`test_api.php?start=${start}&limit=${limit}`);
+            const response = await fetch(`api.php?start=${start}&limit=${limit}`);
             if (response.ok) {
                 const data = await response.json();
                 console.log('PHP API ответ:', data);
@@ -158,11 +157,11 @@ class ProductAPI {
         
         if (prices.length >= 2) {
             prices.sort((a, b) => b - a);
-            product.oldPrice = prices[0] + ' грн';
+            product.oldPrice = prices[0].toString();
             product.newPrice = prices[1];
         } else if (prices.length === 1) {
             product.newPrice = prices[0];
-            product.oldPrice = (prices[0] + 50) + ' грн';
+            product.oldPrice = (prices[0] + 50).toString();
         }
         
         // Наличие - пробуем разные селекторы
@@ -241,11 +240,15 @@ class ProductAPI {
             const status = statuses[statusIndex];
             const isInStock = status === 'В наличии';
             
+            // Генерируем реалистичные цены
+            const oldPrice = (400 + Math.floor(Math.random() * 100)).toString();
+            const newPrice = 350 + Math.floor(Math.random() * 50);
+            
             products.push({
                 id: start + i + 1,
                 name: productNames[productIndex],
-                oldPrice: (400 + Math.floor(Math.random() * 100)) + ' грн',
-                newPrice: 350 + Math.floor(Math.random() * 50),
+                oldPrice: oldPrice,
+                newPrice: newPrice,
                 image: productImages[imageIndex],
                 inStock: isInStock,
                 availability: status,
