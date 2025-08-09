@@ -32,10 +32,13 @@ let savedScrollPosition = 0; // Сохраненная позиция прокр
 // Функция инициализации фильтра
 function initFilter() {
     const filterButtons = document.querySelectorAll('.filter-btn');
+    console.log(`Найдено ${filterButtons.length} кнопок фильтра`);
     
     filterButtons.forEach(btn => {
-        btn.addEventListener('click', function(e) {
+        // Добавляем обработчики для разных типов событий
+        const handleClick = function(e) {
             e.preventDefault();
+            e.stopPropagation();
             
             const sortType = this.getAttribute('data-sort');
             let sortDir = this.getAttribute('data-dir');
@@ -64,7 +67,21 @@ function initFilter() {
             
             // Сортируем и перерисовываем товары
             sortAndRenderProducts();
-        });
+            
+            console.log(`Фильтр применен: ${sortType} (${sortDir})`);
+        };
+        
+        // Добавляем несколько типов обработчиков для совместимости
+        btn.addEventListener('click', handleClick);
+        btn.addEventListener('touchstart', handleClick);
+        btn.addEventListener('touchend', handleClick);
+        
+        // Для мобильных устройств добавляем обработчик touch
+        if ('ontouchstart' in window) {
+            btn.addEventListener('touchstart', handleClick, { passive: false });
+        }
+        
+        console.log(`Обработчики добавлены для кнопки: ${btn.getAttribute('data-sort')}`);
     });
     
     // Восстанавливаем активную кнопку из сохраненного состояния
@@ -89,22 +106,22 @@ function sortProducts(products, sortType, sortDir) {
         switch (sortType) {
             case 'availability':
                 // Сортируем по наличию: в наличии сначала, затем остальные
-                const aInStock = a.inStock || a.availability?.includes('наличии');
-                const bInStock = b.inStock || b.availability?.includes('наличии');
+                const aInStock = a.inStock || a.availability?.includes('наличии') || a.availability?.includes('В наличии');
+                const bInStock = b.inStock || b.availability?.includes('наличии') || b.availability?.includes('В наличии');
                 aValue = aInStock ? 1 : 0;
                 bValue = bInStock ? 1 : 0;
                 break;
                 
             case 'price':
                 // Сортируем по цене (убираем "грн" и конвертируем в число)
-                aValue = parseInt(a.newPrice?.replace(/\D/g, '') || '0');
-                bValue = parseInt(b.newPrice?.replace(/\D/g, '') || '0');
+                aValue = parseInt((a.newPrice || '0').replace(/\D/g, ''));
+                bValue = parseInt((b.newPrice || '0').replace(/\D/g, ''));
                 break;
                 
             case 'name':
                 // Сортируем по названию
-                aValue = a.name || a.title || '';
-                bValue = b.name || b.title || '';
+                aValue = (a.name || a.title || '').toLowerCase();
+                bValue = (b.name || b.title || '').toLowerCase();
                 break;
                 
             case 'rating':
@@ -128,13 +145,22 @@ function sortProducts(products, sortType, sortDir) {
 
 // Функция сортировки и перерисовки товаров
 function sortAndRenderProducts() {
-    if (allProducts.length === 0) return;
+    if (allProducts.length === 0) {
+        console.log('Нет товаров для сортировки');
+        return;
+    }
+    
+    console.log(`Начинаем сортировку ${allProducts.length} товаров по ${currentSort} (${currentSortDir})`);
     
     // Сортируем товары
     filteredProducts = sortProducts([...allProducts], currentSort, currentSortDir);
     
     // Очищаем контейнер
     const container = document.querySelector('.inner');
+    if (!container) {
+        console.error('Контейнер .inner не найден');
+        return;
+    }
     container.innerHTML = '';
     
     // Перерисовываем товары
@@ -243,6 +269,9 @@ function createProductCard(product, btnId) {
     const card = document.createElement('div');
     card.className = 'product-card';
     
+    // Отладочная информация
+    console.log(`Создаем карточку товара: ${product.name || product.title || 'Без названия'}`);
+    
     // Проверяем наличие изображения
     let imageSrc = product.image;
     if (!imageSrc || imageSrc === '') {
@@ -272,7 +301,7 @@ function createProductCard(product, btnId) {
     }
     
     // Обработка названия товара
-    const productName = product.name || 'Название товара не указано';
+    const productName = product.name || product.title || 'Название товара не указано';
     
     card.innerHTML = `
         <div class="product-card-top">
@@ -496,8 +525,11 @@ document.addEventListener('DOMContentLoaded', function() {
     startAutoSave();
     setupBeforeUnload();
     
-    // Инициализируем фильтр
-    initFilter();
+    // Инициализируем фильтр после небольшой задержки
+    setTimeout(() => {
+        initFilter();
+        console.log('Фильтр инициализирован');
+    }, 100);
     
     console.log('Приложение инициализировано с автосохранением состояния');
 });
@@ -1140,6 +1172,31 @@ window.saveState = saveState;
 window.loadState = loadState;
 window.clearState = clearState;
 window.resetState = resetState;
+
+// Инициализация приложения при загрузке DOM
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM загружен, начинаем инициализацию...');
+    
+    // Загружаем сохраненное состояние
+    const stateLoaded = loadState();
+    
+    // Запускаем автоматическое сохранение
+    startAutoSave();
+    
+    // Настраиваем сохранение при уходе со страницы
+    setupBeforeUnload();
+    
+    // Загружаем первую страницу товаров
+    loadFirstPage();
+    
+    // Инициализируем фильтр после небольшой задержки
+    setTimeout(() => {
+        initFilter();
+        console.log('Фильтр инициализирован');
+    }, 100);
+    
+    console.log('Приложение инициализировано с автосохранением состояния');
+});
 
 
 
