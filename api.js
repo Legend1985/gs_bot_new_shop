@@ -2,21 +2,62 @@
 class ProductAPI {
     constructor() {
         this.baseUrl = 'https://guitarstrings.com.ua/electro';
-        this.corsProxy = 'https://cors-anywhere.herokuapp.com/';
+        // Используем несколько CORS прокси для надежности
+        this.corsProxies = [
+            'https://cors-anywhere.herokuapp.com/',
+            'https://api.allorigins.win/raw?url=',
+            'https://corsproxy.io/?'
+        ];
+        this.currentProxyIndex = 0;
     }
 
     async fetchProducts(start = 0, limit = 60) {
+        // Сначала пробуем использовать локальный PHP API
         try {
-            // Используем CORS прокси для обхода ограничений
-            const url = `${this.corsProxy}${this.baseUrl}?start=${start}`;
-            const response = await fetch(url);
-            const html = await response.text();
-            
-            return this.parseProducts(html, start, limit);
+            console.log('Пробуем локальный PHP API...');
+            const response = await fetch(`api.php?start=${start}&limit=${limit}`);
+            if (response.ok) {
+                const data = await response.json();
+                console.log('PHP API ответ:', data);
+                if (data.success && data.products && data.products.length > 0) {
+                    return data;
+                }
+            }
         } catch (error) {
-            console.error('Ошибка загрузки данных:', error);
-            return this.getMockProducts(start, limit);
+            console.log('PHP API недоступен:', error.message);
         }
+
+        // Если PHP API не работает, используем CORS прокси
+        for (let i = 0; i < this.corsProxies.length; i++) {
+            try {
+                const proxyIndex = (this.currentProxyIndex + i) % this.corsProxies.length;
+                const proxy = this.corsProxies[proxyIndex];
+                console.log(`Пробуем CORS прокси ${proxyIndex + 1}: ${proxy}`);
+                
+                const url = `${proxy}${this.baseUrl}?start=${start}`;
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                        'Accept-Language': 'ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                    }
+                });
+                
+                if (response.ok) {
+                    const html = await response.text();
+                    console.log(`CORS прокси ${proxyIndex + 1} успешен, получено ${html.length} символов`);
+                    this.currentProxyIndex = proxyIndex;
+                    return this.parseProducts(html, start, limit);
+                }
+            } catch (error) {
+                console.log(`CORS прокси ${i + 1} не работает:`, error.message);
+            }
+        }
+
+        // Если все прокси не работают, используем моковые данные
+        console.log('Все API недоступны, используем моковые данные');
+        return this.getMockProducts(start, limit);
     }
 
     parseProducts(html, start, limit) {
@@ -26,10 +67,15 @@ class ProductAPI {
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
         
-        // Ищем карточки товаров
-        const productNodes = doc.querySelectorAll('.product, .vm-col, .browseProductContainer');
+        // Ищем карточки товаров - используем несколько селекторов
+        const productNodes = doc.querySelectorAll('.product, .vm-col, .browseProductContainer, .product-item, [class*="product"]');
         
         console.log(`Найдено ${productNodes.length} товарных блоков`);
+        
+        if (productNodes.length === 0) {
+            console.log('Товары не найдены, используем моковые данные');
+            return this.getMockProducts(start, limit);
+        }
         
         productNodes.forEach((node, index) => {
             if (index >= limit) return;
@@ -38,11 +84,17 @@ class ProductAPI {
                 const product = this.parseProductNode(node);
                 if (product.name) {
                     products.push(product);
+                    console.log(`Парсинг товара ${index + 1}:`, product);
                 }
             } catch (error) {
                 console.error('Ошибка парсинга товара:', error);
             }
         });
+        
+        if (products.length === 0) {
+            console.log('Не удалось распарсить товары, используем моковые данные');
+            return this.getMockProducts(start, limit);
+        }
         
         return {
             success: true,
@@ -58,25 +110,44 @@ class ProductAPI {
     parseProductNode(node) {
         const product = {};
         
-        // Название товара
-        const titleElement = node.querySelector('h2 a, h3 a, .product-title a');
-        if (titleElement) {
-            product.name = titleElement.textContent.trim();
-        }
+        // Название товара - пробуем разные селекторы
+        const titleSelectors = [
+            'h2 a', 'h3 a', '.product-title a', '.product-name a', 
+            'a[title]', '.title a', '[class*="title"] a'
+        ];
         
-        // Изображение
-        const imgElement = node.querySelector('img[src*="product"], img[src*="resized"]');
-        if (imgElement) {
-            let imgSrc = imgElement.getAttribute('src');
-            if (imgSrc && !imgSrc.startsWith('http')) {
-                imgSrc = 'https://guitarstrings.com.ua' + imgSrc;
+        for (const selector of titleSelectors) {
+            const titleElement = node.querySelector(selector);
+            if (titleElement && titleElement.textContent.trim()) {
+                product.name = titleElement.textContent.trim();
+                break;
             }
-            product.image = imgSrc;
         }
         
-        // Цены
-        const priceElements = node.querySelectorAll('[class*="Price"], [class*="price"]');
+        // Изображение - пробуем разные селекторы
+        const imgSelectors = [
+            'img[src*="product"]', 'img[src*="resized"]', 'img[src*="goods"]',
+            'img[src*="Ernie"]', 'img[src*="string"]', 'img'
+        ];
+        
+        for (const selector of imgSelectors) {
+            const imgElement = node.querySelector(selector);
+            if (imgElement) {
+                let imgSrc = imgElement.getAttribute('src');
+                if (imgSrc) {
+                    if (!imgSrc.startsWith('http')) {
+                        imgSrc = 'https://guitarstrings.com.ua' + imgSrc;
+                    }
+                    product.image = imgSrc;
+                    break;
+                }
+            }
+        }
+        
+        // Цены - ищем все элементы с ценами
+        const priceElements = node.querySelectorAll('[class*="Price"], [class*="price"], [class*="cost"]');
         const prices = [];
+        
         priceElements.forEach(el => {
             const text = el.textContent.trim();
             const match = text.match(/(\d+)\s*грн/);
@@ -94,24 +165,32 @@ class ProductAPI {
             product.oldPrice = (prices[0] + 50) + ' грн';
         }
         
-        // Наличие
-        const availabilityElement = node.querySelector('[class*="stock"], [class*="availability"]');
-        if (availabilityElement) {
-            const text = availabilityElement.textContent.trim();
-            if (text.includes('наличи')) {
-                product.inStock = true;
-                product.availability = 'В наличии';
-            } else if (text.includes('Ожидается')) {
-                product.inStock = false;
-                product.availability = 'Ожидается';
-            } else if (text.includes('заказ')) {
-                product.inStock = false;
-                product.availability = 'Под заказ';
-            } else {
-                product.inStock = true;
-                product.availability = 'В наличии';
+        // Наличие - пробуем разные селекторы
+        const availabilitySelectors = [
+            '[class*="stock"]', '[class*="availability"]', '[class*="status"]',
+            '.product-status', '.availability', '.stock'
+        ];
+        
+        let availabilityFound = false;
+        for (const selector of availabilitySelectors) {
+            const availabilityElement = node.querySelector(selector);
+            if (availabilityElement) {
+                const text = availabilityElement.textContent.trim().toLowerCase();
+                if (text.includes('наличи') || text.includes('есть') || text.includes('доступен')) {
+                    product.inStock = true;
+                    product.availability = 'В наличии';
+                    availabilityFound = true;
+                    break;
+                } else if (text.includes('ожидается') || text.includes('нет') || text.includes('заказ')) {
+                    product.inStock = false;
+                    product.availability = text.includes('ожидается') ? 'Ожидается' : 'Нет в наличии';
+                    availabilityFound = true;
+                    break;
+                }
             }
-        } else {
+        }
+        
+        if (!availabilityFound) {
             product.inStock = true;
             product.availability = 'В наличии';
         }
@@ -126,7 +205,12 @@ class ProductAPI {
             'Rotosound R13 Roto Greys 13-54',
             'Dunlop DEN1046 Nickel Wound Light 10-46',
             'GHS Boomers GBTM 11-50 Medium',
-            'Fender 250M Nickel-Plated Steel 11-49 Medium'
+            'Fender 250M Nickel-Plated Steel 11-49 Medium',
+            'D\'Addario EXL110 Nickel Wound 10-46',
+            'Elixir 12002 Nanoweb Electric 10-46',
+            'DR Strings DDT-10 10-46 Drop Down Tuning',
+            'Dean Markley Blue Steel 10-46',
+            'Rotosound R12 Roto Yellows 12-52'
         ];
         
         const productImages = [
@@ -134,22 +218,35 @@ class ProductAPI {
             'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46.jpg',
             'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg',
             'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46.jpg',
-            'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg'
+            'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg',
+            'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46.jpg',
+            'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg',
+            'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46.jpg',
+            'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg',
+            'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46.jpg'
         ];
         
         for (let i = 0; i < limit && (start + i) < 377; i++) {
             const productIndex = (start + i) % productNames.length;
             const imageIndex = (start + i) % productImages.length;
+            
+            // Создаем разные статусы для разнообразия
+            const isInStock = Math.random() > 0.3;
+            const availability = isInStock ? 'В наличии' : 'Нет в наличии';
+            
             products.push({
                 id: start + i + 1,
                 name: productNames[productIndex],
                 oldPrice: (400 + Math.floor(Math.random() * 100)) + ' грн',
                 newPrice: 350 + Math.floor(Math.random() * 50),
                 image: productImages[imageIndex],
-                inStock: Math.random() > 0.3,
-                availability: Math.random() > 0.3 ? 'В наличии' : 'Нет в наличии'
+                inStock: isInStock,
+                availability: availability,
+                rating: 4 + Math.random() // Добавляем рейтинг для звезд
             });
         }
+        
+        console.log(`Создано ${products.length} моковых товаров`);
         
         return {
             success: true,

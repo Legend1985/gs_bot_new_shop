@@ -259,14 +259,20 @@ function generateMockProducts(start, limit) {
     for (let i = 0; i < limit && (start + i) < maxProducts; i++) {
         const productIndex = (start + i) % productNames.length;
         const imageIndex = (start + i) % productImages.length;
+        
+        // Создаем разные статусы для разнообразия
+        const isInStock = Math.random() > 0.3;
+        const availability = isInStock ? 'В наличии' : 'Нет в наличии';
+        
         products.push({
             id: start + i + 1,
             name: productNames[productIndex],
-            oldPrice: 400 + Math.floor(Math.random() * 100),
+            oldPrice: (400 + Math.floor(Math.random() * 100)) + ' грн',
             newPrice: 350 + Math.floor(Math.random() * 50),
             image: productImages[imageIndex],
-            inStock: Math.random() > 0.3, // 70% товаров в наличии
-            availability: Math.random() > 0.3 ? 'В наличии' : 'Нет в наличии'
+            inStock: isInStock,
+            availability: availability,
+            rating: 4 + Math.random() // Рейтинг от 4 до 5
         });
     }
     
@@ -293,6 +299,7 @@ function createProductCard(product, btnId) {
     console.log(`Изображение: ${product.image || 'Нет изображения'}`);
     console.log(`Статус: ${product.inStock ? 'В наличии' : 'Нет в наличии'}`);
     console.log(`Доступность: ${product.availability || 'Не указано'}`);
+    console.log(`Рейтинг: ${product.rating || 'Не указан'}`);
     
     // Проверяем наличие изображения
     let imageSrc = product.image;
@@ -305,10 +312,12 @@ function createProductCard(product, btnId) {
     let newPrice = product.newPrice || 350;
     
     // Убираем "грн" из красной цены, так как оно добавляется через CSS
-    newPrice = newPrice.replace(/\s*грн\s*/g, '').trim();
+    if (typeof newPrice === 'string') {
+        newPrice = newPrice.replace(/\s*грн\s*/g, '').trim();
+    }
     
     // Статус товара
-    const status = product.inStock ? 'В наличии' : 'Нет в наличии';
+    const status = product.availability || (product.inStock ? 'В наличии' : 'Нет в наличии');
     const statusClass = product.inStock ? 'product-status' : 'product-status out-of-stock';
     
     // Определяем класс кнопки и текст
@@ -325,10 +334,15 @@ function createProductCard(product, btnId) {
     // Обработка названия товара
     const productName = product.name || product.title || 'Название товара не указано';
     
+    // Создаем звезды рейтинга
+    const rating = product.rating || 4.5;
+    const ratingStars = createRatingStars(rating);
+    
     card.innerHTML = `
         <div class="product-card-top">
             <img src="${imageSrc}" alt="${productName}" class="img" onerror="this.src='Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg'">
             <div class="product-title" style="text-align:center;">${productName}</div>
+            <div class="product-rating">${ratingStars}</div>
         </div>
         <div class="product-card-bottom">
             <div class="${statusClass}">${status}</div>
@@ -693,17 +707,17 @@ function createRatingStars(rating) {
     
     // Полные звезды
     for (let i = 0; i < fullStars; i++) {
-        starsHTML += '<span style="color: #FFD700; font-size: 16px;">★</span>';
+        starsHTML += '<span class="star-filled">★</span>';
     }
     
     // Половина звезды
     if (hasHalfStar) {
-        starsHTML += '<span style="color: #FFD700; font-size: 16px;">☆</span>';
+        starsHTML += '<span class="star-half">☆</span>';
     }
     
     // Пустые звезды
     for (let i = 0; i < emptyStars; i++) {
-        starsHTML += '<span style="color: #ddd; font-size: 16px;">☆</span>';
+        starsHTML += '<span class="star-empty">☆</span>';
     }
     
     return starsHTML;
