@@ -94,7 +94,7 @@ body {
     top: 12px;
 }
 .new-price {
-    color: #e53935;
+    color: #d30000;
     font-size: 14px;
     font-weight: bold;
     display: flex;
@@ -203,6 +203,10 @@ body {
     margin: 4px 0;
     margin-left: 0;
     padding-left: 12px;
+}
+
+.product-card:first-child .new-price {
+    font-family: "Roboto", Arial, Helvetica, sans-serif;
 }
 
 
