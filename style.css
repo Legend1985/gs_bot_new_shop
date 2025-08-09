@@ -553,6 +553,41 @@ body.popup-open {
     }
 }
 
+/* Стили для индикатора загрузки при бесконечной прокрутке */
+#loading-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    text-align: center;
+    width: 100%;
+}
+
+#loading-indicator .loading-spinner-small {
+    width: 30px;
+    height: 30px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #007bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 10px;
+}
+
+#loading-indicator p {
+    color: #666;
+    font-size: 14px;
+    margin: 0;
+}
+
+/* Стили для сообщения о конце списка */
+.end-message {
+    text-align: center;
+    padding: 20px;
+    color: #666;
+    font-size: 14px;
+}
+
 
 
 

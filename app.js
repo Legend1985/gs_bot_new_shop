@@ -233,25 +233,8 @@ function showLoadingIndicator() {
     const loadingDiv = document.createElement('div');
     loadingDiv.id = 'loading-indicator';
     loadingDiv.innerHTML = `
-        <div style="
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            text-align: center;
-        ">
-            <div style="
-                width: 30px;
-                height: 30px;
-                border: 3px solid #f3f3f3;
-                border-top: 3px solid #007bff;
-                border-radius: 50%;
-                animation: spin 1s linear infinite;
-                margin-bottom: 10px;
-            "></div>
-            <p style="color: #666; font-size: 14px; margin: 0;">Загружаем еще товары...</p>
-        </div>
+        <div class="loading-spinner-small"></div>
+        <p>Загружаем еще товары...</p>
     `;
     container.appendChild(loadingDiv);
 }
@@ -268,16 +251,8 @@ function hideLoadingIndicator() {
 function showEndMessage() {
     const container = document.querySelector('.inner');
     const endDiv = document.createElement('div');
-    endDiv.innerHTML = `
-        <div style="
-            text-align: center;
-            padding: 20px;
-            color: #666;
-            font-size: 14px;
-        ">
-            <p>Все товары загружены</p>
-        </div>
-    `;
+    endDiv.className = 'end-message';
+    endDiv.innerHTML = '<p>Все товары загружены</p>';
     container.appendChild(endDiv);
 }
 
