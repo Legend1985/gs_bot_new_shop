@@ -188,8 +188,14 @@ function createProductCard(product, btnId) {
 // Обработчик прокрутки для бесконечной загрузки
 function handleScroll() {
     if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 1000) {
+        console.log(`Прокрутка: isLoading=${isLoading}, hasMoreProducts=${hasMoreProducts}, currentPage=${currentPage}`);
         if (!isLoading && hasMoreProducts) {
+            console.log('Запускаем загрузку дополнительных товаров...');
             loadMoreProducts();
+        } else if (isLoading) {
+            console.log('Загрузка уже идет, пропускаем...');
+        } else if (!hasMoreProducts) {
+            console.log('Больше товаров нет, пропускаем...');
         }
     }
 }
@@ -242,6 +248,7 @@ async function loadMoreProducts() {
             currentPage = nextPage;
             
             console.log(`Всего загружено товаров: ${loadedProductNames.size}`);
+            console.log(`Обновлено hasMoreProducts: ${hasMoreProducts} (siteData.length: ${siteData.length}, productsPerPage: ${productsPerPage})`);
             
             // Сохраняем состояние после загрузки новой страницы
             saveState();
@@ -471,6 +478,28 @@ async function restoreAllProducts() {
     }
     
     console.log(`Восстановление завершено. Всего товаров: ${loadedProductNames.size}`);
+    
+    // Обновляем hasMoreProducts на основе реального количества загруженных товаров
+    // Проверяем, есть ли еще товары для загрузки
+    const totalLoadedProducts = loadedProductNames.size;
+    const expectedProductsOnCurrentPages = (currentPage + 1) * productsPerPage;
+    
+    // Если загружено меньше товаров, чем ожидается на текущих страницах,
+    // значит на последней странице было меньше товаров, чем productsPerPage,
+    // и больше товаров нет
+    hasMoreProducts = totalLoadedProducts >= expectedProductsOnCurrentPages;
+    
+    // Дополнительная проверка: если мы на первой странице и товаров меньше 60,
+    // значит больше товаров нет
+    if (currentPage === 0 && totalLoadedProducts < productsPerPage) {
+        hasMoreProducts = false;
+    }
+    
+    console.log(`Обновлено hasMoreProducts: ${hasMoreProducts} (загружено: ${totalLoadedProducts}, ожидается: ${expectedProductsOnCurrentPages})`);
+    
+    // Убеждаемся, что isLoading сброшен
+    isLoading = false;
+    console.log('Восстановление завершено, isLoading сброшен');
     
     // Восстанавливаем позицию прокрутки
     setTimeout(() => {
