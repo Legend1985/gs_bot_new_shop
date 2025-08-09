@@ -74,11 +74,11 @@ function parseProducts($html) {
             // Сортируем цены (старая цена обычно больше)
             if (count($prices) >= 2) {
                 rsort($prices);
-                $product['oldPrice'] = $prices[0];
+                $product['oldPrice'] = $prices[0] . ' грн';
                 $product['newPrice'] = $prices[1];
             } elseif (count($prices) == 1) {
                 $product['newPrice'] = $prices[0];
-                $product['oldPrice'] = $prices[0] + 50; // Примерная старая цена
+                $product['oldPrice'] = ($prices[0] + 50) . ' грн'; // Примерная старая цена
             }
             
             // Проверяем наличие

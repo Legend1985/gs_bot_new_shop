@@ -147,7 +147,7 @@ function createProductCard(product, btnId) {
             <div class="product-bottom-row">
                 <div class="product-prices">
                     <div class="old-price">${oldPrice} грн</div>
-                    <div class="new-price">${newPrice} грн</div>
+                    <div class="new-price">${newPrice}</div>
                 </div>
                 <button class="btn" id="btn${btnId}">Купить</button>
             </div>

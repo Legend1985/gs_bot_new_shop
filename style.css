@@ -113,6 +113,12 @@ body {
     text-overflow: ellipsis;
     font-family: "Roboto", Arial, Helvetica, sans-serif;
 }
+
+.new-price::after {
+    content: " грн";
+    font-size: 13px;
+    margin-left: 2px;
+}
 .product-card {
     min-height: 240px;
     padding: 16px 0 0 2px;
