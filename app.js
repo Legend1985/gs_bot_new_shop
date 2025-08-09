@@ -370,16 +370,6 @@ document.addEventListener('DOMContentLoaded', function() {
     startAutoSave();
     setupBeforeUnload();
     
-    // Добавляем обработчик для кнопки сброса
-    const resetButton = document.getElementById('resetButton');
-    if (resetButton) {
-        resetButton.addEventListener('click', function() {
-            if (confirm('Вы уверены, что хотите начать заново? Все загруженные товары будут потеряны.')) {
-                resetState();
-            }
-        });
-    }
-    
     console.log('Приложение инициализировано с автосохранением состояния');
 });
 
