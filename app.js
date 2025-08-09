@@ -114,6 +114,9 @@ function renderProducts(products) {
         const productCard = createProductCard(product, currentPage * productsPerPage + index + 1);
         container.appendChild(productCard);
     });
+    
+    // Настраиваем обработчики для новых изображений
+    setupImageHandlers();
 }
 
 // Создание карточки товара
@@ -239,6 +242,9 @@ async function loadMoreProducts() {
                     const productCard = createProductCardFromSiteData(product, startIndex + index + 1);
                     container.appendChild(productCard);
                 });
+                
+                // Настраиваем обработчики для новых изображений
+                setupImageHandlers();
                 
                 console.log(`Загружено ${uniqueProducts.length} новых товаров со страницы ${nextPage + 1}`);
             }
@@ -416,6 +422,9 @@ async function loadFirstPage() {
             container.appendChild(productCard);
         });
         
+        // Настраиваем обработчики для новых изображений
+        setupImageHandlers();
+        
         console.log(`Загружено ${siteData.length} товаров с первой страницы сайта`);
         
         // Обновляем переменные для пагинации
@@ -463,6 +472,9 @@ async function restoreAllProducts() {
                     const productCard = createProductCardFromSiteData(product, globalIndex + 1);
                     container.appendChild(productCard);
                 });
+                
+                // Настраиваем обработчики для новых изображений
+                setupImageHandlers();
                 
                 console.log(`Восстановлено ${restoredProducts.length} товаров со страницы ${page + 1}`);
             }
@@ -547,6 +559,15 @@ function createProductCardFromSiteData(product, btnId) {
         imageSrc = 'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg';
     }
     
+    // Исправляем URL изображения, если он относительный
+    if (imageSrc && !imageSrc.startsWith('http') && !imageSrc.startsWith('data:')) {
+        if (imageSrc.startsWith('/')) {
+            imageSrc = 'https://guitarstrings.com.ua' + imageSrc;
+        } else if (!imageSrc.startsWith('Goods/')) {
+            imageSrc = 'https://guitarstrings.com.ua/' + imageSrc;
+        }
+    }
+    
     // Проверяем наличие цен
     const oldPrice = product.oldPrice || '400 грн';
     let newPrice = product.newPrice || '350 грн';
@@ -590,7 +611,7 @@ function createProductCardFromSiteData(product, btnId) {
     
     card.innerHTML = `
         <div class="product-card-top">
-            <img src="${imageSrc}" alt="${productName}" class="img" style="width: 150px; height: 150px; object-fit: cover;" onerror="this.src='Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg'">
+            <img src="${imageSrc}" alt="${productName}" class="img" onerror="this.src='Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg'">
             <div class="product-title" style="text-align:center;">${productName}</div>
         </div>
         <div class="product-card-bottom">
@@ -847,6 +868,20 @@ function resetState() {
     
     // Перезагружаем страницу
     window.location.reload();
+}
+
+// Функция для обработки загрузки изображений
+function setupImageHandlers() {
+    const images = document.querySelectorAll('.img');
+    images.forEach(img => {
+        img.addEventListener('load', function() {
+            this.classList.add('loaded');
+        });
+        
+        img.addEventListener('error', function() {
+            this.classList.add('loaded');
+        });
+    });
 }
 
 // Экспорт функций для использования в консоли
