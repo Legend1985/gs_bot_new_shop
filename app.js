@@ -485,26 +485,25 @@ function createProductCardFromSiteData(product, btnId) {
     const ratingText = product.ratingText || '';
     const starsHTML = createRatingStars(rating);
     
-    card.innerHTML = `
-        <div class="product-card-top">
-            <img src="${imageSrc}" alt="${productName}" class="img" style="width: 150px; height: 150px; object-fit: cover;" onerror="this.src='Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg'">
-            <div class="product-title" style="text-align:center;">${productName}</div>
-        </div>
-        <div class="product-card-bottom">
-            <div class="${statusClass}">${status}</div>
-            <div class="product-rating" style="margin: 5px 0; text-align: center;">
-                ${starsHTML}
-                <div class="rating-text" style="font-size: 12px; color: #666; margin-top: 2px;">${ratingText}</div>
-            </div>
-            <div class="product-bottom-row">
-                <div class="product-prices">
-                    <div class="old-price">${oldPrice}</div>
-                    <div class="new-price" data-price="${newPrice}">${newPrice}</div>
-                </div>
-                <button class="${buttonClass}" id="btn${btnId}">${buttonText}</button>
-            </div>
-        </div>
-    `;
+         card.innerHTML = `
+         <div class="product-card-top">
+             <img src="${imageSrc}" alt="${productName}" class="img" style="width: 150px; height: 150px; object-fit: cover;" onerror="this.src='Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg'">
+             <div class="product-title" style="text-align:center;">${productName}</div>
+         </div>
+         <div class="product-card-bottom">
+             <div class="${statusClass}">${status}</div>
+             <div class="product-rating" style="margin: 5px 0; text-align: left;">
+                 ${starsHTML}
+             </div>
+             <div class="product-bottom-row">
+                 <div class="product-prices">
+                     <div class="old-price">${oldPrice}</div>
+                     <div class="new-price" data-price="${newPrice}">${newPrice}</div>
+                 </div>
+                 <button class="${buttonClass}" id="btn${btnId}">${buttonText}</button>
+             </div>
+         </div>
+     `;
     
     // Добавляем обработчик для кнопки
     const btn = card.querySelector(`#btn${btnId}`);
@@ -652,6 +651,7 @@ function parseSiteHTML(html) {
             }
             
             // Извлечение текста рейтинга (например, "(4.6 - 10 голосов)")
+            // Убрано, так как эта информация больше не отображается
             const ratingTextElement = card.querySelector('.vrvote-count small');
             if (ratingTextElement) {
                 ratingText = ratingTextElement.textContent.trim();
@@ -692,7 +692,6 @@ function parseCurrentHTML() {
         const statusElement = card.querySelector('.product-status');
         const oldPriceElement = card.querySelector('.old-price');
         const newPriceElement = card.querySelector('.new-price');
-        const ratingTextElement = card.querySelector('.rating-text');
         
         products.push({
             index: index,
@@ -700,8 +699,7 @@ function parseCurrentHTML() {
             imageSrc: imgElement ? imgElement.src : '',
             availability: statusElement ? statusElement.textContent.trim() : '',
             oldPrice: oldPriceElement ? oldPriceElement.textContent.trim() : '',
-            newPrice: newPriceElement ? newPriceElement.textContent.trim() : '',
-            ratingText: ratingTextElement ? ratingTextElement.textContent.trim() : ''
+            newPrice: newPriceElement ? newPriceElement.textContent.trim() : ''
         });
     });
     
@@ -722,8 +720,7 @@ function compareAndUpdate(siteData, currentData) {
                 siteProduct.oldPrice !== currentProduct.oldPrice ||
                 siteProduct.newPrice !== currentProduct.newPrice ||
                 siteProduct.availability !== currentProduct.availability ||
-                siteProduct.imageSrc !== currentProduct.imageSrc ||
-                siteProduct.ratingText !== currentProduct.ratingText;
+                siteProduct.imageSrc !== currentProduct.imageSrc;
             
             if (needsUpdate) {
                 updates.push({
@@ -782,16 +779,9 @@ function applyUpdatesToDOM(updates) {
             const ratingContainer = productCard.querySelector('.product-rating');
             if (ratingContainer && siteData.rating !== undefined) {
                 const starsHTML = createRatingStars(siteData.rating);
-                const ratingTextElement = ratingContainer.querySelector('.rating-text');
                 
                 // Обновляем звездочки
-                const starsContainer = ratingContainer.querySelector('.stars-container') || ratingContainer;
-                starsContainer.innerHTML = starsHTML;
-                
-                // Обновляем текст рейтинга
-                if (ratingTextElement && siteData.ratingText) {
-                    ratingTextElement.textContent = siteData.ratingText;
-                }
+                ratingContainer.innerHTML = starsHTML;
             }
             
             console.log(`Обновлена карточка товара ${cardIndex + 1}: ${siteData.title}`);
