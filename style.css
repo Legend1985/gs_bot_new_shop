@@ -97,7 +97,7 @@ body {
 }
 .new-price {
     color: #d30000;
-    font-size: 16px;
+    font-size: 18px;
     font-weight: bold;
     display: flex;
     align-items: flex-end;
@@ -265,6 +265,10 @@ body {
     font-weight: bold;
     min-width: 72px;
     max-width: 92px;
+}
+
+.new-price.discontinued {
+    color: #808080;
 }
 
 

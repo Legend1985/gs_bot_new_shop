@@ -140,10 +140,12 @@ function createProductCard(product, btnId) {
     // Определяем класс кнопки и текст
     let buttonClass = 'btn';
     let buttonText = 'Купить';
+    let newPriceClass = 'new-price';
     
     if (status.includes('производства')) {
         buttonClass = 'btn discontinued';
         buttonText = 'Снят\nс производства';
+        newPriceClass = 'new-price discontinued';
     }
     
     // Обработка названия товара
@@ -159,7 +161,7 @@ function createProductCard(product, btnId) {
             <div class="product-bottom-row">
                 <div class="product-prices">
                     <div class="old-price">${oldPrice} грн</div>
-                    <div class="new-price">${newPrice}</div>
+                    <div class="${newPriceClass}">${newPrice}</div>
                 </div>
                 <button class="${buttonClass}" id="btn${btnId}">${buttonText}</button>
             </div>
