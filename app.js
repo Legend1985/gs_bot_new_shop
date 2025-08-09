@@ -428,8 +428,12 @@ function parseSiteHTML(html) {
             const oldPriceElement = card.querySelector('.PricebasePrice');
             const newPriceElement = card.querySelector('.PricesalesPrice');
             
-            const oldPrice = oldPriceElement ? oldPriceElement.textContent.trim() : '';
-            const newPrice = newPriceElement ? newPriceElement.textContent.trim() : '';
+            let oldPrice = oldPriceElement ? oldPriceElement.textContent.trim() : '';
+            let newPrice = newPriceElement ? newPriceElement.textContent.trim() : '';
+            
+            // Убираем слово "цена" из цен
+            oldPrice = oldPrice.replace(/цена/gi, '').trim();
+            newPrice = newPrice.replace(/цена/gi, '').trim();
             
             if (title) {
                 products.push({

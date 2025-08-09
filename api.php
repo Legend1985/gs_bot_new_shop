@@ -65,7 +65,8 @@ function parseProducts($html) {
             $prices = [];
             foreach ($priceNodes as $priceNode) {
                 $priceText = trim($priceNode->textContent);
-                // Ищем только цифры и "грн", игнорируя слово "Цена"
+                // Убираем слово "цена" и ищем только цифры и "грн"
+                $priceText = str_replace(['цена', 'Цена', 'ЦЕНА'], '', $priceText);
                 if (preg_match('/(\d+)\s*грн/', $priceText, $matches)) {
                     $prices[] = (int)$matches[1];
                 }
