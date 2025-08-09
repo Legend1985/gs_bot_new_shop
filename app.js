@@ -21,6 +21,7 @@ let hasMoreProducts = true;
 const productsPerPage = 60;
 let maxProducts = 377; // Будет обновляться из API
 let loadedProductNames = new Set(); // Для отслеживания уже загруженных товаров
+let savedScrollPosition = 0; // Сохраненная позиция прокрутки
 
 // Функция загрузки товаров с сайта
 async function loadProducts(page = 0) {
@@ -242,6 +243,9 @@ async function loadMoreProducts() {
             
             console.log(`Всего загружено товаров: ${loadedProductNames.size}`);
             
+            // Сохраняем состояние после загрузки новой страницы
+            saveState();
+            
         } else {
             // Если товаров нет, значит достигли конца
             hasMoreProducts = false;
@@ -361,43 +365,36 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Добавляем обработчик прокрутки
     window.addEventListener('scroll', handleScroll);
+    
+    // Настраиваем автосохранение состояния
+    startAutoSave();
+    setupBeforeUnload();
+    
+    // Добавляем обработчик для кнопки сброса
+    const resetButton = document.getElementById('resetButton');
+    if (resetButton) {
+        resetButton.addEventListener('click', function() {
+            if (confirm('Вы уверены, что хотите начать заново? Все загруженные товары будут потеряны.')) {
+                resetState();
+            }
+        });
+    }
+    
+    console.log('Приложение инициализировано с автосохранением состояния');
 });
 
 // Функция загрузки реальных товаров с сайта
 async function loadRealProducts() {
     try {
-        console.log('Загружаем первую страницу товаров с сайта...');
+        // Пытаемся восстановить состояние
+        const stateRestored = loadState();
         
-        // Получаем данные первой страницы с сайта
-        const siteData = await fetchProductData(0);
-        
-        if (siteData && siteData.length > 0) {
-            // Очищаем контейнер
-            const container = document.querySelector('.inner');
-            container.innerHTML = '';
-            
-            // Рендерим товары первой страницы
-            siteData.forEach((product, index) => {
-                const productCard = createProductCardFromSiteData(product, index + 1);
-                container.appendChild(productCard);
-            });
-            
-            console.log(`Загружено ${siteData.length} товаров с первой страницы сайта`);
-            
-            // Обновляем переменные для пагинации
-            // Предполагаем, что на сайте около 377 товаров (может быть больше или меньше)
-            maxProducts = Math.max(377, siteData.length);
-            hasMoreProducts = siteData.length >= productsPerPage;
-            
-            // Добавляем загруженные товары в отслеживание
-            siteData.forEach(product => {
-                loadedProductNames.add(product.title);
-            });
-            
+        if (stateRestored && loadedProductNames.size > 0) {
+            console.log('Восстанавливаем сохраненное состояние...');
+            await restoreAllProducts();
         } else {
-            // Если не удалось загрузить, используем моковые данные
-            console.log('Не удалось загрузить товары с сайта, используем моковые данные');
-            loadProducts(0);
+            console.log('Загружаем первую страницу товаров с сайта...');
+            await loadFirstPage();
         }
         
     } catch (error) {
@@ -405,6 +402,93 @@ async function loadRealProducts() {
         // При ошибке используем моковые данные
         loadProducts(0);
     }
+}
+
+// Загрузка первой страницы
+async function loadFirstPage() {
+    const siteData = await fetchProductData(0);
+    
+    if (siteData && siteData.length > 0) {
+        // Очищаем контейнер
+        const container = document.querySelector('.inner');
+        container.innerHTML = '';
+        
+        // Рендерим товары первой страницы
+        siteData.forEach((product, index) => {
+            const productCard = createProductCardFromSiteData(product, index + 1);
+            container.appendChild(productCard);
+        });
+        
+        console.log(`Загружено ${siteData.length} товаров с первой страницы сайта`);
+        
+        // Обновляем переменные для пагинации
+        maxProducts = Math.max(377, siteData.length);
+        hasMoreProducts = siteData.length >= productsPerPage;
+        
+        // Добавляем загруженные товары в отслеживание
+        siteData.forEach(product => {
+            loadedProductNames.add(product.title);
+        });
+        
+        // Сохраняем состояние
+        saveState();
+        
+    } else {
+        // Если не удалось загрузить, используем моковые данные
+        console.log('Не удалось загрузить товары с сайта, используем моковые данные');
+        loadProducts(0);
+    }
+}
+
+// Восстановление всех загруженных товаров
+async function restoreAllProducts() {
+    console.log(`Восстанавливаем ${loadedProductNames.size} товаров с ${currentPage + 1} страниц...`);
+    
+    // Очищаем контейнер
+    const container = document.querySelector('.inner');
+    container.innerHTML = '';
+    
+    // Загружаем все страницы по порядку
+    for (let page = 0; page <= currentPage; page++) {
+        try {
+            console.log(`Восстанавливаем страницу ${page + 1}...`);
+            const siteData = await fetchProductData(page);
+            
+            if (siteData && siteData.length > 0) {
+                // Фильтруем только те товары, которые были загружены ранее
+                const restoredProducts = siteData.filter(product => 
+                    loadedProductNames.has(product.title)
+                );
+                
+                // Рендерим товары
+                restoredProducts.forEach((product, index) => {
+                    const globalIndex = page * productsPerPage + index;
+                    const productCard = createProductCardFromSiteData(product, globalIndex + 1);
+                    container.appendChild(productCard);
+                });
+                
+                console.log(`Восстановлено ${restoredProducts.length} товаров со страницы ${page + 1}`);
+            }
+            
+            // Небольшая задержка между запросами
+            if (page < currentPage) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            
+        } catch (error) {
+            console.error(`Ошибка восстановления страницы ${page + 1}:`, error);
+        }
+    }
+    
+    console.log(`Восстановление завершено. Всего товаров: ${loadedProductNames.size}`);
+    
+    // Восстанавливаем позицию прокрутки
+    setTimeout(() => {
+        if (savedScrollPosition > 0) {
+            window.scrollTo(0, savedScrollPosition);
+            console.log(`Позиция прокрутки восстановлена: ${savedScrollPosition}px`);
+        }
+    }, 100);
 }
 
 // Создание звездочек рейтинга
@@ -812,10 +896,108 @@ document.addEventListener('DOMContentLoaded', function() {
     // updateProductPrices(); // Отключено, так как теперь загружаем сразу реальные товары
 });
 
+// Функции для сохранения и восстановления состояния
+function saveState() {
+    const state = {
+        currentPage: currentPage,
+        loadedProductNames: Array.from(loadedProductNames),
+        maxProducts: maxProducts,
+        hasMoreProducts: hasMoreProducts,
+        scrollPosition: window.scrollY,
+        timestamp: Date.now()
+    };
+    
+    try {
+        localStorage.setItem('shopState', JSON.stringify(state));
+        console.log('Состояние сохранено:', state);
+    } catch (error) {
+        console.error('Ошибка сохранения состояния:', error);
+    }
+}
+
+function loadState() {
+    try {
+        const savedState = localStorage.getItem('shopState');
+        if (savedState) {
+            const state = JSON.parse(savedState);
+            
+            // Проверяем, не устарели ли данные (больше 1 часа)
+            const isExpired = Date.now() - state.timestamp > 60 * 60 * 1000;
+            
+            if (!isExpired) {
+                currentPage = state.currentPage || 0;
+                loadedProductNames = new Set(state.loadedProductNames || []);
+                maxProducts = state.maxProducts || 377;
+                hasMoreProducts = state.hasMoreProducts !== false;
+                savedScrollPosition = state.scrollPosition || 0;
+                
+                console.log('Состояние восстановлено:', state);
+                return true;
+            } else {
+                console.log('Сохраненное состояние устарело, начинаем заново');
+                clearState();
+            }
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки состояния:', error);
+        clearState();
+    }
+    return false;
+}
+
+function clearState() {
+    try {
+        localStorage.removeItem('shopState');
+        console.log('Состояние очищено');
+    } catch (error) {
+        console.error('Ошибка очистки состояния:', error);
+    }
+}
+
+// Автоматическое сохранение состояния каждые 30 секунд
+function startAutoSave() {
+    setInterval(() => {
+        if (loadedProductNames.size > 0) {
+            saveState();
+        }
+    }, 30000); // 30 секунд
+}
+
+// Сохранение состояния перед уходом со страницы
+function setupBeforeUnload() {
+    window.addEventListener('beforeunload', () => {
+        saveState();
+    });
+    
+    // Также сохраняем при скрытии страницы (для мобильных устройств)
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            saveState();
+        }
+    });
+}
+
+// Функция для принудительного сброса состояния
+function resetState() {
+    clearState();
+    currentPage = 0;
+    isLoading = false;
+    hasMoreProducts = true;
+    loadedProductNames.clear();
+    savedScrollPosition = 0;
+    
+    // Перезагружаем страницу
+    window.location.reload();
+}
+
 // Экспорт функций для использования в консоли
 window.updateProductPrices = updateProductPrices;
 window.manualUpdate = manualUpdate;
 window.startAutoUpdate = startAutoUpdate;
+window.saveState = saveState;
+window.loadState = loadState;
+window.clearState = clearState;
+window.resetState = resetState;
 
 
 
