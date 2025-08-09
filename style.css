@@ -426,6 +426,11 @@ body.popup-open {
     padding-right: 0; /* Убираем компенсацию для скроллбара */
 }
 
+/* Компенсируем ширину скроллбара для предотвращения сдвига контента */
+body.popup-open {
+    padding-right: var(--scrollbar-width, 0px);
+}
+
 .popup-content {
     background: #fff;
     border-radius: 16px;

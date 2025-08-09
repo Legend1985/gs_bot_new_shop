@@ -765,6 +765,10 @@ window.resetState = resetState;
 function showDiscontinuedPopup() {
     const popup = document.getElementById('discontinuedPopup');
     if (popup) {
+        // Вычисляем ширину скроллбара
+        const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+        document.documentElement.style.setProperty('--scrollbar-width', scrollbarWidth + 'px');
+        
         popup.classList.add('show');
         document.body.classList.add('popup-open');
     }
@@ -775,6 +779,8 @@ function hideDiscontinuedPopup() {
     if (popup) {
         popup.classList.remove('show');
         document.body.classList.remove('popup-open');
+        // Удаляем CSS переменную
+        document.documentElement.style.removeProperty('--scrollbar-width');
     }
 }
 
