@@ -137,6 +137,15 @@ function createProductCard(product, btnId) {
     const status = product.inStock ? 'В наличии' : 'Нет в наличии';
     const statusClass = product.inStock ? 'product-status' : 'product-status out-of-stock';
     
+    // Определяем класс кнопки и текст
+    let buttonClass = 'btn';
+    let buttonText = 'Купить';
+    
+    if (status.includes('производства')) {
+        buttonClass = 'btn discontinued';
+        buttonText = 'Снят\nс производства';
+    }
+    
     // Обработка названия товара
     const productName = product.name || 'Название товара не указано';
     
@@ -152,7 +161,7 @@ function createProductCard(product, btnId) {
                     <div class="old-price">${oldPrice} грн</div>
                     <div class="new-price">${newPrice}</div>
                 </div>
-                <button class="btn" id="btn${btnId}">Купить</button>
+                <button class="${buttonClass}" id="btn${btnId}">${buttonText}</button>
             </div>
         </div>
     `;
@@ -431,6 +440,15 @@ function createProductCardFromSiteData(product, btnId) {
         statusClass = 'product-status out-of-stock';
     }
     
+    // Определяем класс кнопки и текст
+    let buttonClass = 'btn';
+    let buttonText = 'Купить';
+    
+    if (status.includes('производства')) {
+        buttonClass = 'btn discontinued';
+        buttonText = 'Снят\nс производства';
+    }
+    
     // Обработка названия товара
     const productName = product.title || 'Название товара не указано';
     
@@ -446,7 +464,7 @@ function createProductCardFromSiteData(product, btnId) {
                     <div class="old-price">${oldPrice}</div>
                     <div class="new-price" data-price="${newPrice}">${newPrice}</div>
                 </div>
-                <button class="btn" id="btn${btnId}">Купить</button>
+                <button class="${buttonClass}" id="btn${btnId}">${buttonText}</button>
             </div>
         </div>
     `;
