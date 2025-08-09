@@ -174,9 +174,129 @@ function createProductCard(product, btnId) {
 function handleScroll() {
     if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 1000) {
         if (!isLoading && hasMoreProducts) {
-            loadProducts(currentPage + 1);
+            loadMoreProducts();
         }
     }
+}
+
+// Функция загрузки дополнительных страниц товаров
+async function loadMoreProducts() {
+    if (isLoading || !hasMoreProducts) return;
+    
+    isLoading = true;
+    const nextPage = currentPage + 1;
+    
+    // Показываем индикатор загрузки
+    showLoadingIndicator();
+    
+    try {
+        console.log(`Загружаем страницу ${nextPage + 1} товаров с сайта...`);
+        
+        // Получаем данные следующей страницы с сайта
+        const siteData = await fetchProductData(nextPage);
+        
+        if (siteData && siteData.length > 0) {
+            // Фильтруем дубликаты
+            const uniqueProducts = siteData.filter(product => {
+                if (loadedProductNames.has(product.title)) {
+                    console.log(`Пропускаем дубликат: ${product.title}`);
+                    return false;
+                }
+                loadedProductNames.add(product.title);
+                return true;
+            });
+            
+            if (uniqueProducts.length > 0) {
+                // Убираем индикатор загрузки
+                hideLoadingIndicator();
+                
+                // Рендерим новые товары
+                const container = document.querySelector('.inner');
+                const startIndex = loadedProductNames.size - uniqueProducts.length;
+                
+                uniqueProducts.forEach((product, index) => {
+                    const productCard = createProductCardFromSiteData(product, startIndex + index + 1);
+                    container.appendChild(productCard);
+                });
+                
+                console.log(`Загружено ${uniqueProducts.length} новых товаров со страницы ${nextPage + 1}`);
+            }
+            
+            // Проверяем, есть ли еще товары
+            hasMoreProducts = siteData.length >= productsPerPage;
+            currentPage = nextPage;
+            
+            console.log(`Всего загружено товаров: ${loadedProductNames.size}`);
+            
+        } else {
+            // Если товаров нет, значит достигли конца
+            hasMoreProducts = false;
+            hideLoadingIndicator();
+            showEndMessage();
+            console.log('Достигнут конец списка товаров');
+        }
+        
+    } catch (error) {
+        console.error('Ошибка загрузки дополнительных товаров:', error);
+        hasMoreProducts = false;
+        hideLoadingIndicator();
+    } finally {
+        isLoading = false;
+    }
+}
+
+// Показать индикатор загрузки
+function showLoadingIndicator() {
+    const container = document.querySelector('.inner');
+    const loadingDiv = document.createElement('div');
+    loadingDiv.id = 'loading-indicator';
+    loadingDiv.innerHTML = `
+        <div style="
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            text-align: center;
+        ">
+            <div style="
+                width: 30px;
+                height: 30px;
+                border: 3px solid #f3f3f3;
+                border-top: 3px solid #007bff;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+                margin-bottom: 10px;
+            "></div>
+            <p style="color: #666; font-size: 14px; margin: 0;">Загружаем еще товары...</p>
+        </div>
+    `;
+    container.appendChild(loadingDiv);
+}
+
+// Скрыть индикатор загрузки
+function hideLoadingIndicator() {
+    const loadingDiv = document.getElementById('loading-indicator');
+    if (loadingDiv) {
+        loadingDiv.remove();
+    }
+}
+
+// Показать сообщение о конце списка
+function showEndMessage() {
+    const container = document.querySelector('.inner');
+    const endDiv = document.createElement('div');
+    endDiv.innerHTML = `
+        <div style="
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-size: 14px;
+        ">
+            <p>Все товары загружены</p>
+        </div>
+    `;
+    container.appendChild(endDiv);
 }
 
 // Создание заставки загрузки
@@ -232,30 +352,33 @@ document.addEventListener('DOMContentLoaded', function() {
 // Функция загрузки реальных товаров с сайта
 async function loadRealProducts() {
     try {
-        console.log('Загружаем реальные товары с сайта...');
+        console.log('Загружаем первую страницу товаров с сайта...');
         
-        // Получаем данные с сайта
-        const siteData = await fetchProductData();
+        // Получаем данные первой страницы с сайта
+        const siteData = await fetchProductData(0);
         
         if (siteData && siteData.length > 0) {
             // Очищаем контейнер
             const container = document.querySelector('.inner');
             container.innerHTML = '';
             
-            // Ограничиваем количество товаров до 60 на первой странице
-            const limitedData = siteData.slice(0, productsPerPage);
-            
-            // Рендерим реальные товары (максимум 60)
-            limitedData.forEach((product, index) => {
+            // Рендерим товары первой страницы
+            siteData.forEach((product, index) => {
                 const productCard = createProductCardFromSiteData(product, index + 1);
                 container.appendChild(productCard);
             });
             
-            console.log(`Загружено ${limitedData.length} реальных товаров с сайта (из ${siteData.length} доступных)`);
+            console.log(`Загружено ${siteData.length} товаров с первой страницы сайта`);
             
             // Обновляем переменные для пагинации
-            maxProducts = siteData.length;
-            hasMoreProducts = siteData.length > productsPerPage;
+            // Предполагаем, что на сайте около 377 товаров (может быть больше или меньше)
+            maxProducts = Math.max(377, siteData.length);
+            hasMoreProducts = siteData.length >= productsPerPage;
+            
+            // Добавляем загруженные товары в отслеживание
+            siteData.forEach(product => {
+                loadedProductNames.add(product.title);
+            });
             
         } else {
             // Если не удалось загрузить, используем моковые данные
@@ -357,15 +480,15 @@ async function updateProductPrices() {
     try {
         console.log('Начинаем обновление цен...');
         
-        // 1. Получение данных с сайта
-        const siteData = await fetchProductData();
+        // 1. Получение данных с сайта (только первая страница для обновления)
+        const siteData = await fetchProductData(0);
         console.log('Данные с сайта получены:', siteData);
         
         // 2. Парсинг текущего HTML
         const currentData = parseCurrentHTML();
         console.log('Текущие данные:', currentData);
         
-        // 3. Сравнение и обновление
+        // 3. Сравнение и обновление (только для отображаемых товаров)
         const updatedData = compareAndUpdate(siteData, currentData);
         
         // 4. Применение изменений к DOM
@@ -379,11 +502,20 @@ async function updateProductPrices() {
 }
 
 // Получение данных с сайта guitarstrings.com.ua
-async function fetchProductData() {
+async function fetchProductData(page = 0) {
     try {
         // Используем прокси для обхода CORS
         const proxyUrl = 'https://api.allorigins.win/raw?url=';
-        const targetUrl = 'https://guitarstrings.com.ua/electro';
+        let targetUrl = 'https://guitarstrings.com.ua/electro';
+        
+        // Добавляем параметр start для пагинации
+        if (page > 0) {
+            const start = page * productsPerPage;
+            targetUrl += `?start=${start}`;
+        }
+        
+        console.log(`Загружаем страницу ${page + 1}: ${targetUrl}`);
+        
         const response = await fetch(proxyUrl + encodeURIComponent(targetUrl));
         
         if (!response.ok) {
@@ -406,27 +538,29 @@ function parseSiteHTML(html) {
     
     const products = [];
     
-    // Находим все карточки товаров
-    const productCards = doc.querySelectorAll('.product.vm-col');
+    // Находим все карточки товаров - используем более широкий селектор
+    const productCards = doc.querySelectorAll('.product.vm-col, .browseProductContainer, .product-item');
+    
+    console.log(`Найдено ${productCards.length} карточек товаров на странице`);
     
     productCards.forEach((card, index) => {
         try {
-            // Извлечение названия товара
-            const titleElement = card.querySelector('h2 a');
+            // Извлечение названия товара - ищем в разных местах
+            const titleElement = card.querySelector('h2 a, h3 a, .product-title a, .product-name a');
             const title = titleElement ? titleElement.textContent.trim() : '';
             
-            // Извлечение изображения
-            const imgElement = card.querySelector('.browseProductImage');
+            // Извлечение изображения - ищем в разных местах
+            const imgElement = card.querySelector('.browseProductImage, .product-image img, .product-thumb img');
             const imageSrc = imgElement ? imgElement.src : '';
             const fullImageUrl = imageSrc.startsWith('http') ? imageSrc : `https://guitarstrings.com.ua${imageSrc}`;
             
-            // Извлечение статуса наличия
-            const availabilityElement = card.querySelector('.availability span');
+            // Извлечение статуса наличия - ищем в разных местах
+            const availabilityElement = card.querySelector('.availability span, .stock-status, .product-status');
             const availability = availabilityElement ? availabilityElement.textContent.trim() : 'В наличии';
             
-            // Извлечение цен
-            const oldPriceElement = card.querySelector('.PricebasePrice');
-            const newPriceElement = card.querySelector('.PricesalesPrice');
+            // Извлечение цен - ищем в разных местах
+            const oldPriceElement = card.querySelector('.PricebasePrice, .old-price, .price-old');
+            const newPriceElement = card.querySelector('.PricesalesPrice, .new-price, .price-current');
             
             let oldPrice = oldPriceElement ? oldPriceElement.textContent.trim() : '';
             let newPrice = newPriceElement ? newPriceElement.textContent.trim() : '';
@@ -434,6 +568,11 @@ function parseSiteHTML(html) {
             // Убираем слово "цена" из цен
             oldPrice = oldPrice.replace(/цена/gi, '').trim();
             newPrice = newPrice.replace(/цена/gi, '').trim();
+            
+            // Если нет старой цены, используем новую как старую
+            if (!oldPrice && newPrice) {
+                oldPrice = newPrice;
+            }
             
             if (title) {
                 products.push({
@@ -451,6 +590,7 @@ function parseSiteHTML(html) {
         }
     });
     
+    console.log(`Успешно распарсено ${products.length} товаров`);
     return products;
 }
 
