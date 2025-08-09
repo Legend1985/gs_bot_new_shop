@@ -405,6 +405,32 @@ async function loadRealProducts() {
     }
 }
 
+// Создание звездочек рейтинга
+function createRatingStars(rating) {
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 >= 0.5;
+    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+    
+    let starsHTML = '';
+    
+    // Полные звезды
+    for (let i = 0; i < fullStars; i++) {
+        starsHTML += '<span style="color: #FFD700; font-size: 16px;">★</span>';
+    }
+    
+    // Половина звезды
+    if (hasHalfStar) {
+        starsHTML += '<span style="color: #FFD700; font-size: 16px;">☆</span>';
+    }
+    
+    // Пустые звезды
+    for (let i = 0; i < emptyStars; i++) {
+        starsHTML += '<span style="color: #ddd; font-size: 16px;">☆</span>';
+    }
+    
+    return starsHTML;
+}
+
 // Создание карточки товара из данных сайта
 function createProductCardFromSiteData(product, btnId) {
     const card = document.createElement('div');
@@ -452,6 +478,11 @@ function createProductCardFromSiteData(product, btnId) {
     // Обработка названия товара
     const productName = product.title || 'Название товара не указано';
     
+    // Создание звездочек рейтинга
+    const rating = product.rating || 0;
+    const ratingText = product.ratingText || '';
+    const starsHTML = createRatingStars(rating);
+    
     card.innerHTML = `
         <div class="product-card-top">
             <img src="${imageSrc}" alt="${productName}" class="img" style="width: 150px; height: 150px; object-fit: cover;" onerror="this.src='Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg'">
@@ -459,6 +490,10 @@ function createProductCardFromSiteData(product, btnId) {
         </div>
         <div class="product-card-bottom">
             <div class="${statusClass}">${status}</div>
+            <div class="product-rating" style="margin: 5px 0; text-align: center;">
+                ${starsHTML}
+                <div class="rating-text" style="font-size: 12px; color: #666; margin-top: 2px;">${ratingText}</div>
+            </div>
             <div class="product-bottom-row">
                 <div class="product-prices">
                     <div class="old-price">${oldPrice}</div>
@@ -600,6 +635,26 @@ function parseSiteHTML(html) {
             // Убираем дублирующееся "грн" из красной цены
             newPrice = newPrice.replace(/\s*грн\s*грн\s*/g, ' грн ').trim();
             
+            // Извлечение рейтинга
+            const ratingElement = card.querySelector('.current-rating');
+            let rating = 0;
+            let ratingText = '';
+            
+            if (ratingElement) {
+                // Получаем ширину элемента рейтинга (например, 92.00%)
+                const ratingWidth = ratingElement.style.width;
+                if (ratingWidth) {
+                    const percentage = parseFloat(ratingWidth.replace('%', ''));
+                    rating = Math.round((percentage / 100) * 5 * 10) / 10; // Конвертируем в 5-балльную шкалу
+                }
+            }
+            
+            // Извлечение текста рейтинга (например, "(4.6 - 10 голосов)")
+            const ratingTextElement = card.querySelector('.vrvote-count small');
+            if (ratingTextElement) {
+                ratingText = ratingTextElement.textContent.trim();
+            }
+            
             if (title) {
                 products.push({
                     index: index,
@@ -607,7 +662,9 @@ function parseSiteHTML(html) {
                     imageSrc: fullImageUrl,
                     availability: availability,
                     oldPrice: oldPrice,
-                    newPrice: newPrice
+                    newPrice: newPrice,
+                    rating: rating,
+                    ratingText: ratingText
                 });
             }
             
@@ -633,6 +690,7 @@ function parseCurrentHTML() {
         const statusElement = card.querySelector('.product-status');
         const oldPriceElement = card.querySelector('.old-price');
         const newPriceElement = card.querySelector('.new-price');
+        const ratingTextElement = card.querySelector('.rating-text');
         
         products.push({
             index: index,
@@ -640,7 +698,8 @@ function parseCurrentHTML() {
             imageSrc: imgElement ? imgElement.src : '',
             availability: statusElement ? statusElement.textContent.trim() : '',
             oldPrice: oldPriceElement ? oldPriceElement.textContent.trim() : '',
-            newPrice: newPriceElement ? newPriceElement.textContent.trim() : ''
+            newPrice: newPriceElement ? newPriceElement.textContent.trim() : '',
+            ratingText: ratingTextElement ? ratingTextElement.textContent.trim() : ''
         });
     });
     
@@ -661,7 +720,8 @@ function compareAndUpdate(siteData, currentData) {
                 siteProduct.oldPrice !== currentProduct.oldPrice ||
                 siteProduct.newPrice !== currentProduct.newPrice ||
                 siteProduct.availability !== currentProduct.availability ||
-                siteProduct.imageSrc !== currentProduct.imageSrc;
+                siteProduct.imageSrc !== currentProduct.imageSrc ||
+                siteProduct.ratingText !== currentProduct.ratingText;
             
             if (needsUpdate) {
                 updates.push({
@@ -714,6 +774,22 @@ function applyUpdatesToDOM(updates) {
             
             if (newPriceElement && siteData.newPrice) {
                 newPriceElement.textContent = siteData.newPrice;
+            }
+            
+            // Обновление рейтинга
+            const ratingContainer = productCard.querySelector('.product-rating');
+            if (ratingContainer && siteData.rating !== undefined) {
+                const starsHTML = createRatingStars(siteData.rating);
+                const ratingTextElement = ratingContainer.querySelector('.rating-text');
+                
+                // Обновляем звездочки
+                const starsContainer = ratingContainer.querySelector('.stars-container') || ratingContainer;
+                starsContainer.innerHTML = starsHTML;
+                
+                // Обновляем текст рейтинга
+                if (ratingTextElement && siteData.ratingText) {
+                    ratingTextElement.textContent = siteData.ratingText;
+                }
             }
             
             console.log(`Обновлена карточка товара ${cardIndex + 1}: ${siteData.title}`);
