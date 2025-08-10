@@ -605,6 +605,25 @@ body.popup-open {
     margin: 0;
 }
 
+/* Стили для сообщений об успехе */
+.success-message {
+    width: 100%;
+    text-align: center;
+    padding: 15px;
+    margin: 15px 0;
+    background: #f0fff4;
+    border: 1px solid #9ae6b4;
+    border-radius: 8px;
+    color: #22543d;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.success-message p {
+    margin: 0;
+}
+
 /* Улучшенные стили для сообщения о конце списка */
 .end-message {
     width: 100%;

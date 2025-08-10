@@ -20,8 +20,35 @@
 			font-size: 12px;
 			cursor: pointer;
 			display: none;
+			margin-right: 10px;
 		" title="Сбросить состояние загрузки, если товары не загружаются">
 			🔄 Сбросить загрузку
+		</button>
+		
+		<button id="clearChromeCacheBtn" style="
+			padding: 8px 16px;
+			background: #17a2b8;
+			color: white;
+			border: none;
+			border-radius: 6px;
+			font-size: 12px;
+			cursor: pointer;
+			display: none;
+		" title="Очистить кеш Chrome (если товары не загружаются)">
+			🧹 Очистить кеш Chrome
+		</button>
+		
+		<button id="forceLoadAllBtn" style="
+			padding: 8px 16px;
+			background: #28a745;
+			color: white;
+			border: none;
+			border-radius: 6px;
+			font-size: 12px;
+			cursor: pointer;
+			display: none;
+		" title="Принудительно загрузить все товары (для Chrome)">
+			🚀 Загрузить все товары
 		</button>
 	</div>
 	
@@ -47,5 +74,6 @@
 
 	<script src="https://telegram.org/js/telegram-web-app.js"></script>
 	<script src="app.js"></script>
+	<script src="chrome_debug.js"></script>
 </body>
 </html>

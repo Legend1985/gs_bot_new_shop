@@ -25,6 +25,22 @@ let savedScrollPosition = 0; // Сохраненная позиция прокр
 let lastLoadTime = 0; // Время последней загрузки для предотвращения частых запросов
 const minLoadInterval = 1000; // Минимальный интервал между загрузками (1 секунда)
 
+// Дополнительные переменные для Chrome
+let isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
+let chromeRetryCount = 0;
+const maxChromeRetries = 10; // Увеличиваем количество попыток для Chrome
+let chromeCacheBuster = Date.now(); // Для обхода кеша Chrome
+let currentProxyIndex = 0; // Индекс текущего прокси
+let proxyUrls = [
+    'https://api.allorigins.win/raw?url=',
+    'https://cors-anywhere.herokuapp.com/',
+    'https://thingproxy.freeboard.io/fetch/'
+]; // Массив прокси для fallback
+
+// Счетчик успешно загруженных страниц для Chrome
+let chromeSuccessfulPages = 0;
+const maxChromePages = Math.ceil(377 / productsPerPage); // Максимальное количество страниц для 377 товаров
+
 // Функция загрузки товаров с сайта
 async function loadProducts(page = 0) {
     if (isLoading || !hasMoreProducts) return;
@@ -65,6 +81,20 @@ async function loadProducts(page = 0) {
             console.log(`Страница: ${page + 1}, start: ${start}`);
         } else {
             console.error('Ошибка API:', data.error);
+            
+            // Для Chrome добавляем дополнительную логику
+            if (isChrome && chromeRetryCount < maxChromeRetries) {
+                console.log('Chrome: ошибка API, пробуем повторить...');
+                chromeRetryCount++;
+                
+                // Небольшая задержка перед повторной попыткой
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                // Пробуем загрузить снова
+                isLoading = false;
+                return await loadProducts(page);
+            }
+            
             // Если API недоступен, используем моковые данные
             const products = generateMockProducts(start, productsPerPage);
             renderProducts(products);
@@ -73,6 +103,20 @@ async function loadProducts(page = 0) {
         
     } catch (error) {
         console.error('Ошибка загрузки товаров:', error);
+        
+        // Для Chrome добавляем дополнительную логику
+        if (isChrome && chromeRetryCount < maxChromeRetries) {
+            console.log('Chrome: ошибка загрузки товаров, пробуем повторить...');
+            chromeRetryCount++;
+            
+            // Небольшая задержка перед повторной попыткой
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            // Пробуем загрузить снова
+            isLoading = false;
+            return await loadProducts(page);
+        }
+        
         // При ошибке используем моковые данные
         const products = generateMockProducts(start, productsPerPage);
         renderProducts(products);
@@ -155,6 +199,20 @@ function handleScroll() {
             return;
         }
         
+        // Улучшенная проверка для Chrome: если загрузка зависла, сбрасываем
+        if (isChrome && isLoading && (currentTime - lastLoadTime > 35000)) {
+            console.log('Chrome: загрузка зависла более 35 секунд, сбрасываем состояние...');
+            resetLoadingState();
+            return;
+        }
+        
+        // Проверяем, достигли ли мы максимального количества страниц для Chrome
+        if (isChrome && currentPage >= maxChromePages) {
+            console.log(`Chrome: достигнут лимит страниц (${maxChromePages}), больше товаров нет`);
+            hasMoreProducts = false;
+            return;
+        }
+        
         if (!isLoading && hasMoreProducts) {
             console.log('Запускаем загрузку дополнительных товаров...');
             loadMoreProducts();
@@ -165,9 +223,9 @@ function handleScroll() {
         }
     }
     
-    // Дополнительная проверка: если загрузка зависла более 30 секунд, сбрасываем состояние
-    if (isLoading && (Date.now() - lastLoadTime > 30000)) {
-        console.log('Загрузка зависла более 30 секунд, сбрасываем состояние...');
+    // Улучшенная проверка: если загрузка зависла более 40 секунд, сбрасываем состояние
+    if (isLoading && (Date.now() - lastLoadTime > 40000)) {
+        console.log('Загрузка зависла более 40 секунд, сбрасываем состояние...');
         resetLoadingState();
     }
 }
@@ -231,8 +289,20 @@ async function loadMoreProducts() {
             }
             
             // Проверяем, есть ли еще товары
-            // Если получили меньше товаров, чем ожидали, значит достигли конца
-            hasMoreProducts = siteData.length >= productsPerPage;
+            // Улучшенная логика для Chrome
+            if (isChrome) {
+                // Для Chrome используем более точную проверку
+                chromeSuccessfulPages++;
+                hasMoreProducts = loadedProductNames.size < 377 && currentPage < maxChromePages;
+                
+                console.log(`Chrome: успешно загружено страниц: ${chromeSuccessfulPages}/${maxChromePages}`);
+                console.log(`Chrome: товаров загружено: ${loadedProductNames.size}/377`);
+                console.log(`Chrome: текущая страница: ${currentPage + 1}/${maxChromePages}`);
+            } else {
+                // Для других браузеров оставляем старую логику
+                hasMoreProducts = siteData.length >= productsPerPage;
+            }
+            
             currentPage = nextPage;
             
             console.log(`Всего загружено товаров: ${loadedProductNames.size}`);
@@ -242,42 +312,58 @@ async function loadMoreProducts() {
             saveState();
             
         } else {
-            // Если товаров нет, значит достигли конца
-            console.log('Получено 0 товаров - достигнут конец списка');
-            hasMoreProducts = false;
-            hideLoadingIndicator();
-            showEndMessage();
-            console.log('Достигнут конец списка товаров');
+            console.log(`Страница ${nextPage + 1} пуста или содержит ошибки`);
             
-            // Останавливаем мониторинг, так как больше загружать нечего
-            stopStatusMonitoring();
+            // Для Chrome добавляем дополнительную логику обработки пустых страниц
+            if (isChrome && chromeRetryCount < maxChromeRetries) {
+                console.log('Chrome: пустая страница, пробуем повторить загрузку...');
+                chromeRetryCount++;
+                
+                // Убираем индикатор загрузки
+                hideLoadingIndicator();
+                
+                // Небольшая задержка перед повторной попыткой
+                await new Promise(resolve => setTimeout(resolve, 3000));
+                
+                // Сбрасываем состояние загрузки и пробуем снова
+                isLoading = false;
+                return;
+            }
+            
+            // Если это не Chrome или превышен лимит попыток, считаем что товары закончились
+            hasMoreProducts = false;
+            currentPage = nextPage;
+            
+            // Убираем индикатор загрузки
+            hideLoadingIndicator();
+            
+            // Показываем сообщение о конце списка
+            showEndMessage();
         }
         
     } catch (error) {
-        console.error('Ошибка загрузки дополнительных товаров:', error);
-        // При ошибке не сбрасываем hasMoreProducts, чтобы можно было попробовать снова
+        console.error(`Ошибка загрузки страницы ${nextPage + 1}:`, error);
+        
+        // Убираем индикатор загрузки
         hideLoadingIndicator();
         
-        // Показываем сообщение об ошибке
-        const container = document.querySelector('.inner');
-        const errorDiv = document.createElement('div');
-        errorDiv.className = 'error-message';
-        errorDiv.innerHTML = '<p>Ошибка загрузки товаров. Попробуйте прокрутить еще раз.</p>';
-        container.appendChild(errorDiv);
+        // Для Chrome добавляем дополнительную логику обработки ошибок
+        if (isChrome && chromeRetryCount < maxChromeRetries) {
+            console.log('Chrome: ошибка загрузки, пробуем повторить...');
+            
+            // Небольшая задержка перед повторной попыткой
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            
+            // Сбрасываем состояние загрузки и пробуем снова
+            isLoading = false;
+            return;
+        }
         
-        // Убираем сообщение об ошибке через 5 секунд
-        setTimeout(() => {
-            if (errorDiv.parentNode) {
-                errorDiv.remove();
-            }
-        }, 5000);
+        // Если это не Chrome или превышен лимит попыток, показываем ошибку
+        showErrorMessage(`Ошибка загрузки товаров: ${error.message}`);
         
-    } finally {
+        // Сбрасываем состояние загрузки
         isLoading = false;
-        console.log(`loadMoreProducts завершен. isLoading=${isLoading}, hasMoreProducts=${hasMoreProducts}`);
-        
-        // Обновляем состояние кнопки сброса
-        updateResetButton();
     }
 }
 
@@ -333,12 +419,58 @@ function resetLoadingState() {
     const errorMessages = document.querySelectorAll('.error-message');
     errorMessages.forEach(msg => msg.remove());
     
-    // Проверяем, есть ли еще товары для загрузки
-    if (hasMoreProducts && currentPage < 5) { // Ограничиваем максимальное количество страниц
-        console.log('Состояние сброшено, можно попробовать загрузить еще раз');
+    // Для Chrome добавляем дополнительную очистку
+    if (isChrome) {
+        console.log('Chrome: дополнительная очистка состояния...');
+        
+        // Сбрасываем счетчики попыток
+        chromeRetryCount = 0;
+        chromeCacheBuster = Date.now();
+        
+        // Переключаем прокси
+        currentProxyIndex = (currentProxyIndex + 1) % proxyUrls.length;
+        
+        // Очищаем кеш браузера (если возможно)
+        if ('caches' in window) {
+            caches.keys().then(names => {
+                names.forEach(name => {
+                    if (name.includes('guitarstrings') || name.includes('allorigins')) {
+                        caches.delete(name);
+                        console.log('Chrome: очищен кеш для', name);
+                    }
+                });
+            });
+        }
+    }
+    
+    // Улучшенная проверка для Chrome: проверяем, есть ли еще товары для загрузки
+    if (isChrome) {
+        // Для Chrome используем более точную логику
+        if (hasMoreProducts && currentPage < maxChromePages && loadedProductNames.size < 377) {
+            console.log(`Chrome: состояние сброшено, можно попробовать загрузить еще раз. Страница: ${currentPage + 1}/${maxChromePages}, товаров: ${loadedProductNames.size}/377`);
+            
+            // Добавляем небольшую задержку перед повторной попыткой
+            setTimeout(() => {
+                console.log('Chrome: пробуем загрузить товары после сброса...');
+                if (!isLoading && hasMoreProducts) {
+                    loadMoreProducts();
+                }
+            }, 3000);
+        } else if (loadedProductNames.size >= 377) {
+            console.log('Chrome: все 377 товаров загружены, завершаем загрузку');
+            hasMoreProducts = false;
+        } else if (currentPage >= maxChromePages) {
+            console.log(`Chrome: достигнут лимит страниц (${maxChromePages}), больше товаров нет`);
+            hasMoreProducts = false;
+        }
     } else {
-        console.log('Достигнут лимит страниц или больше товаров нет');
-        hasMoreProducts = false;
+        // Для других браузеров оставляем старую логику
+        if (hasMoreProducts && currentPage < 5) {
+            console.log('Состояние сброшено, можно попробовать загрузить еще раз');
+        } else {
+            console.log('Достигнут лимит страниц или больше товаров нет');
+            hasMoreProducts = false;
+        }
     }
 }
 
@@ -356,6 +488,15 @@ function logLoadingStatus() {
     console.log(`Время с последней загрузки: ${timeSinceLastLoad}ms`);
     console.log(`Позиция прокрутки: ${window.scrollY}/${document.body.offsetHeight}`);
     console.log(`Высота окна: ${window.innerHeight}`);
+    
+    // Дополнительная информация для Chrome
+    if (isChrome) {
+        console.log(`Chrome: успешно загружено страниц: ${chromeSuccessfulPages}/${maxChromePages}`);
+        console.log(`Chrome: попыток: ${chromeRetryCount}/${maxChromeRetries}`);
+        console.log(`Chrome: кеш-бастер: ${chromeCacheBuster}`);
+        console.log(`Chrome: прокси: ${proxyUrls[currentProxyIndex]}`);
+    }
+    
     console.log(`========================`);
 }
 
@@ -386,6 +527,9 @@ function stopStatusMonitoring() {
 // Функция для управления кнопкой сброса состояния загрузки
 function updateResetButton() {
     const resetBtn = document.getElementById('resetLoadingBtn');
+    const clearCacheBtn = document.getElementById('clearChromeCacheBtn');
+    const forceLoadAllBtn = document.getElementById('forceLoadAllBtn');
+    
     if (resetBtn) {
         // Показываем кнопку только если есть проблемы с загрузкой
         if (isLoading || (hasMoreProducts && loadedProductNames.size === 0)) {
@@ -393,6 +537,16 @@ function updateResetButton() {
         } else {
             resetBtn.style.display = 'none';
         }
+    }
+    
+    if (clearCacheBtn && isChrome) {
+        // Показываем кнопку очистки кеша Chrome всегда, если это Chrome
+        clearCacheBtn.style.display = 'inline-block';
+    }
+    
+    if (forceLoadAllBtn && isChrome) {
+        // Показываем кнопку принудительной загрузки всегда, если это Chrome
+        forceLoadAllBtn.style.display = 'inline-block';
     }
 }
 
@@ -403,6 +557,52 @@ function showEndMessage() {
     endDiv.className = 'end-message';
     endDiv.innerHTML = '<p>Все товары загружены</p>';
     container.appendChild(endDiv);
+}
+
+// Показываем сообщение об ошибке
+function showErrorMessage(message) {
+    const container = document.querySelector('.inner');
+    
+    // Убираем существующие сообщения об ошибках
+    const existingErrors = container.querySelectorAll('.error-message');
+    existingErrors.forEach(error => error.remove());
+    
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'error-message';
+    errorDiv.innerHTML = `<p>${message}</p>`;
+    container.appendChild(errorDiv);
+    
+    // Убираем сообщение об ошибке через 8 секунд
+    setTimeout(() => {
+        if (errorDiv.parentNode) {
+            errorDiv.remove();
+        }
+    }, 8000);
+    
+    console.log('Показано сообщение об ошибке:', message);
+}
+
+// Показываем сообщение об успехе
+function showSuccessMessage(message) {
+    const container = document.querySelector('.inner');
+    
+    // Убираем существующие сообщения об успехе
+    const existingSuccess = container.querySelectorAll('.success-message');
+    existingSuccess.forEach(success => success.remove());
+    
+    const successDiv = document.createElement('div');
+    successDiv.className = 'success-message';
+    successDiv.innerHTML = `<p>✅ ${message}</p>`;
+    container.appendChild(successDiv);
+    
+    // Убираем сообщение об успехе через 5 секунд
+    setTimeout(() => {
+        if (successDiv.parentNode) {
+            successDiv.remove();
+        }
+    }, 5000);
+    
+    console.log('Показано сообщение об успехе:', message);
 }
 
 // Создание заставки загрузки
@@ -458,6 +658,84 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // Настраиваем обработчик для кнопки очистки кеша Chrome
+    const clearCacheBtn = document.getElementById('clearChromeCacheBtn');
+    if (clearCacheBtn) {
+        clearCacheBtn.addEventListener('click', function() {
+            console.log('Пользователь нажал кнопку очистки кеша Chrome');
+            clearChromeCache();
+            
+            // Показываем сообщение об успешной очистке
+            showSuccessMessage('Кеш Chrome очищен! Попробуйте загрузить товары снова.');
+            
+            // Скрываем кнопку на некоторое время
+            clearCacheBtn.style.display = 'none';
+            setTimeout(() => {
+                if (clearCacheBtn) {
+                    clearCacheBtn.style.display = 'inline-block';
+                }
+            }, 5000);
+        });
+    }
+    
+    // Настраиваем обработчик для кнопки принудительной загрузки всех товаров
+    const forceLoadAllBtn = document.getElementById('forceLoadAllBtn');
+    if (forceLoadAllBtn) {
+        forceLoadAllBtn.addEventListener('click', function() {
+            console.log('Пользователь нажал кнопку принудительной загрузки всех товаров');
+            
+            if (isChrome) {
+                // Показываем сообщение о начале загрузки
+                showSuccessMessage('Начинаем принудительную загрузку всех товаров...');
+                
+                // Запускаем принудительную загрузку
+                window.forceLoadAllProducts();
+                
+                // Скрываем кнопку на некоторое время
+                forceLoadAllBtn.style.display = 'none';
+                setTimeout(() => {
+                    if (forceLoadAllBtn) {
+                        forceLoadAllBtn.style.display = 'inline-block';
+                    }
+                }, 10000);
+            } else {
+                showErrorMessage('Эта функция доступна только в Chrome');
+            }
+        });
+    }
+    
+    // Для Chrome добавляем дополнительную инициализацию
+    if (isChrome) {
+        console.log('Chrome: дополнительная инициализация...');
+        
+        // Принудительно очищаем кеш при загрузке
+        clearChromeCache();
+        
+        // Добавляем обработчик для принудительной очистки кеша
+        window.addEventListener('focus', clearChromeCache);
+        
+        // Добавляем обработчик для очистки кеша при видимости страницы
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                clearChromeCache();
+            }
+        });
+        
+        // Добавляем обработчик для принудительной загрузки при прокрутке вниз
+        let scrollTimeout;
+        window.addEventListener('scroll', () => {
+            clearTimeout(scrollTimeout);
+            scrollTimeout = setTimeout(() => {
+                if (window.scrollY > 1000 && loadedProductNames.size < 377 && !isLoading) {
+                    console.log('Chrome: пользователь прокрутил далеко вниз, проверяем загрузку...');
+                    if (hasMoreProducts) {
+                        loadMoreProducts();
+                    }
+                }
+            }, 500);
+        });
+    }
+    
     // Загружаем реальные товары с сайта с небольшой задержкой
     setTimeout(() => {
         loadRealProducts();
@@ -482,6 +760,27 @@ async function loadRealProducts() {
         
     } catch (error) {
         console.error('Ошибка загрузки реальных товаров:', error);
+        
+        // Для Chrome добавляем дополнительную логику
+        if (isChrome && chromeRetryCount < maxChromeRetries) {
+            console.log('Chrome: ошибка загрузки реальных товаров, пробуем повторить...');
+            chromeRetryCount++;
+            
+            // Очищаем кеш Chrome
+            clearChromeCache();
+            
+            // Небольшая задержка перед повторной попыткой
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            
+            // Пробуем загрузить снова
+            try {
+                await loadRealProducts();
+                return;
+            } catch (retryError) {
+                console.error('Chrome: повторная попытка загрузки реальных товаров не удалась:', retryError);
+            }
+        }
+        
         // Скрываем заставку загрузки
         hideLoadingScreen();
         // При ошибке используем моковые данные
@@ -491,45 +790,88 @@ async function loadRealProducts() {
 
 // Загрузка первой страницы
 async function loadFirstPage() {
-    const siteData = await fetchProductData(0);
-    
-    if (siteData && siteData.length > 0) {
-        // Очищаем контейнер
-        const container = document.querySelector('.inner');
-        container.innerHTML = '';
+    try {
+        console.log('Загружаем первую страницу товаров с сайта...');
+        
+        // Для Chrome добавляем дополнительную очистку кеша
+        if (isChrome) {
+            clearChromeCache();
+        }
+        
+        const siteData = await fetchProductData(0);
+        
+        if (siteData && siteData.length > 0) {
+            // Очищаем контейнер
+            const container = document.querySelector('.inner');
+            container.innerHTML = '';
+            
+            // Скрываем заставку загрузки
+            hideLoadingScreen();
+            
+            // Рендерим товары первой страницы
+            siteData.forEach((product, index) => {
+                const productCard = createProductCardFromSiteData(product, index + 1);
+                container.appendChild(productCard);
+            });
+            
+            // Настраиваем обработчики для новых изображений
+            setupImageHandlers();
+            
+            console.log(`Загружено ${siteData.length} товаров с первой страницы сайта`);
+            
+            // Обновляем переменные для пагинации
+            maxProducts = Math.max(377, siteData.length);
+            hasMoreProducts = siteData.length >= productsPerPage;
+            
+            // Добавляем загруженные товары в отслеживание
+            siteData.forEach(product => {
+                loadedProductNames.add(product.title);
+            });
+            
+            // Сохраняем состояние
+            saveState();
+            
+            // Обновляем состояние кнопки сброса
+            updateResetButton();
+            
+        } else {
+            // Если не удалось загрузить, используем моковые данные
+            console.log('Не удалось загрузить товары с сайта, используем моковые данные');
+            
+            // Для Chrome добавляем дополнительную логику
+            if (isChrome && chromeRetryCount < maxChromeRetries) {
+                console.log('Chrome: первая страница пуста, пробуем повторить...');
+                chromeRetryCount++;
+                
+                // Небольшая задержка перед повторной попыткой
+                await new Promise(resolve => setTimeout(resolve, 3000));
+                
+                // Пробуем загрузить снова
+                return await loadFirstPage();
+            }
+            
+            hideLoadingScreen();
+            loadProducts(0);
+        }
+        
+    } catch (error) {
+        console.error('Ошибка загрузки первой страницы:', error);
+        
+        // Для Chrome добавляем дополнительную логику
+        if (isChrome && chromeRetryCount < maxChromeRetries) {
+            console.log('Chrome: ошибка загрузки первой страницы, пробуем повторить...');
+            chromeRetryCount++;
+            
+            // Небольшая задержка перед повторной попыткой
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            
+            // Пробуем загрузить снова
+            return await loadFirstPage();
+        }
         
         // Скрываем заставку загрузки
         hideLoadingScreen();
-        
-        // Рендерим товары первой страницы
-        siteData.forEach((product, index) => {
-            const productCard = createProductCardFromSiteData(product, index + 1);
-            container.appendChild(productCard);
-        });
-        
-        // Настраиваем обработчики для новых изображений
-        setupImageHandlers();
-        
-        console.log(`Загружено ${siteData.length} товаров с первой страницы сайта`);
-        
-        // Обновляем переменные для пагинации
-        maxProducts = Math.max(377, siteData.length);
-        hasMoreProducts = siteData.length >= productsPerPage;
-        
-        // Добавляем загруженные товары в отслеживание
-        siteData.forEach(product => {
-            loadedProductNames.add(product.title);
-        });
-        
-        // Сохраняем состояние
-        saveState();
-        
-        // Обновляем состояние кнопки сброса
-        updateResetButton();
-        
-    } else {
-        // Если не удалось загрузить, используем моковые данные
-        console.log('Не удалось загрузить товары с сайта, используем моковые данные');
+        // При ошибке используем моковые данные
         loadProducts(0);
     }
 }
@@ -541,6 +883,11 @@ async function restoreAllProducts() {
     // Очищаем контейнер
     const container = document.querySelector('.inner');
     container.innerHTML = '';
+    
+    // Для Chrome добавляем дополнительную очистку кеша
+    if (isChrome) {
+        clearChromeCache();
+    }
     
     // Загружаем все страницы по порядку
     for (let page = 0; page <= currentPage; page++) {
@@ -565,6 +912,34 @@ async function restoreAllProducts() {
                 setupImageHandlers();
                 
                 console.log(`Восстановлено ${restoredProducts.length} товаров со страницы ${page + 1}`);
+            } else {
+                console.warn(`Страница ${page + 1} пуста при восстановлении`);
+                
+                // Для Chrome добавляем дополнительную логику
+                if (isChrome && chromeRetryCount < maxChromeRetries) {
+                    console.log('Chrome: пустая страница при восстановлении, пробуем повторить...');
+                    chromeRetryCount++;
+                    
+                    // Небольшая задержка перед повторной попыткой
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    
+                    // Пробуем загрузить страницу снова
+                    const retryData = await fetchProductData(page);
+                    if (retryData && retryData.length > 0) {
+                        const retryProducts = retryData.filter(product => 
+                            loadedProductNames.has(product.title)
+                        );
+                        
+                        retryProducts.forEach((product, index) => {
+                            const globalIndex = page * productsPerPage + index;
+                            const productCard = createProductCardFromSiteData(product, globalIndex + 1);
+                            container.appendChild(productCard);
+                        });
+                        
+                        setupImageHandlers();
+                        console.log(`Chrome: восстановлено ${retryProducts.length} товаров со страницы ${page + 1} после повторной попытки`);
+                    }
+                }
             }
             
             // Небольшая задержка между запросами
@@ -574,6 +949,36 @@ async function restoreAllProducts() {
             
         } catch (error) {
             console.error(`Ошибка восстановления страницы ${page + 1}:`, error);
+            
+            // Для Chrome добавляем дополнительную логику
+            if (isChrome && chromeRetryCount < maxChromeRetries) {
+                console.log(`Chrome: ошибка восстановления страницы ${page + 1}, пробуем повторить...`);
+                chromeRetryCount++;
+                
+                // Небольшая задержка перед повторной попыткой
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                // Пробуем восстановить страницу снова
+                try {
+                    const retryData = await fetchProductData(page);
+                    if (retryData && retryData.length > 0) {
+                        const retryProducts = retryData.filter(product => 
+                            loadedProductNames.has(product.title)
+                        );
+                        
+                        retryProducts.forEach((product, index) => {
+                            const globalIndex = page * productsPerPage + index;
+                            const productCard = createProductCardFromSiteData(product, globalIndex + 1);
+                            container.appendChild(productCard);
+                        });
+                        
+                        setupImageHandlers();
+                        console.log(`Chrome: восстановлено ${retryProducts.length} товаров со страницы ${page + 1} после повторной попытки`);
+                    }
+                } catch (retryError) {
+                    console.error(`Chrome: повторная попытка восстановления страницы ${page + 1} не удалась:`, retryError);
+                }
+            }
         }
     }
     
@@ -676,9 +1081,12 @@ usercard.appendChild(p);
 async function fetchProductData(page = 0) {
     try {
         console.log(`fetchProductData: начинаем загрузку страницы ${page + 1}`);
+        console.log(`fetchProductData: браузер Chrome: ${isChrome}, попытка: ${chromeRetryCount + 1}`);
         
-        // Используем прокси для обхода CORS
-        const proxyUrl = 'https://api.allorigins.win/raw?url=';
+        // Выбираем прокси из массива
+        const proxyUrl = proxyUrls[currentProxyIndex];
+        currentProxyIndex = (currentProxyIndex + 1) % proxyUrls.length; // Переключаем прокси
+        
         let targetUrl = 'https://guitarstrings.com.ua/electro';
         
         // Добавляем параметр start для пагинации
@@ -687,11 +1095,31 @@ async function fetchProductData(page = 0) {
             targetUrl += `?start=${start}`;
         }
         
+        // Улучшенный кеш-бастер для Chrome
+        if (isChrome) {
+            const separator = targetUrl.includes('?') ? '&' : '?';
+            targetUrl += `${separator}_cb=${chromeCacheBuster + page}&_t=${Date.now()}&_r=${Math.random()}&_p=${page}&_v=${chromeSuccessfulPages}`;
+        }
+        
         console.log(`fetchProductData: загружаем страницу ${page + 1}: ${targetUrl}`);
         console.log(`fetchProductData: полный URL с прокси: ${proxyUrl + encodeURIComponent(targetUrl)}`);
         
         const startTime = Date.now();
-        const response = await fetch(proxyUrl + encodeURIComponent(targetUrl));
+        
+        // Улучшенные заголовки для Chrome
+        const fetchOptions = {
+            method: 'GET',
+            headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+                'Pragma': 'no-cache',
+                'Expires': '0',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            },
+            // Добавляем таймаут для Chrome
+            signal: isChrome ? AbortSignal.timeout(30000) : undefined // 30 секунд для Chrome
+        };
+        
+        const response = await fetch(proxyUrl + encodeURIComponent(targetUrl), fetchOptions);
         const fetchTime = Date.now() - startTime;
         
         console.log(`fetchProductData: ответ получен за ${fetchTime}ms, статус: ${response.status}`);
@@ -704,14 +1132,52 @@ async function fetchProductData(page = 0) {
         const parseTime = Date.now() - startTime;
         console.log(`fetchProductData: HTML получен за ${parseTime}ms, размер: ${html.length} символов`);
         
+        // Проверяем, что HTML содержит ожидаемый контент
+        if (html.length < 1000 || !html.includes('product')) {
+            console.warn(`fetchProductData: подозрительно короткий или пустой HTML для страницы ${page + 1}`);
+            if (isChrome && chromeRetryCount < maxChromeRetries) {
+                chromeRetryCount++;
+                chromeCacheBuster = Date.now(); // Обновляем кеш-бастер
+                console.log(`fetchProductData: повторная попытка для Chrome (${chromeRetryCount}/${maxChromeRetries})`);
+                
+                // Переключаем прокси при повторной попытке
+                currentProxyIndex = (currentProxyIndex + 1) % proxyUrls.length;
+                
+                // Увеличиваем задержку для Chrome
+                await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 3000));
+                return await fetchProductData(page); // Рекурсивный вызов
+            }
+        }
+        
         const products = parseSiteHTML(html);
         const totalTime = Date.now() - startTime;
         console.log(`fetchProductData: страница ${page + 1} полностью обработана за ${totalTime}ms, найдено товаров: ${products.length}`);
+        
+        // Сбрасываем счетчик попыток при успешной загрузке
+        chromeRetryCount = 0;
         
         return products;
         
     } catch (error) {
         console.error(`fetchProductData: ошибка при загрузке страницы ${page + 1}:`, error);
+        
+        // Для Chrome добавляем повторные попытки с улучшенной логикой
+        if (isChrome && chromeRetryCount < maxChromeRetries) {
+            chromeRetryCount++;
+            chromeCacheBuster = Date.now();
+            console.log(`fetchProductData: повторная попытка для Chrome после ошибки (${chromeRetryCount}/${maxChromeRetries})`);
+            
+            // Переключаем прокси при ошибке
+            currentProxyIndex = (currentProxyIndex + 1) % proxyUrls.length;
+            
+            // Увеличиваем задержку перед повторной попыткой для Chrome
+            const delay = 2000 + (chromeRetryCount * 1000) + Math.random() * 2000;
+            console.log(`fetchProductData: ожидаем ${Math.round(delay)}ms перед повторной попыткой`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            
+            return await fetchProductData(page);
+        }
+        
         throw error;
     }
 }
@@ -917,6 +1383,95 @@ window.saveState = saveState;
 window.loadState = loadState;
 window.clearState = clearState;
 window.resetState = resetState;
+window.clearChromeCache = clearChromeCache; // Добавляем экспорт для Chrome
+
+// Функция для принудительной загрузки всех товаров в Chrome
+window.forceLoadAllProducts = function() {
+    if (isChrome) {
+        console.log('Chrome: принудительная загрузка всех товаров...');
+        
+        // Сбрасываем состояние
+        isLoading = false;
+        hasMoreProducts = true;
+        chromeRetryCount = 0;
+        chromeSuccessfulPages = 0;
+        
+        // Очищаем кеш
+        clearChromeCache();
+        
+        // Загружаем товары постранично
+        const loadNextPage = async (page) => {
+            if (page >= maxChromePages || loadedProductNames.size >= 377) {
+                console.log(`Chrome: загрузка завершена. Страниц: ${page}, товаров: ${loadedProductNames.size}`);
+                return;
+            }
+            
+            try {
+                console.log(`Chrome: принудительно загружаем страницу ${page + 1}...`);
+                const siteData = await fetchProductData(page);
+                
+                if (siteData && siteData.length > 0) {
+                    // Фильтруем дубликаты
+                    const uniqueProducts = siteData.filter(product => {
+                        if (loadedProductNames.has(product.title)) {
+                            return false;
+                        }
+                        loadedProductNames.add(product.title);
+                        return true;
+                    });
+                    
+                    if (uniqueProducts.length > 0) {
+                        // Рендерим новые товары
+                        const container = document.querySelector('.inner');
+                        const startIndex = loadedProductNames.size - uniqueProducts.length;
+                        
+                        uniqueProducts.forEach((product, index) => {
+                            const productCard = createProductCardFromSiteData(product, startIndex + index + 1);
+                            container.appendChild(productCard);
+                        });
+                        
+                        setupImageHandlers();
+                        chromeSuccessfulPages++;
+                        
+                        console.log(`Chrome: страница ${page + 1} загружена, товаров: ${uniqueProducts.length}`);
+                    }
+                }
+                
+                // Загружаем следующую страницу с задержкой
+                setTimeout(() => loadNextPage(page + 1), 2000);
+                
+            } catch (error) {
+                console.error(`Chrome: ошибка загрузки страницы ${page + 1}:`, error);
+                // Пробуем следующую страницу
+                setTimeout(() => loadNextPage(page + 1), 3000);
+            }
+        };
+        
+        // Начинаем загрузку с первой страницы
+        loadNextPage(0);
+        
+    } else {
+        console.log('Эта функция доступна только в Chrome');
+    }
+};
+
+// Функция для принудительной очистки кеша Chrome
+function clearChromeCache() {
+    if (isChrome && 'caches' in window) {
+        caches.keys().then(names => {
+            names.forEach(name => {
+                if (name.includes('guitarstrings') || name.includes('allorigins') || name.includes('cors')) {
+                    caches.delete(name);
+                    console.log('Chrome: очищен кеш для', name);
+                }
+            });
+        });
+        
+        // Обновляем кеш-бастер
+        chromeCacheBuster = Date.now();
+        console.log('Chrome: обновлен кеш-бастер');
+    }
+}
 
 // Функции для работы с всплывающим окном
 function showDiscontinuedPopup() {
