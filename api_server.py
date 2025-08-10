@@ -12,7 +12,12 @@ CORS(app)
 # Serve static files from the current directory
 @app.route('/')
 def index():
-    return send_from_directory('.', 'index.html')
+    try:
+        with open('index.html', 'r', encoding='utf-8') as f:
+            content = f.read()
+        return content, 200, {'Content-Type': 'text/html; charset=utf-8'}
+    except Exception as e:
+        return f"Error loading index.html: {str(e)}", 500
 
 @app.route('/<path:filename>')
 def static_files(filename):
