@@ -318,8 +318,72 @@ body {
     font-weight: normal;
 }
 
+/* Стили для кнопок с разными статусами */
+.btn.out-of-stock {
+    background: #f44336;
+    color: #fff;
+    font-size: 11px;
+    line-height: 1.1;
+    text-align: center;
+    white-space: normal;
+    padding: 3px 4px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    min-width: 72px;
+    max-width: 92px;
+}
+
+.btn.expected {
+    background: #ff9800;
+    color: #fff;
+    font-size: 11px;
+    line-height: 1.1;
+    text-align: center;
+    white-space: normal;
+    padding: 3px 4px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    min-width: 72px;
+    max-width: 92px;
+}
+
+.btn.on-order {
+    background: #2196F3;
+    color: #fff;
+    font-size: 11px;
+    line-height: 1.1;
+    text-align: center;
+    white-space: normal;
+    padding: 3px 4px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    min-width: 72px;
+    max-width: 92px;
+}
+
 .new-price.discontinued {
     color: #808080;
+}
+
+/* Стили для цен товаров, которые не в наличии */
+.new-price.out-of-stock {
+    color: #f44336;
+    opacity: 0.7;
+}
+
+/* Стили для цен товаров, которые ожидаются */
+.new-price.expected {
+    color: #ff9800;
+    opacity: 0.8;
 }
 
 /* Стили для рейтинга товаров */

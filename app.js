@@ -88,13 +88,24 @@ function createProductCard(product, btnId) {
 
 // Функция загрузки дополнительных товаров при прокрутке
 function handleScroll() {
-    if (isLoading || !hasMoreProducts) return;
+    if (isLoading || !hasMoreProducts) {
+        if (isLoading) {
+            console.log('Загрузка уже идет, пропускаем...');
+        } else if (!hasMoreProducts) {
+            console.log('Больше товаров нет, пропускаем...');
+        }
+        return;
+    }
     
     const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
     const windowHeight = window.innerHeight;
     const documentHeight = document.documentElement.scrollHeight;
     
-    if (scrollTop + windowHeight >= documentHeight - 100) {
+    console.log(`Прокрутка: ${scrollTop}, высота окна: ${windowHeight}, высота документа: ${documentHeight}`);
+    
+    // Загружаем новые товары когда пользователь приближается к концу страницы
+    if (scrollTop + windowHeight >= documentHeight - 200) {
+        console.log('Достигнут порог для загрузки новых товаров');
         loadMoreProducts();
     }
 }
@@ -123,26 +134,23 @@ function hideLoadingScreen() {
     }
 }
 
-// Функция показа индикатора загрузки
+// Функция показа индикатора загрузки для бесконечной прокрутки
 function showLoadingIndicator() {
-    let indicator = document.getElementById('loading-indicator');
-    if (!indicator) {
-        indicator = document.createElement('div');
-        indicator.id = 'loading-indicator';
-        indicator.innerHTML = `
-            <div class="loading-spinner-small"></div>
-            <p>Загружаем еще товары...</p>
-        `;
-        document.querySelector('.inner').appendChild(indicator);
+    const indicator = document.getElementById('loading-indicator');
+    if (indicator) {
+        indicator.style.display = 'block';
+        console.log('Показан индикатор загрузки для бесконечной прокрутки');
+    } else {
+        console.warn('Индикатор загрузки не найден');
     }
-    indicator.style.display = 'block';
 }
 
-// Функция скрытия индикатора загрузки
+// Функция скрытия индикатора загрузки для бесконечной прокрутки
 function hideLoadingIndicator() {
     const indicator = document.getElementById('loading-indicator');
     if (indicator) {
         indicator.style.display = 'none';
+        console.log('Скрыт индикатор загрузки для бесконечной прокрутки');
     }
 }
 
@@ -174,8 +182,10 @@ async function loadRealProducts() {
             const firstPageProducts = data.products.slice(0, 60);
             
             // Обновляем глобальные переменные
-            maxProducts = data.products.length;
-            hasMoreProducts = data.products.length > 60;
+            maxProducts = data.total || data.products.length; // Используем total из API или количество всех товаров
+            hasMoreProducts = maxProducts > 60;
+            
+            console.log(`Максимум товаров: ${maxProducts}, есть еще: ${hasMoreProducts}`);
             
             // Сохраняем названия загруженных товаров
             firstPageProducts.forEach(product => {
@@ -232,6 +242,22 @@ function createProductCardFromSiteData(product, btnId) {
     const card = document.createElement('div');
     card.className = 'product-card';
     
+    // Определяем CSS класс для статуса
+    let statusClass = '';
+    if (product.availability === 'Нет в наличии') {
+        statusClass = 'out-of-stock';
+    } else if (product.availability === 'Ожидается') {
+        statusClass = 'expected';
+    } else if (product.availability === 'Под заказ') {
+        statusClass = 'on-order';
+    }
+    
+    // Определяем CSS класс для цены
+    let priceClass = '';
+    if (product.availability === 'Нет в наличии' || product.availability === 'Ожидается') {
+        priceClass = 'out-of-stock';
+    }
+    
     // Создаем HTML для карточки товара
     card.innerHTML = `
         <div class="product-card-top">
@@ -244,14 +270,16 @@ function createProductCardFromSiteData(product, btnId) {
             </div>
         </div>
         <div class="product-card-bottom">
-            <p class="product-status ${product.availability === 'В наличии' ? '' : 'out-of-stock'}">${product.availability}</p>
+            <p class="product-status ${statusClass}">${product.availability}</p>
             <div class="product-bottom-row">
                 <div class="product-prices">
                     ${product.oldPrice ? `<span class="old-price">${product.oldPrice} грн</span>` : ''}
-                    <span class="new-price ${product.availability === 'Снят с производства' ? 'discontinued' : ''}">${product.newPrice} грн</span>
+                    <span class="new-price ${priceClass}">${product.newPrice} грн</span>
                 </div>
-                <button id="${btnId}" class="btn ${product.availability === 'Снят с производства' ? 'discontinued' : ''}">
-                    ${product.availability === 'Снят с производства' ? 'Снят' : 'Купить'}
+                <button id="${btnId}" class="btn ${statusClass}">
+                    ${product.availability === 'Нет в наличии' ? 'Нет в наличии' : 
+                      product.availability === 'Ожидается' ? 'Ожидается' :
+                      product.availability === 'Под заказ' ? 'Под заказ' : 'Купить'}
                 </button>
             </div>
         </div>
@@ -303,14 +331,18 @@ async function loadMoreProducts() {
     // Показываем индикатор загрузки
     showLoadingIndicator();
     
-    const nextPage = Math.floor(loadedProductNames.size / 60);
-    
     try {
+        // Вычисляем следующую страницу на основе количества уже загруженных товаров
+        const nextPage = Math.floor(loadedProductNames.size / 60);
+        console.log(`Загружаем страницу ${nextPage + 1}, уже загружено: ${loadedProductNames.size}`);
+        
         const data = await fetchProductData(nextPage);
         
         if (data && data.products && data.products.length > 0) {
             // Фильтруем только новые товары
             const newProducts = data.products.filter(product => !loadedProductNames.has(product.name));
+            
+            console.log(`Найдено ${newProducts.length} новых товаров из ${data.products.length} полученных`);
             
             if (newProducts.length > 0) {
                 // Добавляем новые товары в контейнер
@@ -328,28 +360,37 @@ async function loadMoreProducts() {
                 hasMoreProducts = loadedProductNames.size < maxProducts;
                 saveState();
                 
-                console.log(`Загружено ${newProducts.length} новых товаров. Всего: ${loadedProductNames.size}`);
-                
-                // Скрываем индикатор загрузки
-                hideLoadingIndicator();
+                console.log(`Добавлено ${newProducts.length} товаров. Всего: ${loadedProductNames.size}, максимум: ${maxProducts}`);
                 
                 // Настраиваем обработчики для новых изображений
                 setupImageHandlers();
+                
+                // Проверяем, нужно ли показать сообщение о конце
+                if (!hasMoreProducts) {
+                    showEndMessage();
+                }
             } else {
-                hasMoreProducts = false;
-                hideLoadingIndicator();
-                showEndMessage();
+                console.log('Новых товаров не найдено');
+                // Если новых товаров нет, но есть еще товары на сервере, пробуем следующую страницу
+                if (data.products.length === 60) {
+                    hasMoreProducts = true;
+                } else {
+                    hasMoreProducts = false;
+                    showEndMessage();
+                }
             }
         } else {
+            console.log('Данные не получены или пусты');
             hasMoreProducts = false;
-            hideLoadingIndicator();
             showEndMessage();
         }
     } catch (error) {
         console.error('Ошибка загрузки дополнительных товаров:', error);
-        hideLoadingIndicator();
+        hasMoreProducts = false;
     } finally {
         isLoading = false;
+        // Скрываем индикатор загрузки
+        hideLoadingIndicator();
     }
 }
 

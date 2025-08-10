@@ -101,12 +101,39 @@ def api():
                     price_match = re.search(r'(\d+)', price_text)
                     new_price = int(price_match.group(1)) if price_match else 0
                 
-                # Generate old price (randomly higher)
-                old_price = new_price + random.randint(50, 150) if new_price > 0 else random.randint(500, 2000)
+                # Generate old price (always higher than new price)
+                if new_price > 0:
+                    # Старая цена должна быть больше новой на 20-40%
+                    markup = random.uniform(1.2, 1.4)
+                    old_price = int(new_price * markup)
+                else:
+                    # Если цена не найдена, генерируем случайную
+                    new_price = random.randint(500, 2000)
+                    old_price = int(new_price * random.uniform(1.2, 1.4))
                 
-                # Check availability
+                # Check availability - более реалистичные статусы
                 availability_elem = item.find('span', class_='availability') or item.find('span', class_='stock')
-                availability = "В наличии" if availability_elem else "Нет в наличии"
+                if availability_elem:
+                    availability_text = availability_elem.get_text(strip=True).lower()
+                    if 'нет' in availability_text or 'закончился' in availability_text:
+                        availability = "Нет в наличии"
+                    elif 'ожидается' in availability_text or 'скоро' in availability_text:
+                        availability = "Ожидается"
+                    elif 'под заказ' in availability_text:
+                        availability = "Под заказ"
+                    else:
+                        availability = "В наличии"
+                else:
+                    # Случайно распределяем статусы для реалистичности
+                    rand_status = random.random()
+                    if rand_status < 0.7:  # 70% товаров в наличии
+                        availability = "В наличии"
+                    elif rand_status < 0.85:  # 15% нет в наличии
+                        availability = "Нет в наличии"
+                    elif rand_status < 0.95:  # 10% ожидается
+                        availability = "Ожидается"
+                    else:  # 5% под заказ
+                        availability = "Под заказ"
                 
                 # Generate random rating (1-5 stars)
                 rating = random.randint(3, 5)
@@ -132,7 +159,7 @@ def api():
                     'name': 'Ernie Ball 2221 10-46 Electric Guitar Strings',
                     'image': 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=150&h=150&fit=crop&crop=center',
                     'newPrice': 1500,
-                    'oldPrice': 1800,
+                    'oldPrice': 1950,
                     'availability': 'В наличии',
                     'rating': 4
                 },
@@ -140,7 +167,7 @@ def api():
                     'name': 'D\'Addario EXL110 10-46 Electric Guitar Strings',
                     'image': 'https://images.unsplash.com/photo-1516924962500-2b4b3b99ea02?w=150&h=150&fit=crop&crop=center',
                     'newPrice': 2000,
-                    'oldPrice': 2400,
+                    'oldPrice': 2600,
                     'availability': 'В наличии',
                     'rating': 5
                 },
@@ -148,24 +175,24 @@ def api():
                     'name': 'GHS Boomers 10-46 Electric Guitar Strings',
                     'image': 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=150&h=150&fit=crop&crop=center',
                     'newPrice': 1800,
-                    'oldPrice': 2100,
-                    'availability': 'В наличии',
+                    'oldPrice': 2340,
+                    'availability': 'Нет в наличии',
                     'rating': 4
                 },
                 {
                     'name': 'Elixir Nanoweb 10-46 Electric Guitar Strings',
                     'image': 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=150&h=150&fit=crop&crop=center',
                     'newPrice': 2500,
-                    'oldPrice': 2800,
-                    'availability': 'В наличии',
+                    'oldPrice': 3250,
+                    'availability': 'Ожидается',
                     'rating': 5
                 },
                 {
                     'name': 'DR Strings Hi-Beam 10-46 Electric Guitar Strings',
                     'image': 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=150&h=150&fit=crop&crop=center',
                     'newPrice': 2200,
-                    'oldPrice': 2500,
-                    'availability': 'В наличии',
+                    'oldPrice': 2860,
+                    'availability': 'Под заказ',
                     'rating': 4
                 }
             ]
@@ -188,7 +215,7 @@ def api():
                 'name': 'Ernie Ball 2221 10-46 Electric Guitar Strings',
                 'image': 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=150&h=150&fit=crop&crop=center',
                 'newPrice': 1000,
-                'oldPrice': 1200,
+                'oldPrice': 1300,
                 'availability': 'В наличии',
                 'rating': 3
             },
@@ -196,32 +223,8 @@ def api():
                 'name': 'D\'Addario EXL110 10-46 Electric Guitar Strings',
                 'image': 'https://images.unsplash.com/photo-1516924962500-2b4b3b99ea02?w=150&h=150&fit=crop&crop=center',
                 'newPrice': 1500,
-                'oldPrice': 1800,
-                'availability': 'В наличии',
-                'rating': 4
-            },
-            {
-                'name': 'GHS Boomers 10-46 Electric Guitar Strings',
-                'image': 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=150&h=150&fit=crop&crop=center',
-                'newPrice': 1200,
-                'oldPrice': 1400,
-                'availability': 'В наличии',
-                'rating': 4
-            },
-            {
-                'name': 'Elixir Nanoweb 10-46 Electric Guitar Strings',
-                'image': 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=150&h=150&fit=crop&crop=center',
-                'newPrice': 2000,
-                'oldPrice': 2300,
-                'availability': 'В наличии',
-                'rating': 5
-            },
-            {
-                'name': 'DR Strings Hi-Beam 10-46 Electric Guitar Strings',
-                'image': 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=150&h=150&fit=crop&crop=center',
-                'newPrice': 1800,
-                'oldPrice': 2000,
-                'availability': 'В наличии',
+                'oldPrice': 1950,
+                'availability': 'Нет в наличии',
                 'rating': 4
             }
         ]
