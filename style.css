@@ -385,6 +385,94 @@ body {
     margin: 0;
 }
 
+/* Стили для индикатора загрузки */
+#loading-indicator {
+    width: 100%;
+    text-align: center;
+    padding: 20px;
+    margin: 20px 0;
+    background: #f9f9f9;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+#loading-indicator .loading-spinner-small {
+    width: 30px;
+    height: 30px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 10px;
+}
+
+#loading-indicator p {
+    margin: 0;
+    color: #666;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+/* Стили для сообщений */
+.error-message {
+    width: 100%;
+    text-align: center;
+    padding: 15px;
+    margin: 15px 0;
+    background: #fff5f5;
+    border: 1px solid #fed7d7;
+    border-radius: 8px;
+    color: #c53030;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.error-message p {
+    margin: 0;
+}
+
+.success-message {
+    width: 100%;
+    text-align: center;
+    padding: 15px;
+    margin: 15px 0;
+    background: #f0fff4;
+    border: 1px solid #9ae6b4;
+    border-radius: 8px;
+    color: #22543d;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.success-message p {
+    margin: 0;
+}
+
+.end-message {
+    width: 100%;
+    text-align: center;
+    padding: 20px;
+    margin: 20px 0;
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 8px;
+    color: #0369a1;
+    font-size: 16px;
+    font-weight: 500;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.end-message p {
+    margin: 0;
+}
+
 @media (max-width: 360px) {
     .product-rating {
         margin: 5px 0;

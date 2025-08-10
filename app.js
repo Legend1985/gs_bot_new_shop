@@ -102,17 +102,6 @@ function handleScroll() {
 // Добавляем обработчик прокрутки
 window.addEventListener('scroll', handleScroll);
 
-// Загружаем первую страницу при загрузке
-document.addEventListener('DOMContentLoaded', () => {
-    // Показываем экран загрузки
-    createLoadingScreen();
-    
-    // Небольшая задержка для отображения экрана загрузки
-    setTimeout(() => {
-        loadRealProducts();
-    }, 100);
-});
-
 // Функция создания экрана загрузки
 function createLoadingScreen() {
     const container = document.querySelector('.inner');
@@ -132,6 +121,43 @@ function hideLoadingScreen() {
     if (loadingScreen) {
         loadingScreen.remove();
     }
+}
+
+// Функция показа индикатора загрузки
+function showLoadingIndicator() {
+    let indicator = document.getElementById('loading-indicator');
+    if (!indicator) {
+        indicator = document.createElement('div');
+        indicator.id = 'loading-indicator';
+        indicator.innerHTML = `
+            <div class="loading-spinner-small"></div>
+            <p>Загружаем еще товары...</p>
+        `;
+        document.querySelector('.inner').appendChild(indicator);
+    }
+    indicator.style.display = 'block';
+}
+
+// Функция скрытия индикатора загрузки
+function hideLoadingIndicator() {
+    const indicator = document.getElementById('loading-indicator');
+    if (indicator) {
+        indicator.style.display = 'none';
+    }
+}
+
+// Функция показа сообщения о конце списка
+function showEndMessage() {
+    let endMessage = document.querySelector('.end-message');
+    if (!endMessage) {
+        endMessage = document.createElement('div');
+        endMessage.className = 'end-message';
+        endMessage.innerHTML = `
+            <p>Все товары загружены</p>
+        `;
+        document.querySelector('.inner').appendChild(endMessage);
+    }
+    endMessage.style.display = 'block';
 }
 
 // Функция загрузки реальных товаров с сайта
@@ -242,11 +268,16 @@ function generateRatingStars(rating) {
     return stars;
 }
 
-// Функция загрузки дополнительных товаров
+// Функция загрузки дополнительных товаров при прокрутке
 async function loadMoreProducts() {
     if (isLoading || !hasMoreProducts) return;
     
+    console.log('Начинаем загрузку дополнительных товаров...');
     isLoading = true;
+    
+    // Показываем индикатор загрузки
+    showLoadingIndicator();
+    
     const nextPage = Math.floor(loadedProductNames.size / 60);
     
     try {
@@ -273,14 +304,25 @@ async function loadMoreProducts() {
                 saveState();
                 
                 console.log(`Загружено ${newProducts.length} новых товаров. Всего: ${loadedProductNames.size}`);
+                
+                // Скрываем индикатор загрузки
+                hideLoadingIndicator();
+                
+                // Настраиваем обработчики для новых изображений
+                setupImageHandlers();
             } else {
                 hasMoreProducts = false;
+                hideLoadingIndicator();
+                showEndMessage();
             }
         } else {
             hasMoreProducts = false;
+            hideLoadingIndicator();
+            showEndMessage();
         }
     } catch (error) {
         console.error('Ошибка загрузки дополнительных товаров:', error);
+        hideLoadingIndicator();
     } finally {
         isLoading = false;
     }
@@ -291,6 +333,8 @@ async function fetchProductData(page = 0) {
     const start = page * 60;
     const targetUrl = `https://guitarstrings.com.ua/electro${page > 0 ? `?start=${start}` : ''}`;
     
+    console.log(`Загружаем страницу ${page + 1}, URL: ${targetUrl}`);
+    
     try {
         const response = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`);
         
@@ -299,7 +343,12 @@ async function fetchProductData(page = 0) {
         }
         
         const html = await response.text();
-        return parseSiteHTML(html);
+        console.log(`Получен HTML размером: ${html.length} символов`);
+        
+        const result = parseSiteHTML(html);
+        console.log(`Результат парсинга: ${result.products.length} товаров`);
+        
+        return result;
     } catch (error) {
         console.error('Ошибка получения данных:', error);
         return null;
@@ -312,18 +361,28 @@ function parseSiteHTML(html) {
     const doc = parser.parseFromString(html, 'text/html');
     
     const products = [];
-    const productElements = doc.querySelectorAll('.product-item, .item, [class*="product"]');
+    // Используем правильные селекторы для сайта guitarstrings.com.ua
+    const productElements = doc.querySelectorAll('.product-item, .item, .product, [class*="product"], .catalog-item');
     
-    productElements.forEach(element => {
+    console.log(`Найдено элементов товаров: ${productElements.length}`);
+    
+    productElements.forEach((element, index) => {
         try {
-            const nameElement = element.querySelector('h3, .product-title, .title');
+            // Ищем название товара в различных возможных местах
+            const nameElement = element.querySelector('h3, .product-title, .title, .item-title, .name, [class*="title"], [class*="name"]');
             const imageElement = element.querySelector('img');
-            const priceElement = element.querySelector('.price, .product-price');
-            const availabilityElement = element.querySelector('.availability, .status');
+            const priceElement = element.querySelector('.price, .product-price, .item-price, [class*="price"]');
+            const availabilityElement = element.querySelector('.availability, .status, .stock, [class*="stock"], [class*="availability"]');
             
             if (nameElement && imageElement) {
                 const name = nameElement.textContent.trim();
-                const image = imageElement.src;
+                let image = imageElement.src;
+                
+                // Если изображение относительное, делаем абсолютным
+                if (image && !image.startsWith('http')) {
+                    image = 'https://guitarstrings.com.ua' + image;
+                }
+                
                 const price = priceElement ? priceElement.textContent.trim() : 'Цена не указана';
                 const availability = availabilityElement ? availabilityElement.textContent.trim() : 'В наличии';
                 
@@ -331,19 +390,35 @@ function parseSiteHTML(html) {
                 const priceMatch = price.match(/(\d+)/);
                 const numericPrice = priceMatch ? priceMatch[1] : '0';
                 
+                // Определяем статус товара
+                let status = 'В наличии';
+                if (availability.toLowerCase().includes('нет') || availability.toLowerCase().includes('закончился')) {
+                    status = 'Нет в наличии';
+                } else if (availability.toLowerCase().includes('ожидается')) {
+                    status = 'Ожидается';
+                } else if (availability.toLowerCase().includes('под заказ')) {
+                    status = 'Под заказ';
+                } else if (availability.toLowerCase().includes('снят') || availability.toLowerCase().includes('производства')) {
+                    status = 'Снят с производства';
+                }
+                
                 products.push({
                     name: name,
                     image: image,
                     newPrice: numericPrice,
                     oldPrice: null,
-                    availability: availability,
+                    availability: status,
                     rating: Math.random() * 5 // Случайный рейтинг для демонстрации
                 });
+                
+                console.log(`Товар ${index + 1}: ${name} - ${numericPrice} грн - ${status}`);
             }
         } catch (error) {
             console.error('Ошибка парсинга товара:', error);
         }
     });
+    
+    console.log(`Всего обработано товаров: ${products.length}`);
     
     return {
         success: true,
@@ -550,7 +625,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (!restored) {
             // Если восстановление не удалось, загружаем первую страницу
-            await loadFirstPage();
+            await loadRealProducts();
         }
         
         // Запускаем автоматическое сохранение
