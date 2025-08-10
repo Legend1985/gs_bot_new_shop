@@ -6,7 +6,7 @@ header('Access-Control-Allow-Headers: Content-Type');
 
 // Параметры запроса
 $start = isset($_GET['start']) ? (int)$_GET['start'] : 0;
-$limit = isset($_GET['start']) ? (int)$_GET['limit'] : 60;
+$limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 60;
 
 // Моковые данные для тестирования
 $mockProducts = [
