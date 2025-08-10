@@ -89,19 +89,40 @@
 			});
 		}
 
-		// Функция создания карточки товара
+		// Функция создания карточки товара с правильной структурой
 		function createProductCard(product, btnId) {
 			const card = document.createElement('div');
-			card.className = 'item';
+			card.className = 'product-card';
+			
+			// Определяем статус товара
+			let statusClass = '';
+			let statusText = product.availability;
+			
+			if (product.availability === 'В наличии') {
+				statusClass = 'in-stock';
+			} else if (product.availability === 'Нет в наличии') {
+				statusClass = 'out-of-stock';
+			} else if (product.availability === 'Ожидается') {
+				statusClass = 'expected';
+			}
+			
 			card.innerHTML = `
-				<img src="${product.image}" alt="${product.name}" onerror="this.style.display='none'">
-				<h3>${product.name}</h3>
-				<p class="price">
-					<span class="old-price">${product.oldPrice}</span>
-					<span class="new-price">${product.newPrice} грн</span>
-				</p>
-				<p class="availability">${product.availability}</p>
-				<button id="${btnId}" class="buy-btn">Купить</button>
+				<div class="product-card-top">
+					<div class="img-container">
+						<img src="${product.image}" alt="${product.name}" class="img" onload="this.classList.add('loaded')" onerror="this.style.display='none'">
+					</div>
+					<h3 class="product-title">${product.name}</h3>
+				</div>
+				<div class="product-card-bottom">
+					<div class="product-status ${statusClass}">${statusText}</div>
+					<div class="product-bottom-row">
+						<div class="product-prices">
+							<div class="old-price">${product.oldPrice}</div>
+							<div class="new-price">${product.newPrice} грн</div>
+						</div>
+						<button id="${btnId}" class="btn">Купить</button>
+					</div>
+				</div>
 			`;
 			
 			// Добавляем обработчик для кнопки
