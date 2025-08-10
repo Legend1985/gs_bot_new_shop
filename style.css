@@ -118,7 +118,7 @@ body {
 .new-price {
     font-size: 16px;
     font-weight: bold;
-    color: #2e7d32;
+    color: #d32f2f; /* Красный цвет для акционных цен */
 }
 
 .new-price::after {
@@ -275,6 +275,7 @@ body {
     cursor: not-allowed;
 }
 
+/* Исправляем цвета цен для разных статусов */
 .new-price.discontinued {
     color: #757575;
 }
@@ -289,6 +290,11 @@ body {
 
 .new-price.on-order {
     color: #1976d2;
+}
+
+/* Цена в наличии остается красной (акционная) */
+.new-price:not(.discontinued):not(.out-of-stock):not(.expected):not(.on-order) {
+    color: #d32f2f;
 }
 
 .product-rating {

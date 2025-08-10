@@ -642,6 +642,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Настраиваем обработчик перед выгрузкой страницы
     setupBeforeUnload();
     
+    // Настраиваем обработчик прокрутки для бесконечной загрузки
+    window.addEventListener('scroll', handleScroll);
+    
     console.log('Инициализация завершена');
 });
 
