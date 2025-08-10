@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест API</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ccc; }
+        .error { color: red; }
+        .success { color: green; }
+        button { padding: 10px 20px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Тест API сервера</h1>
+    
+    <div class="test-section">
+        <h3>Тест 1: Проверка подключения к API</h3>
+        <button onclick="testAPI()">Тест API</button>
+        <div id="api-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Тест 2: Проверка загрузки CSS</h3>
+        <button onclick="testCSS()">Тест CSS</button>
+        <div id="css-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Тест 3: Проверка загрузки JavaScript</h3>
+        <button onclick="testJS()">Тест JS</button>
+        <div id="js-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Тест 4: Проверка главной страницы</h3>
+        <button onclick="testMainPage()">Тест главной страницы</button>
+        <div id="main-result"></div>
+    </div>
+
+    <script>
+        async function testAPI() {
+            const resultDiv = document.getElementById('api-result');
+            resultDiv.innerHTML = 'Тестируем...';
+            
+            try {
+                const response = await fetch('/api.php?start=0&limit=5');
+                const data = await response.json();
+                
+                if (data.success && data.products) {
+                    resultDiv.innerHTML = `<span class="success">✅ API работает! Получено ${data.products.length} товаров</span><br>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>`;
+                } else {
+                    resultDiv.innerHTML = `<span class="error">❌ API вернул ошибку: ${data.error || 'Неизвестная ошибка'}</span>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">❌ Ошибка подключения к API: ${error.message}</span>`;
+            }
+        }
+        
+        async function testCSS() {
+            const resultDiv = document.getElementById('css-result');
+            resultDiv.innerHTML = 'Тестируем...';
+            
+            try {
+                const response = await fetch('/style.css');
+                if (response.ok) {
+                    const css = await response.text();
+                    resultDiv.innerHTML = `<span class="success">✅ CSS загружен! Размер: ${css.length} символов</span>`;
+                } else {
+                    resultDiv.innerHTML = `<span class="error">❌ CSS не загружен. Статус: ${response.status}</span>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">❌ Ошибка загрузки CSS: ${error.message}</span>`;
+            }
+        }
+        
+        async function testJS() {
+            const resultDiv = document.getElementById('js-result');
+            resultDiv.innerHTML = 'Тестируем...';
+            
+            try {
+                const response = await fetch('/app.js');
+                if (response.ok) {
+                    const js = await response.text();
+                    resultDiv.innerHTML = `<span class="success">✅ JavaScript загружен! Размер: ${js.length} символов</span>`;
+                } else {
+                    resultDiv.innerHTML = `<span class="error">❌ JavaScript не загружен. Статус: ${response.status}</span>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">❌ Ошибка загрузки JavaScript: ${error.message}</span>`;
+            }
+        }
+        
+        async function testMainPage() {
+            const resultDiv = document.getElementById('main-result');
+            resultDiv.innerHTML = 'Тестируем...';
+            
+            try {
+                const response = await fetch('/');
+                if (response.ok) {
+                    const html = await response.text();
+                    resultDiv.innerHTML = `<span class="success">✅ Главная страница загружена! Размер: ${html.length} символов</span>`;
+                } else {
+                    resultDiv.innerHTML = `<span class="error">❌ Главная страница не загружена. Статус: ${response.status}</span>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">❌ Ошибка загрузки главной страницы: ${error.message}</span>`;
+            }
+        }
+    </script>
+</body>
+</html> 
