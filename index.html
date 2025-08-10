@@ -4,85 +4,19 @@
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<link rel="stylesheet" href="style.css">
-	<title>Document</title>
+	<title>Магазин гитарных струн</title>
 </head>
 <body>
-	<h2 style="text-align:center;">Добро пожаловать в тестовую версию магазина </h2>
-	
-	<!-- Кнопка для принудительного сброса состояния загрузки -->
-	<div style="text-align: center; margin: 10px 0;">
-		<button id="resetLoadingBtn" style="
-			padding: 8px 16px;
-			background: #dc3545;
-			color: white;
-			border: none;
-			border-radius: 6px;
-			font-size: 12px;
-			cursor: pointer;
-			display: none;
-			margin-right: 10px;
-		" title="Сбросить состояние загрузки, если товары не загружаются">
-			🔄 Сбросить загрузку
-		</button>
-		
-		<button id="clearChromeCacheBtn" style="
-			padding: 8px 16px;
-			background: #17a2b8;
-			color: white;
-			border: none;
-			border-radius: 6px;
-			font-size: 12px;
-			cursor: pointer;
-			display: none;
-		" title="Очистить кеш Chrome (если товары не загружаются)">
-			🧹 Очистить кеш Chrome
-		</button>
-		
-		<button id="loadMockDataBtn" style="
-			padding: 8px 16px;
-			background: #28a745;
-			color: white;
-			border: none;
-			border-radius: 6px;
-			font-size: 12px;
-			cursor: pointer;
-		" title="Загрузить моковые данные для тестирования">
-			🧪 Загрузить тестовые данные
-		</button>
-		
-		<button id="reloadPageBtn" style="
-			padding: 8px 16px;
-			background: #6c757d;
-			color: white;
-			border: none;
-			border-radius: 6px;
-			font-size: 12px;
-			cursor: pointer;
-		" title="Принудительно перезагрузить страницу">
-			🔄 Перезагрузить страницу
-		</button>
-		
-
-	</div>
+	<h2 style="text-align:center;">Магазин гитарных струн</h2>
 	
 	<div class="container">
 		<div class="inner">
 			<!-- Товары будут загружаться динамически -->
 		</div>
 	</div>
+	
 	<div class="usercard" id="usercard">
 		
-	</div>
-
-	<!-- Всплывающее окно для товаров, снятых с производства -->
-	<div class="popup-overlay" id="discontinuedPopup">
-		<div class="popup-content">
-			<button class="popup-close" id="popupClose" title="Закрыть">×</button>
-			<div class="popup-icon">
-				<img src="images/Discontinued.jpg" alt="Извиняющийся котик" title="Sorry!">
-			</div>
-			<p class="popup-message">Товар снят с производства. Не расстраивайтесь.</p>
-		</div>
 	</div>
 
 	<script src="https://telegram.org/js/telegram-web-app.js"></script>
