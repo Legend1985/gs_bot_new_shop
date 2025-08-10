@@ -15,28 +15,42 @@
 		</div>
 	</div>
 	
+	<!-- Индикатор загрузки -->
+	<div id="loading-indicator" style="display: none;">
+		<div class="loading-spinner-small"></div>
+		<p>Загружаем еще товары...</p>
+	</div>
+	
 	<div class="usercard" id="usercard">
 		
 	</div>
 
 	<script src="https://telegram.org/js/telegram-web-app.js"></script>
 	<script>
-		// Встроенные данные товаров (работает на GitHub Pages)
-		const mockProducts = [
+		// Инициализация Telegram Web App
+		let tg = window.Telegram.WebApp;
+		if (tg) {
+			tg.expand();
+			tg.MainButton.textColor = '#FFFFFF';
+			tg.MainButton.color = '#2cab37';
+		}
+
+		// Полные данные товаров (как было в рабочей версии)
+		const allProducts = [
 			{
 				id: 1,
 				name: 'Ernie Ball 2221 Regular Slinky 10-46',
 				image: 'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg',
-				oldPrice: '450 грн',
-				newPrice: 380,
+				oldPrice: 414,
+				newPrice: 350,
 				inStock: true,
 				availability: 'В наличии'
 			},
 			{
 				id: 2,
 				name: 'Rotosound R13 Roto Greys 13-54',
-				image: 'Goods/Electric_guitar_strings/2221/Rotosound_R13_13-54_150.jpg',
-				oldPrice: '520 грн',
+				image: 'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg',
+				oldPrice: 520,
 				newPrice: 420,
 				inStock: false,
 				availability: 'Нет в наличии'
@@ -44,8 +58,8 @@
 			{
 				id: 3,
 				name: 'Dunlop DEN1046 Nickel Wound Light 10-46',
-				image: 'Goods/Electric_guitar_strings/2221/Dunlop_DEN1046_10-46_150.jpg',
-				oldPrice: '480 грн',
+				image: 'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg',
+				oldPrice: 480,
 				newPrice: 400,
 				inStock: false,
 				availability: 'Ожидается'
@@ -53,8 +67,8 @@
 			{
 				id: 4,
 				name: 'GHS Boomers GBTM 11-50 Medium',
-				image: 'Goods/Electric_guitar_strings/2221/GHS_Boomers_GBTM_11-50_150.jpg',
-				oldPrice: '550 грн',
+				image: 'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg',
+				oldPrice: 550,
 				newPrice: 450,
 				inStock: true,
 				availability: 'В наличии'
@@ -62,8 +76,8 @@
 			{
 				id: 5,
 				name: 'Fender 250M Nickel-Plated Steel 11-49 Medium',
-				image: 'Goods/Electric_guitar_strings/2221/Fender_250M_11-49_150.jpg',
-				oldPrice: '500 грн',
+				image: 'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg',
+				oldPrice: 500,
 				newPrice: 420,
 				inStock: false,
 				availability: 'Нет в наличии'
@@ -71,25 +85,96 @@
 			{
 				id: 6,
 				name: 'D\'Addario EXL110 Nickel Wound 10-46',
-				image: 'Goods/Electric_guitar_strings/2221/DAddario_EXL110_10-46_150.jpg',
-				oldPrice: '470 грн',
+				image: 'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg',
+				oldPrice: 470,
 				newPrice: 390,
+				inStock: true,
+				availability: 'В наличии'
+			},
+			{
+				id: 7,
+				name: 'Elixir 12002 Nanoweb Coated 10-46',
+				image: 'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg',
+				oldPrice: 650,
+				newPrice: 580,
+				inStock: true,
+				availability: 'В наличии'
+			},
+			{
+				id: 8,
+				name: 'DR Strings Tite-Fit 10-46',
+				image: 'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg',
+				oldPrice: 580,
+				newPrice: 490,
+				inStock: false,
+				availability: 'Нет в наличии'
+			},
+			{
+				id: 9,
+				name: 'La Bella 10-46 Electric Guitar Strings',
+				image: 'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg',
+				oldPrice: 520,
+				newPrice: 440,
+				inStock: true,
+				availability: 'В наличии'
+			},
+			{
+				id: 10,
+				name: 'Thomastik-Infeld Power-Bright 10-46',
+				image: 'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg',
+				oldPrice: 720,
+				newPrice: 650,
 				inStock: true,
 				availability: 'В наличии'
 			}
 		];
 
-		// Функция загрузки товаров (теперь работает локально)
-		function loadProducts() {
+		// Переменные для пагинации
+		let currentPage = 0;
+		let isLoading = false;
+		let hasMoreProducts = true;
+		const productsPerPage = 6;
+
+		// Функция загрузки товаров с пагинацией
+		async function loadProducts(page = 0) {
+			if (isLoading || !hasMoreProducts) return;
+			
+			isLoading = true;
+			showLoadingIndicator();
+			
+			// Имитируем задержку загрузки
+			await new Promise(resolve => setTimeout(resolve, 500));
+			
+			const start = page * productsPerPage;
+			const end = start + productsPerPage;
+			const pageProducts = allProducts.slice(start, end);
+			
+			if (pageProducts.length > 0) {
+				renderProducts(pageProducts);
+				currentPage = page;
+				
+				if (end >= allProducts.length) {
+					hasMoreProducts = false;
+				}
+			} else {
+				hasMoreProducts = false;
+			}
+			
+			isLoading = false;
+			hideLoadingIndicator();
+		}
+
+		// Функция отображения товаров
+		function renderProducts(products) {
 			const container = document.querySelector('.inner');
 			
-			mockProducts.forEach((product, index) => {
-				const productCard = createProductCard(product, `btn${index + 1}`);
+			products.forEach((product, index) => {
+				const productCard = createProductCard(product, `btn${currentPage * productsPerPage + index + 1}`);
 				container.appendChild(productCard);
 			});
 		}
 
-		// Функция создания карточки товара с правильной структурой
+		// Функция создания карточки товара
 		function createProductCard(product, btnId) {
 			const card = document.createElement('div');
 			card.className = 'product-card';
@@ -117,7 +202,7 @@
 					<div class="product-status ${statusClass}">${statusText}</div>
 					<div class="product-bottom-row">
 						<div class="product-prices">
-							<div class="old-price">${product.oldPrice}</div>
+							<div class="old-price">${product.oldPrice} грн</div>
 							<div class="new-price">${product.newPrice} грн</div>
 						</div>
 						<button id="${btnId}" class="btn">Купить</button>
@@ -127,19 +212,46 @@
 			
 			// Добавляем обработчик для кнопки
 			const button = card.querySelector(`#${btnId}`);
-			if (window.Telegram && window.Telegram.WebApp) {
+			if (tg) {
 				button.addEventListener('click', () => {
-					window.Telegram.WebApp.MainButton.text = `Выбрано: ${product.name}`;
-					window.Telegram.WebApp.MainButton.show();
+					tg.MainButton.text = `Выбрано: ${product.name}`;
+					tg.MainButton.show();
 				});
 			}
 			
 			return card;
 		}
 
-		// Загружаем товары при загрузке страницы
+		// Функции для индикатора загрузки
+		function showLoadingIndicator() {
+			const indicator = document.getElementById('loading-indicator');
+			if (indicator) indicator.style.display = 'block';
+		}
+
+		function hideLoadingIndicator() {
+			const indicator = document.getElementById('loading-indicator');
+			if (indicator) indicator.style.display = 'none';
+		}
+
+		// Функция загрузки дополнительных товаров при прокрутке
+		function handleScroll() {
+			if (isLoading || !hasMoreProducts) return;
+			
+			const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+			const windowHeight = window.innerHeight;
+			const documentHeight = document.documentElement.scrollHeight;
+			
+			if (scrollTop + windowHeight >= documentHeight - 100) {
+				loadProducts(currentPage + 1);
+			}
+		}
+
+		// Добавляем обработчик прокрутки
+		window.addEventListener('scroll', handleScroll);
+
+		// Загружаем первую страницу при загрузке
 		document.addEventListener('DOMContentLoaded', () => {
-			loadProducts();
+			loadProducts(0);
 		});
 	</script>
 </body>
