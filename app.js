@@ -163,9 +163,13 @@ function showEndMessage() {
 // Функция загрузки реальных товаров с сайта
 async function loadRealProducts() {
     try {
+        console.log('Начинаем загрузку товаров...');
+        
         const data = await fetchProductData(0);
         
         if (data && data.products && data.products.length > 0) {
+            console.log(`Загружено ${data.products.length} товаров`);
+            
             // Ограничиваем отображение первыми 60 товарами
             const firstPageProducts = data.products.slice(0, 60);
             
@@ -192,13 +196,34 @@ async function loadRealProducts() {
             
             // Сохраняем состояние
             saveState();
+            
+            // Настраиваем обработчики для изображений
+            setupImageHandlers();
+            
+            console.log('Товары успешно загружены и отображены');
         } else {
-            console.error('Не удалось загрузить товары');
+            console.error('Не удалось загрузить товары - нет данных');
             hideLoadingScreen();
+            // Показываем сообщение об ошибке
+            const container = document.querySelector('.inner');
+            container.innerHTML = `
+                <div class="error-message">
+                    <p>Не удалось загрузить товары. Попробуйте обновить страницу.</p>
+                    <button onclick="location.reload()" class="btn">Обновить страницу</button>
+                </div>
+            `;
         }
     } catch (error) {
         console.error('Ошибка загрузки товаров:', error);
         hideLoadingScreen();
+        // Показываем сообщение об ошибке
+        const container = document.querySelector('.inner');
+        container.innerHTML = `
+            <div class="error-message">
+                <p>Ошибка загрузки товаров: ${error.message}</p>
+                <button onclick="location.reload()" class="btn">Обновить страницу</button>
+            </div>
+        `;
     }
 }
 
@@ -344,10 +369,21 @@ async function fetchProductData(page = 0) {
         const data = await response.json();
         console.log(`Получены данные: ${data.products ? data.products.length : 0} товаров`);
         
+        if (!data.success) {
+            console.warn('API вернул ошибку:', data.error);
+        }
+        
         return data;
     } catch (error) {
         console.error('Ошибка получения данных:', error);
-        return null;
+        return {
+            success: false,
+            error: error.message,
+            products: [],
+            total: 0,
+            start: start,
+            limit: 60
+        };
     }
 }
 
@@ -541,24 +577,59 @@ function resetState() {
 
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM загружен, начинаем инициализацию...');
+    
     // Показываем экран загрузки
     createLoadingScreen();
     
+    // Настраиваем обработчики для кнопок управления
+    setupControlButtons();
+    
     // Небольшая задержка для отображения экрана загрузки
     setTimeout(async () => {
-        // Пытаемся восстановить состояние
-        const restored = await restoreAllProducts();
-        
-        if (!restored) {
-            // Если восстановление не удалось, загружаем первую страницу
-            await loadRealProducts();
+        try {
+            console.log('Пытаемся восстановить состояние...');
+            
+            // Пытаемся восстановить состояние
+            const restored = await restoreAllProducts();
+            
+            if (!restored) {
+                console.log('Восстановление не удалось, загружаем первую страницу...');
+                // Если восстановление не удалось, загружаем первую страницу
+                await loadRealProducts();
+            } else {
+                console.log('Состояние успешно восстановлено');
+            }
+            
+            // Запускаем автоматическое сохранение
+            startAutoSave();
+            
+            // Настраиваем сохранение перед закрытием
+            setupBeforeUnload();
+            
+            // Настраиваем обработчики изображений
+            setupImageHandlers();
+            
+            // Настраиваем бесконечную прокрутку
+            window.addEventListener('scroll', handleScroll);
+            
+            console.log('Инициализация завершена успешно');
+            
+        } catch (error) {
+            console.error('Ошибка инициализации:', error);
+            hideLoadingScreen();
+            
+            // Показываем сообщение об ошибке
+            const container = document.querySelector('.inner');
+            if (container) {
+                container.innerHTML = `
+                    <div class="error-message">
+                        <p>Ошибка загрузки товаров. Попробуйте обновить страницу.</p>
+                        <button onclick="location.reload()" class="btn">Обновить страницу</button>
+                    </div>
+                `;
+            }
         }
-        
-        // Запускаем автоматическое сохранение
-        startAutoSave();
-        
-        // Настраиваем сохранение перед закрытием
-        setupBeforeUnload();
     }, 100);
 });
 
@@ -573,13 +644,39 @@ tg.MainButton.onClick(() => {
 function setupImageHandlers() {
     const images = document.querySelectorAll('.img');
     images.forEach(img => {
+        // Проверяем, есть ли src у изображения
+        if (!img.src || img.src === '' || img.src.includes('undefined')) {
+            console.warn('Изображение без src:', img);
+            img.style.display = 'none';
+            return;
+        }
+        
         img.addEventListener('load', () => {
             img.classList.add('loaded');
+            console.log('Изображение загружено:', img.src);
         });
         
         img.addEventListener('error', () => {
+            console.error('Ошибка загрузки изображения:', img.src);
             img.style.display = 'none';
+            // Показываем placeholder
+            const container = img.closest('.img-container');
+            if (container) {
+                container.style.display = 'flex';
+                container.style.alignItems = 'center';
+                container.style.justifyContent = 'center';
+                container.style.backgroundColor = '#f5f5f5';
+                container.style.borderRadius = '8px';
+            }
         });
+        
+        // Добавляем timeout для изображений, которые долго загружаются
+        setTimeout(() => {
+            if (!img.complete) {
+                console.warn('Изображение не загрузилось за 5 секунд:', img.src);
+                img.style.display = 'none';
+            }
+        }, 5000);
     });
 }
 
@@ -587,6 +684,64 @@ function setupImageHandlers() {
 document.addEventListener('DOMContentLoaded', () => {
     setupImageHandlers();
 });
+
+// Функция настройки кнопок управления
+function setupControlButtons() {
+    const refreshBtn = document.getElementById('refresh-btn');
+    const clearCacheBtn = document.getElementById('clear-cache-btn');
+    
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', async () => {
+            console.log('Кнопка обновления нажата');
+            refreshBtn.disabled = true;
+            refreshBtn.textContent = '🔄 Обновляем...';
+            
+            try {
+                // Очищаем состояние и загружаем заново
+                clearState();
+                await loadRealProducts();
+                console.log('Товары успешно обновлены');
+            } catch (error) {
+                console.error('Ошибка обновления:', error);
+            } finally {
+                refreshBtn.disabled = false;
+                refreshBtn.textContent = '🔄 Обновить';
+            }
+        });
+    }
+    
+    if (clearCacheBtn) {
+        clearCacheBtn.addEventListener('click', () => {
+            console.log('Кнопка очистки кэша нажата');
+            clearCacheBtn.disabled = true;
+            clearCacheBtn.textContent = '🗑️ Очищаем...';
+            
+            try {
+                // Очищаем кэш браузера для изображений
+                if ('caches' in window) {
+                    caches.keys().then(names => {
+                        names.forEach(name => {
+                            caches.delete(name);
+                        });
+                    });
+                }
+                
+                // Очищаем localStorage
+                clearState();
+                
+                // Перезагружаем страницу
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+                
+            } catch (error) {
+                console.error('Ошибка очистки кэша:', error);
+                clearCacheBtn.disabled = false;
+                clearCacheBtn.textContent = '🗑️ Очистить кэш';
+            }
+        });
+    }
+}
 
 
 
