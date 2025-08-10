@@ -22,6 +22,8 @@ const productsPerPage = 60;
 let maxProducts = 377; // Будет обновляться из API
 let loadedProductNames = new Set(); // Для отслеживания уже загруженных товаров
 let savedScrollPosition = 0; // Сохраненная позиция прокрутки
+let lastLoadTime = 0; // Время последней загрузки для предотвращения частых запросов
+const minLoadInterval = 1000; // Минимальный интервал между загрузками (1 секунда)
 
 // Функция загрузки товаров с сайта
 async function loadProducts(page = 0) {
@@ -141,8 +143,18 @@ function createProductCard(product, btnId) {
 
 // Обработчик прокрутки для бесконечной загрузки
 function handleScroll() {
+    // Проверяем, нужно ли загружать больше товаров
     if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 1000) {
-        console.log(`Прокрутка: isLoading=${isLoading}, hasMoreProducts=${hasMoreProducts}, currentPage=${currentPage}`);
+        const currentTime = Date.now();
+        
+        console.log(`Прокрутка: isLoading=${isLoading}, hasMoreProducts=${hasMoreProducts}, currentPage=${currentPage}, timeSinceLastLoad=${currentTime - lastLoadTime}ms`);
+        
+        // Проверяем, прошло ли достаточно времени с последней загрузки
+        if (currentTime - lastLoadTime < minLoadInterval) {
+            console.log('Слишком мало времени прошло с последней загрузки, пропускаем...');
+            return;
+        }
+        
         if (!isLoading && hasMoreProducts) {
             console.log('Запускаем загрузку дополнительных товаров...');
             loadMoreProducts();
@@ -152,14 +164,25 @@ function handleScroll() {
             console.log('Больше товаров нет, пропускаем...');
         }
     }
+    
+    // Дополнительная проверка: если загрузка зависла более 30 секунд, сбрасываем состояние
+    if (isLoading && (Date.now() - lastLoadTime > 30000)) {
+        console.log('Загрузка зависла более 30 секунд, сбрасываем состояние...');
+        resetLoadingState();
+    }
 }
 
 // Функция загрузки дополнительных страниц товаров
 async function loadMoreProducts() {
-    if (isLoading || !hasMoreProducts) return;
+    if (isLoading || !hasMoreProducts) {
+        console.log(`loadMoreProducts: пропускаем - isLoading=${isLoading}, hasMoreProducts=${hasMoreProducts}`);
+        return;
+    }
     
     isLoading = true;
     const nextPage = currentPage + 1;
+    
+    console.log(`Начинаем загрузку страницы ${nextPage + 1}...`);
     
     // Показываем индикатор загрузки
     showLoadingIndicator();
@@ -171,6 +194,8 @@ async function loadMoreProducts() {
         const siteData = await fetchProductData(nextPage);
         
         if (siteData && siteData.length > 0) {
+            console.log(`Получено ${siteData.length} товаров со страницы ${nextPage + 1}`);
+            
             // Фильтруем дубликаты
             const uniqueProducts = siteData.filter(product => {
                 if (loadedProductNames.has(product.title)) {
@@ -180,6 +205,8 @@ async function loadMoreProducts() {
                 loadedProductNames.add(product.title);
                 return true;
             });
+            
+            console.log(`После фильтрации дубликатов: ${uniqueProducts.length} уникальных товаров`);
             
             if (uniqueProducts.length > 0) {
                 // Убираем индикатор загрузки
@@ -198,9 +225,13 @@ async function loadMoreProducts() {
                 setupImageHandlers();
                 
                 console.log(`Загружено ${uniqueProducts.length} новых товаров со страницы ${nextPage + 1}`);
+                
+                // Обновляем время последней загрузки
+                lastLoadTime = Date.now();
             }
             
             // Проверяем, есть ли еще товары
+            // Если получили меньше товаров, чем ожидали, значит достигли конца
             hasMoreProducts = siteData.length >= productsPerPage;
             currentPage = nextPage;
             
@@ -212,31 +243,75 @@ async function loadMoreProducts() {
             
         } else {
             // Если товаров нет, значит достигли конца
+            console.log('Получено 0 товаров - достигнут конец списка');
             hasMoreProducts = false;
             hideLoadingIndicator();
             showEndMessage();
             console.log('Достигнут конец списка товаров');
+            
+            // Останавливаем мониторинг, так как больше загружать нечего
+            stopStatusMonitoring();
         }
         
     } catch (error) {
         console.error('Ошибка загрузки дополнительных товаров:', error);
-        hasMoreProducts = false;
+        // При ошибке не сбрасываем hasMoreProducts, чтобы можно было попробовать снова
         hideLoadingIndicator();
+        
+        // Показываем сообщение об ошибке
+        const container = document.querySelector('.inner');
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'error-message';
+        errorDiv.innerHTML = '<p>Ошибка загрузки товаров. Попробуйте прокрутить еще раз.</p>';
+        container.appendChild(errorDiv);
+        
+        // Убираем сообщение об ошибке через 5 секунд
+        setTimeout(() => {
+            if (errorDiv.parentNode) {
+                errorDiv.remove();
+            }
+        }, 5000);
+        
     } finally {
         isLoading = false;
+        console.log(`loadMoreProducts завершен. isLoading=${isLoading}, hasMoreProducts=${hasMoreProducts}`);
+        
+        // Обновляем состояние кнопки сброса
+        updateResetButton();
     }
 }
 
 // Показать индикатор загрузки
 function showLoadingIndicator() {
+    // Убираем существующий индикатор, если он есть
+    hideLoadingIndicator();
+    
     const container = document.querySelector('.inner');
     const loadingDiv = document.createElement('div');
     loadingDiv.id = 'loading-indicator';
+    loadingDiv.className = 'loading-indicator';
     loadingDiv.innerHTML = `
         <div class="loading-spinner-small"></div>
-        <p>Загружаем еще товары...</p>
+        <p style="text-align: center; margin: 10px 0; color: #666; font-size: 14px;">Загружаем еще товары...</p>
     `;
+    
+    // Добавляем стили для лучшей видимости
+    loadingDiv.style.cssText = `
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        margin: 20px 0;
+        background: #f9f9f9;
+        border-radius: 8px;
+        border: 1px solid #e0e0e0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    `;
+    
     container.appendChild(loadingDiv);
+    
+    console.log('Индикатор загрузки показан');
 }
 
 // Скрыть индикатор загрузки
@@ -244,10 +319,84 @@ function hideLoadingIndicator() {
     const loadingDiv = document.getElementById('loading-indicator');
     if (loadingDiv) {
         loadingDiv.remove();
+        console.log('Индикатор загрузки скрыт');
     }
 }
 
-// Показать сообщение о конце списка
+// Принудительный сброс состояния загрузки
+function resetLoadingState() {
+    console.log('Принудительный сброс состояния загрузки');
+    isLoading = false;
+    hideLoadingIndicator();
+    
+    // Убираем сообщения об ошибках
+    const errorMessages = document.querySelectorAll('.error-message');
+    errorMessages.forEach(msg => msg.remove());
+    
+    // Проверяем, есть ли еще товары для загрузки
+    if (hasMoreProducts && currentPage < 5) { // Ограничиваем максимальное количество страниц
+        console.log('Состояние сброшено, можно попробовать загрузить еще раз');
+    } else {
+        console.log('Достигнут лимит страниц или больше товаров нет');
+        hasMoreProducts = false;
+    }
+}
+
+// Функция для мониторинга состояния загрузки
+function logLoadingStatus() {
+    const currentTime = Date.now();
+    const timeSinceLastLoad = currentTime - lastLoadTime;
+    
+    console.log(`=== СТАТУС ЗАГРУЗКИ ===`);
+    console.log(`Время: ${new Date().toLocaleTimeString()}`);
+    console.log(`isLoading: ${isLoading}`);
+    console.log(`hasMoreProducts: ${hasMoreProducts}`);
+    console.log(`currentPage: ${currentPage}`);
+    console.log(`Загружено товаров: ${loadedProductNames.size}`);
+    console.log(`Время с последней загрузки: ${timeSinceLastLoad}ms`);
+    console.log(`Позиция прокрутки: ${window.scrollY}/${document.body.offsetHeight}`);
+    console.log(`Высота окна: ${window.innerHeight}`);
+    console.log(`========================`);
+}
+
+// Запускаем периодический мониторинг состояния
+let statusMonitorInterval;
+function startStatusMonitoring() {
+    if (statusMonitorInterval) {
+        clearInterval(statusMonitorInterval);
+    }
+    
+    statusMonitorInterval = setInterval(() => {
+        if (isLoading || hasMoreProducts) {
+            logLoadingStatus();
+        }
+    }, 10000); // Логируем каждые 10 секунд, если идет загрузка
+    
+    console.log('Мониторинг состояния загрузки запущен');
+}
+
+function stopStatusMonitoring() {
+    if (statusMonitorInterval) {
+        clearInterval(statusMonitorInterval);
+        statusMonitorInterval = null;
+        console.log('Мониторинг состояния загрузки остановлен');
+    }
+}
+
+// Функция для управления кнопкой сброса состояния загрузки
+function updateResetButton() {
+    const resetBtn = document.getElementById('resetLoadingBtn');
+    if (resetBtn) {
+        // Показываем кнопку только если есть проблемы с загрузкой
+        if (isLoading || (hasMoreProducts && loadedProductNames.size === 0)) {
+            resetBtn.style.display = 'inline-block';
+        } else {
+            resetBtn.style.display = 'none';
+        }
+    }
+}
+
+// Показываем сообщение о конце списка
 function showEndMessage() {
     const container = document.querySelector('.inner');
     const endDiv = document.createElement('div');
@@ -296,12 +445,25 @@ document.addEventListener('DOMContentLoaded', function() {
     startAutoSave();
     setupBeforeUnload();
     
+    // Запускаем мониторинг состояния загрузки
+    startStatusMonitoring();
+    
+    // Настраиваем обработчик для кнопки сброса состояния загрузки
+    const resetBtn = document.getElementById('resetLoadingBtn');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', function() {
+            console.log('Пользователь нажал кнопку сброса состояния загрузки');
+            resetLoadingState();
+            updateResetButton();
+        });
+    }
+    
     // Загружаем реальные товары с сайта с небольшой задержкой
     setTimeout(() => {
         loadRealProducts();
     }, 100);
     
-    console.log('Приложение инициализировано с автосохранением состояния и всплывающими окнами');
+    console.log('Приложение инициализировано с автосохранением состояния, всплывающими окнами и мониторингом загрузки');
 });
 
 // Функция загрузки реальных товаров с сайта
@@ -361,6 +523,9 @@ async function loadFirstPage() {
         
         // Сохраняем состояние
         saveState();
+        
+        // Обновляем состояние кнопки сброса
+        updateResetButton();
         
     } else {
         // Если не удалось загрузить, используем моковые данные
@@ -446,6 +611,9 @@ async function restoreAllProducts() {
             console.log(`Позиция прокрутки восстановлена: ${savedScrollPosition}px`);
         }
     }, 100);
+    
+    // Обновляем состояние кнопки сброса
+    updateResetButton();
 }
 
 // Создание звездочек рейтинга
@@ -507,6 +675,8 @@ usercard.appendChild(p);
 // Получение данных с сайта guitarstrings.com.ua
 async function fetchProductData(page = 0) {
     try {
+        console.log(`fetchProductData: начинаем загрузку страницы ${page + 1}`);
+        
         // Используем прокси для обхода CORS
         const proxyUrl = 'https://api.allorigins.win/raw?url=';
         let targetUrl = 'https://guitarstrings.com.ua/electro';
@@ -517,19 +687,31 @@ async function fetchProductData(page = 0) {
             targetUrl += `?start=${start}`;
         }
         
-        console.log(`Загружаем страницу ${page + 1}: ${targetUrl}`);
+        console.log(`fetchProductData: загружаем страницу ${page + 1}: ${targetUrl}`);
+        console.log(`fetchProductData: полный URL с прокси: ${proxyUrl + encodeURIComponent(targetUrl)}`);
         
+        const startTime = Date.now();
         const response = await fetch(proxyUrl + encodeURIComponent(targetUrl));
+        const fetchTime = Date.now() - startTime;
+        
+        console.log(`fetchProductData: ответ получен за ${fetchTime}ms, статус: ${response.status}`);
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
         const html = await response.text();
-        return parseSiteHTML(html);
+        const parseTime = Date.now() - startTime;
+        console.log(`fetchProductData: HTML получен за ${parseTime}ms, размер: ${html.length} символов`);
+        
+        const products = parseSiteHTML(html);
+        const totalTime = Date.now() - startTime;
+        console.log(`fetchProductData: страница ${page + 1} полностью обработана за ${totalTime}ms, найдено товаров: ${products.length}`);
+        
+        return products;
         
     } catch (error) {
-        console.error('Ошибка получения данных с сайта:', error);
+        console.error(`fetchProductData: ошибка при загрузке страницы ${page + 1}:`, error);
         throw error;
     }
 }
