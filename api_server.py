@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup
 import random
 import re
 import os
+import mimetypes
 
 app = Flask(__name__)
 CORS(app)
@@ -21,7 +22,28 @@ def index():
 
 @app.route('/<path:filename>')
 def static_files(filename):
-    return send_from_directory('.', filename)
+    try:
+        # Determine content type based on file extension
+        content_type, _ = mimetypes.guess_type(filename)
+        
+        # Set default content type for common file types
+        if filename.endswith('.css'):
+            content_type = 'text/css; charset=utf-8'
+        elif filename.endswith('.js'):
+            content_type = 'application/javascript; charset=utf-8'
+        elif filename.endswith('.html'):
+            content_type = 'text/html; charset=utf-8'
+        elif filename.endswith('.txt'):
+            content_type = 'text/plain; charset=utf-8'
+        
+        # Read file with proper encoding
+        with open(filename, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        return content, 200, {'Content-Type': content_type}
+    except Exception as e:
+        # Fallback to send_from_directory for binary files or errors
+        return send_from_directory('.', filename)
 
 @app.route('/api.php')
 def api():
