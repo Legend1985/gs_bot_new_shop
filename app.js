@@ -45,9 +45,18 @@ async function loadProducts(page = 0) {
     const start = page * productsPerPage;
     
     try {
+        console.log(`loadProducts: загружаем страницу ${page + 1}, start: ${start}`);
+        
         // API запрос к серверу для получения товаров
         const response = await fetch(`api.php?start=${start}&limit=${productsPerPage}`);
+        console.log(`loadProducts: ответ API получен, статус: ${response.status}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         const data = await response.json();
+        console.log(`loadProducts: данные API:`, data);
         
         if (data.success) {
             // Обновляем общее количество товаров из API
@@ -92,6 +101,7 @@ async function loadProducts(page = 0) {
             }
             
             // Если API недоступен, используем моковые данные
+            console.log('API недоступен, используем моковые данные');
             const products = generateMockProducts(start, productsPerPage);
             renderProducts(products);
             currentPage = page;
@@ -102,7 +112,7 @@ async function loadProducts(page = 0) {
         
         // Для Chrome добавляем дополнительную логику
         if (isChrome && chromeRetryCount < maxChromeRetries) {
-            console.log('Chrome: ошибка загрузки товаров, пробуем повторить...');
+            console.log('Chrome: ошибка загрузки, пробуем повторить...');
             chromeRetryCount++;
             
             // Небольшая задержка перед повторной попыткой
@@ -114,6 +124,7 @@ async function loadProducts(page = 0) {
         }
         
         // При ошибке используем моковые данные
+        console.log('Используем моковые данные из-за ошибки');
         const products = generateMockProducts(start, productsPerPage);
         renderProducts(products);
         currentPage = page;
@@ -150,7 +161,10 @@ function generateMockProducts(start, limit) {
 
 // Функция рендеринга товаров
 function renderProducts(products) {
+    console.log(`renderProducts: начинаем рендеринг ${products.length} товаров`);
+    
     const container = document.querySelector('.inner');
+    console.log(`renderProducts: контейнер найден:`, container);
     
     // Скрываем заставку загрузки при первом рендеринге
     hideLoadingScreen();
@@ -159,6 +173,8 @@ function renderProducts(products) {
         const productCard = createProductCard(product, currentPage * productsPerPage + index + 1);
         container.appendChild(productCard);
     });
+    
+    console.log(`renderProducts: товары отрендерены, всего в контейнере: ${container.children.length}`);
     
     // Настраиваем обработчики для новых изображений
     setupImageHandlers();
@@ -523,7 +539,10 @@ function showSuccessMessage(message) {
 
 // Создание заставки загрузки
 function createLoadingScreen() {
+    console.log('createLoadingScreen: создаем экран загрузки');
     const container = document.querySelector('.inner');
+    console.log('createLoadingScreen: контейнер найден:', container);
+    
     container.innerHTML = `
         <div class="loading-screen">
             <div class="loading-spinner"></div>
@@ -531,47 +550,63 @@ function createLoadingScreen() {
             <p>Получаем актуальные цены с сайта</p>
         </div>
     `;
+    
+    console.log('createLoadingScreen: экран загрузки создан');
 }
 
 // Скрытие заставки загрузки
 function hideLoadingScreen() {
+    console.log('hideLoadingScreen: пытаемся скрыть экран загрузки');
     const loadingScreen = document.querySelector('.loading-screen');
+    console.log('hideLoadingScreen: найден экран загрузки:', loadingScreen);
+    
     if (loadingScreen) {
         loadingScreen.style.opacity = '0';
         setTimeout(() => {
             if (loadingScreen.parentNode) {
                 loadingScreen.parentNode.removeChild(loadingScreen);
+                console.log('hideLoadingScreen: экран загрузки удален');
             }
         }, 300);
+    } else {
+        console.log('hideLoadingScreen: экран загрузки не найден');
     }
 }
 
 // Инициализация
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOMContentLoaded: начинаем инициализацию приложения');
+    
     // Инициализируем обработчики всплывающего окна
     initPopupHandlers();
+    console.log('DOMContentLoaded: обработчики всплывающего окна инициализированы');
     
     // Показываем заставку загрузки
     createLoadingScreen();
+    console.log('DOMContentLoaded: экран загрузки показан');
     
     // Добавляем обработчик прокрутки
     window.addEventListener('scroll', handleScroll);
+    console.log('DOMContentLoaded: обработчик прокрутки добавлен');
     
     // Настраиваем автосохранение состояния
     startAutoSave();
     setupBeforeUnload();
+    console.log('DOMContentLoaded: автосохранение настроено');
     
     // Запускаем мониторинг состояния загрузки
     startStatusMonitoring();
+    console.log('DOMContentLoaded: мониторинг загрузки запущен');
     
     // Настраиваем обработчик для кнопки сброса состояния загрузки
     const resetBtn = document.getElementById('resetLoadingBtn');
     if (resetBtn) {
         resetBtn.addEventListener('click', function() {
             console.log('Пользователь нажал кнопку сброса состояния загрузки');
-            resetLoadingState();
+            forceResetLoading();
             updateResetButton();
         });
+        console.log('DOMContentLoaded: обработчик кнопки сброса настроен');
     }
     
     // Настраиваем обработчик для кнопки очистки кеша Chrome
@@ -592,6 +627,45 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }, 5000);
         });
+        console.log('DOMContentLoaded: обработчик кнопки очистки кеша настроен');
+    }
+    
+    // Настраиваем обработчик для кнопки загрузки моковых данных
+    const loadMockDataBtn = document.getElementById('loadMockDataBtn');
+    if (loadMockDataBtn) {
+        loadMockDataBtn.addEventListener('click', function() {
+            console.log('Пользователь нажал кнопку загрузки моковых данных');
+            
+            // Скрываем экран загрузки
+            hideLoadingScreen();
+            
+            // Сбрасываем состояние
+            resetLoadingState();
+            
+            // Загружаем моковые данные
+            loadProducts(0);
+            
+            // Показываем сообщение об успешной загрузке
+            showSuccessMessage('Тестовые данные загружены!');
+        });
+        console.log('DOMContentLoaded: обработчик кнопки загрузки моковых данных настроен');
+    }
+    
+    // Настраиваем обработчик для кнопки перезагрузки страницы
+    const reloadPageBtn = document.getElementById('reloadPageBtn');
+    if (reloadPageBtn) {
+        reloadPageBtn.addEventListener('click', function() {
+            console.log('Пользователь нажал кнопку перезагрузки страницы');
+            
+            // Показываем сообщение
+            showSuccessMessage('Перезагружаем страницу...');
+            
+            // Небольшая задержка перед перезагрузкой
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        });
+        console.log('DOMContentLoaded: обработчик кнопки перезагрузки страницы настроен');
     }
     
 
@@ -616,32 +690,76 @@ document.addEventListener('DOMContentLoaded', function() {
 
     }
     
+    console.log('DOMContentLoaded: все обработчики настроены, запускаем загрузку товаров через 100ms');
+    
     // Загружаем реальные товары с сайта с небольшой задержкой
     setTimeout(() => {
-        loadRealProducts();
+        console.log('DOMContentLoaded: вызываем loadRealProducts');
+        
+        // Сначала тестируем API
+        testAPIAndLoad();
     }, 100);
     
     console.log('Приложение инициализировано с автосохранением состояния, всплывающими окнами и мониторингом загрузки');
 });
 
+// Функция для тестирования API и загрузки товаров
+async function testAPIAndLoad() {
+    try {
+        console.log('testAPIAndLoad: тестируем API...');
+        
+        // Тестируем API
+        const response = await fetch('api.php?start=0&limit=1');
+        console.log('testAPIAndLoad: ответ API:', response.status);
+        
+        if (response.ok) {
+            const data = await response.json();
+            console.log('testAPIAndLoad: API работает, данные:', data);
+            
+            if (data.success) {
+                console.log('testAPIAndLoad: API успешен, загружаем товары...');
+                loadRealProducts();
+            } else {
+                console.log('testAPIAndLoad: API вернул ошибку, используем моковые данные');
+                hideLoadingScreen();
+                loadProducts(0);
+            }
+        } else {
+            console.log('testAPIAndLoad: API недоступен, используем моковые данные');
+            hideLoadingScreen();
+            loadProducts(0);
+        }
+    } catch (error) {
+        console.error('testAPIAndLoad: ошибка тестирования API:', error);
+        console.log('testAPIAndLoad: используем моковые данные из-за ошибки');
+        hideLoadingScreen();
+        loadProducts(0);
+    }
+}
+
 // Функция загрузки реальных товаров с сайта
 async function loadRealProducts() {
     try {
+        console.log('loadRealProducts: начинаем загрузку...');
+        
         // Пытаемся восстановить состояние
         const stateRestored = loadState();
+        console.log('loadRealProducts: результат loadState:', stateRestored);
+        console.log('loadRealProducts: loadedProductNames.size:', loadedProductNames.size);
         
         if (stateRestored && loadedProductNames.size > 0) {
             console.log('Восстанавливаем сохраненное состояние...');
             await restoreAllProducts();
         } else {
-            console.log('Загружаем первую страницу товаров с сайта...');
-            await loadFirstPage();
+            console.log('Загружаем первую страницу товаров через локальный API...');
+            // Скрываем заставку загрузки
+            hideLoadingScreen();
+            // Загружаем через локальный API
+            await loadProducts(0);
         }
         
     } catch (error) {
         console.error('Ошибка загрузки реальных товаров:', error);
-        
-
         
         // Скрываем заставку загрузки
         hideLoadingScreen();
@@ -1105,12 +1223,17 @@ function saveState() {
 
 function loadState() {
     try {
+        console.log('loadState: пытаемся загрузить сохраненное состояние');
         const savedState = localStorage.getItem('shopState');
+        console.log('loadState: сохраненное состояние:', savedState);
+        
         if (savedState) {
             const state = JSON.parse(savedState);
+            console.log('loadState: распарсенное состояние:', state);
             
             // Проверяем, не устарели ли данные (больше 1 часа)
             const isExpired = Date.now() - state.timestamp > 60 * 60 * 1000;
+            console.log('loadState: состояние устарело:', isExpired);
             
             if (!isExpired) {
                 currentPage = state.currentPage || 0;
@@ -1119,17 +1242,34 @@ function loadState() {
                 hasMoreProducts = state.hasMoreProducts !== false;
                 savedScrollPosition = state.scrollPosition || 0;
                 
-                console.log('Состояние восстановлено:', state);
-                return true;
+                console.log('loadState: состояние восстановлено:', {
+                    currentPage,
+                    loadedProductNamesSize: loadedProductNames.size,
+                    maxProducts,
+                    hasMoreProducts,
+                    savedScrollPosition
+                });
+                
+                // Проверяем, действительно ли есть загруженные товары
+                if (loadedProductNames.size > 0) {
+                    console.log('loadState: возвращаем true - есть сохраненные товары');
+                    return true;
+                } else {
+                    console.log('loadState: возвращаем false - нет сохраненных товаров');
+                    return false;
+                }
             } else {
                 console.log('Сохраненное состояние устарело, начинаем заново');
                 clearState();
             }
+        } else {
+            console.log('loadState: нет сохраненного состояния');
         }
     } catch (error) {
         console.error('Ошибка загрузки состояния:', error);
         clearState();
     }
+    console.log('loadState: возвращаем false - состояние не загружено');
     return false;
 }
 
@@ -1167,6 +1307,7 @@ function setupBeforeUnload() {
 
 // Функция для принудительного сброса состояния
 function resetState() {
+    console.log('resetState: принудительно сбрасываем состояние');
     clearState();
     currentPage = 0;
     isLoading = false;
@@ -1176,6 +1317,33 @@ function resetState() {
     
     // Перезагружаем страницу
     window.location.reload();
+}
+
+// Функция для принудительной очистки состояния загрузки
+function forceResetLoading() {
+    console.log('forceResetLoading: принудительно сбрасываем состояние загрузки');
+    
+    // Останавливаем все таймеры
+    stopStatusMonitoring();
+    
+    // Сбрасываем переменные
+    isLoading = false;
+    hasMoreProducts = true;
+    chromeRetryCount = 0;
+    
+    // Очищаем контейнер
+    const container = document.querySelector('.inner');
+    if (container) {
+        container.innerHTML = '';
+    }
+    
+    // Показываем экран загрузки заново
+    createLoadingScreen();
+    
+    // Запускаем мониторинг заново
+    startStatusMonitoring();
+    
+    console.log('forceResetLoading: состояние загрузки сброшено');
 }
 
 // Функция для обработки загрузки изображений

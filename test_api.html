@@ -1,66 +1,134 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Тест API</title>
-    <meta charset="utf-8">
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; }
-        .product { border: 1px solid #ccc; margin: 10px; padding: 10px; display: inline-block; width: 200px; }
-        .product img { max-width: 100px; height: auto; }
-        .old-price { text-decoration: line-through; color: #999; }
-        .new-price { color: #e74c3c; font-weight: bold; }
-        .status { font-weight: bold; }
-        .status.in-stock { color: green; }
-        .status.out-of-stock { color: red; }
-        .status.expected { color: orange; }
-        .status.discontinued { color: black; }
-        .rating { color: gold; }
+        .test-result { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
     </style>
 </head>
 <body>
     <h1>Тест API</h1>
-    <button onclick="testAPI()">Тестировать API</button>
-    <div id="result"></div>
-
+    
+    <button onclick="testAPI()">Тест API</button>
+    <button onclick="testLocalStorage()">Тест LocalStorage</button>
+    <button onclick="clearLocalStorage()">Очистить LocalStorage</button>
+    
+    <div id="results"></div>
+    
     <script>
         async function testAPI() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="test-result">Тестируем API...</div>';
+            
             try {
-                const response = await fetch('api.php?start=0&limit=8');
-                const data = await response.json();
+                const response = await fetch('api.php?start=0&limit=5');
+                console.log('API Response:', response);
                 
-                let html = '<h2>Результаты API:</h2>';
-                
-                if (data.success && data.products) {
-                    data.products.forEach((product, index) => {
-                        html += `
-                            <div class="product">
-                                <h4>${product.name}</h4>
-                                <img src="${product.image}" alt="${product.name}" onerror="this.style.border='2px solid red'">
-                                <p class="old-price">${product.oldPrice}</p>
-                                <p class="new-price">${product.newPrice} грн</p>
-                                <p class="status ${product.inStock ? 'in-stock' : 'out-of-stock'}">${product.availability}</p>
-                                <p class="rating">Рейтинг: ${product.rating}</p>
-                                <p><strong>ID:</strong> ${product.id}</p>
-                                <p><strong>inStock:</strong> ${product.inStock}</p>
-                            </div>
-                        `;
-                    });
-                } else {
-                    html += '<p style="color: red;">Ошибка API: ' + (data.error || 'Неизвестная ошибка') + '</p>';
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 
-                document.getElementById('result').innerHTML = html;
+                const data = await response.json();
+                console.log('API Data:', data);
+                
+                if (data.success) {
+                    resultsDiv.innerHTML = `
+                        <div class="test-result success">
+                            <h3>✅ API работает!</h3>
+                            <p>Получено товаров: ${data.products.length}</p>
+                            <p>Всего товаров: ${data.totalProducts}</p>
+                            <p>Есть еще: ${data.hasMore}</p>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    resultsDiv.innerHTML = `
+                        <div class="test-result error">
+                            <h3>❌ API вернул ошибку</h3>
+                            <p>${data.error || 'Неизвестная ошибка'}</p>
+                        </div>
+                    `;
+                }
             } catch (error) {
-                document.getElementById('result').innerHTML = `
-                    <h2>Ошибка:</h2>
-                    <p style="color: red;">${error.message}</p>
+                console.error('API Error:', error);
+                resultsDiv.innerHTML = `
+                    <div class="test-result error">
+                        <h3>❌ Ошибка API</h3>
+                        <p>${error.message}</p>
+                    </div>
                 `;
             }
         }
         
-        // Автоматический тест при загрузке
+        function testLocalStorage() {
+            const resultsDiv = document.getElementById('results');
+            
+            try {
+                const testData = { test: 'value', timestamp: Date.now() };
+                localStorage.setItem('testKey', JSON.stringify(testData));
+                
+                const retrieved = JSON.parse(localStorage.getItem('testKey'));
+                
+                if (retrieved && retrieved.test === 'value') {
+                    resultsDiv.innerHTML = `
+                        <div class="test-result success">
+                            <h3>✅ LocalStorage работает!</h3>
+                            <p>Записано: ${JSON.stringify(testData)}</p>
+                            <p>Прочитано: ${JSON.stringify(retrieved)}</p>
+                        </div>
+                    `;
+                } else {
+                    resultsDiv.innerHTML = `
+                        <div class="test-result error">
+                            <h3>❌ LocalStorage не работает</h3>
+                            <p>Данные не сохранились или не прочитались</p>
+                        </div>
+                    `;
+                }
+                
+                localStorage.removeItem('testKey');
+            } catch (error) {
+                resultsDiv.innerHTML = `
+                    <div class="test-result error">
+                        <h3>❌ Ошибка LocalStorage</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        function clearLocalStorage() {
+            try {
+                localStorage.clear();
+                document.getElementById('results').innerHTML = `
+                    <div class="test-result success">
+                        <h3>✅ LocalStorage очищен!</h3>
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById('results').innerHTML = `
+                    <div class="test-result error">
+                        <h3>❌ Ошибка очистки LocalStorage</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Автоматически тестируем при загрузке
         window.addEventListener('load', () => {
-            setTimeout(testAPI, 1000);
+            document.getElementById('results').innerHTML = `
+                <div class="test-result">
+                    <h3>Страница загружена</h3>
+                    <p>Нажмите кнопки для тестирования</p>
+                </div>
+            `;
         });
     </script>
 </body>
