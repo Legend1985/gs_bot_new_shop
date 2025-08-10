@@ -95,168 +95,75 @@ def api():
                 # Extract price - try different selectors
                 price_elem = item.find('span', class_='price') or item.find('span', class_='cost') or item.find('div', class_='price')
                 new_price = 0
+                old_price = 0
                 if price_elem:
                     price_text = price_elem.get_text(strip=True)
                     # Extract numeric price
-                    price_match = re.search(r'(\d+)', price_text)
-                    new_price = int(price_match.group(1)) if price_match else 0
+                    price_match = re.search(r'(\d+(?:\.\d+)?)', price_text)
+                    if price_match:
+                        new_price = float(price_match.group(1))
                 
-                # Generate old price (always higher than new price)
-                if new_price > 0:
-                    # Старая цена должна быть больше новой на 20-40%
-                    markup = random.uniform(1.2, 1.4)
-                    old_price = int(new_price * markup)
-                else:
-                    # Если цена не найдена, генерируем случайную
-                    new_price = random.randint(500, 2000)
-                    old_price = int(new_price * random.uniform(1.2, 1.4))
+                # Try to find old price (crossed out)
+                old_price_elem = item.find('span', class_='old-price') or item.find('del') or item.find('span', class_='crossed')
+                if old_price_elem:
+                    old_price_text = old_price_elem.get_text(strip=True)
+                    old_price_match = re.search(r'(\d+(?:\.\d+)?)', old_price_text)
+                    if old_price_match:
+                        old_price = float(old_price_match.group(1))
                 
-                # Убеждаемся, что старая цена всегда больше новой
-                if old_price <= new_price:
-                    old_price = int(new_price * 1.3)  # Минимальная наценка 30%
-                
-                # Check availability - более реалистичные статусы
-                availability_elem = item.find('span', class_='availability') or item.find('span', class_='stock')
-                if availability_elem:
-                    availability_text = availability_elem.get_text(strip=True).lower()
-                    if 'нет' in availability_text or 'закончился' in availability_text:
+                # Extract availability status
+                availability = "В наличии"
+                status_elem = item.find('span', class_='status') or item.find('div', class_='availability') or item.find('span', class_='stock')
+                if status_elem:
+                    status_text = status_elem.get_text(strip=True).lower()
+                    if 'нет в наличии' in status_text or 'отсутствует' in status_text:
                         availability = "Нет в наличии"
-                    elif 'ожидается' in availability_text or 'скоро' in availability_text:
+                    elif 'ожидается' in status_text or 'скоро' in status_text:
                         availability = "Ожидается"
-                    elif 'под заказ' in availability_text:
+                    elif 'под заказ' in status_text or 'заказ' in status_text:
                         availability = "Под заказ"
-                    else:
-                        availability = "В наличии"
-                else:
-                    # Случайно распределяем статусы для реалистичности
-                    rand_status = random.random()
-                    if rand_status < 0.7:  # 70% товаров в наличии
-                        availability = "В наличии"
-                    elif rand_status < 0.85:  # 15% нет в наличии
-                        availability = "Нет в наличии"
-                    elif rand_status < 0.95:  # 10% ожидается
-                        availability = "Ожидается"
-                    else:  # 5% под заказ
-                        availability = "Под заказ"
+                    elif 'снят' in status_text or 'discontinued' in status_text:
+                        availability = "Снят с производства"
                 
-                # Generate random rating (1-5 stars)
-                rating = random.randint(3, 5)
+                # Generate random rating between 3.5 and 5.0
+                rating = round(random.uniform(3.5, 5.0), 1)
                 
+                # Create product object
                 product = {
                     'name': name,
                     'image': img_src,
-                    'newPrice': new_price,
-                    'oldPrice': old_price,
+                    'newPrice': f"{int(new_price)}",
+                    'oldPrice': f"{int(old_price)}" if old_price > 0 else None,
                     'availability': availability,
                     'rating': rating
                 }
+                
                 products.append(product)
                 
             except Exception as e:
                 print(f"Error parsing product: {e}")
                 continue
         
-        # If no products found from scraping, return test data with better images
-        if not products:
-            products = [
-                {
-                    'name': 'Ernie Ball 2221 10-46 Electric Guitar Strings',
-                    'image': 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=150&h=150&fit=crop&crop=center',
-                    'newPrice': 1500,
-                    'oldPrice': 1950,
-                    'availability': 'В наличии',
-                    'rating': 4
-                },
-                {
-                    'name': 'D\'Addario EXL110 10-46 Electric Guitar Strings',
-                    'image': 'https://images.unsplash.com/photo-1516924962500-2b4b3b99ea02?w=150&h=150&fit=crop&crop=center',
-                    'newPrice': 2000,
-                    'oldPrice': 2600,
-                    'availability': 'В наличии',
-                    'rating': 5
-                },
-                {
-                    'name': 'GHS Boomers 10-46 Electric Guitar Strings',
-                    'image': 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=150&h=150&fit=crop&crop=center',
-                    'newPrice': 1800,
-                    'oldPrice': 2340,
-                    'availability': 'Нет в наличии',
-                    'rating': 4
-                },
-                {
-                    'name': 'Elixir Nanoweb 10-46 Electric Guitar Strings',
-                    'image': 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=150&h=150&fit=crop&crop=center',
-                    'newPrice': 2500,
-                    'oldPrice': 3250,
-                    'availability': 'Ожидается',
-                    'rating': 5
-                },
-                {
-                    'name': 'DR Strings Hi-Beam 10-46 Electric Guitar Strings',
-                    'image': 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=150&h=150&fit=crop&crop=center',
-                    'newPrice': 2200,
-                    'oldPrice': 2860,
-                    'availability': 'Под заказ',
-                    'rating': 4
-                },
-                {
-                    'name': 'Fender 150R 10-46 Electric Guitar Strings',
-                    'image': 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=150&h=150&fit=crop&crop=center',
-                    'newPrice': 1200,
-                    'oldPrice': 1560,
-                    'availability': 'Снят с производства',
-                    'rating': 3
-                },
-                {
-                    'name': 'Gibson Brite Wires 10-46 Electric Guitar Strings',
-                    'image': 'https://images.unsplash.com/photo-1516924962500-2b4b3b99ea02?w=150&h=150&fit=crop&crop=center',
-                    'newPrice': 1800,
-                    'oldPrice': 2340,
-                    'availability': 'Снят с производства',
-                    'rating': 4
-                }
-            ]
-        
-        response_data = {
+        # Return JSON response
+        return jsonify({
             'success': True,
             'products': products,
             'total': len(products),
             'start': start,
-            'limit': limit
-        }
-        
-        return jsonify(response_data)
+            'limit': limit,
+            'hasMore': len(products) == limit
+        })
         
     except Exception as e:
-        print(f"Error fetching data: {e}")
-        # Return test data on error with better images
-        test_products = [
-            {
-                'name': 'Ernie Ball 2221 10-46 Electric Guitar Strings',
-                'image': 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=150&h=150&fit=crop&crop=center',
-                'newPrice': 1000,
-                'oldPrice': 1300,
-                'availability': 'В наличии',
-                'rating': 3
-            },
-            {
-                'name': 'D\'Addario EXL110 10-46 Electric Guitar Strings',
-                'image': 'https://images.unsplash.com/photo-1516924962500-2b4b3b99ea02?w=150&h=150&fit=crop&crop=center',
-                'newPrice': 1500,
-                'oldPrice': 1950,
-                'availability': 'Нет в наличии',
-                'rating': 4
-            }
-        ]
-        
         return jsonify({
             'success': False,
             'error': str(e),
-            'products': test_products,
-            'total': len(test_products),
+            'products': [],
+            'total': 0,
             'start': start,
-            'limit': limit
-        })
+            'limit': limit,
+            'hasMore': False
+        }), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000, debug=True) 

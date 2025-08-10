@@ -285,7 +285,7 @@ function createProductCardFromSiteData(product, btnId) {
             <div class="product-bottom-row">
                 <div class="product-prices">
                     ${product.oldPrice ? `<span class="old-price">${product.oldPrice} грн</span>` : ''}
-                    <span class="new-price ${priceClass}">${product.newPrice} грн</span>
+                    <span class="new-price ${priceClass}">${product.newPrice}</span>
                 </div>
                 <button id="${btnId}" class="btn ${statusClass}">
                     ${product.availability === 'Нет в наличии' ? 'Нет в наличии' : 
@@ -302,6 +302,8 @@ function createProductCardFromSiteData(product, btnId) {
     button.addEventListener('click', () => {
         if (product.availability === 'Снят с производства') {
             showDiscontinuedPopup();
+        } else if (product.availability === 'Нет в наличии') {
+            showOutOfStockPopup();
         } else {
             tg.MainButton.text = `Выбрано: ${product.name}`;
             tg.MainButton.show();
@@ -443,8 +445,6 @@ async function fetchProductData(page = 0) {
         };
     }
 }
-
-// Функция парсинга HTML сайта больше не нужна, так как мы используем локальный API
 
 // Функция обновления цен товаров
 async function updateProductPrices() {
@@ -639,9 +639,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Показываем экран загрузки
     createLoadingScreen();
     
-    // Настраиваем обработчики для кнопок управления
-    setupControlButtons();
-    
     // Небольшая задержка для отображения экрана загрузки
     setTimeout(async () => {
         try {
@@ -742,64 +739,6 @@ document.addEventListener('DOMContentLoaded', () => {
     setupImageHandlers();
 });
 
-// Функция настройки кнопок управления
-function setupControlButtons() {
-    const refreshBtn = document.getElementById('refresh-btn');
-    const clearCacheBtn = document.getElementById('clear-cache-btn');
-    
-    if (refreshBtn) {
-        refreshBtn.addEventListener('click', async () => {
-            console.log('Кнопка обновления нажата');
-            refreshBtn.disabled = true;
-            refreshBtn.textContent = '🔄 Обновляем...';
-            
-            try {
-                // Очищаем состояние и загружаем заново
-                clearState();
-                await loadRealProducts();
-                console.log('Товары успешно обновлены');
-            } catch (error) {
-                console.error('Ошибка обновления:', error);
-            } finally {
-                refreshBtn.disabled = false;
-                refreshBtn.textContent = '🔄 Обновить';
-            }
-        });
-    }
-    
-    if (clearCacheBtn) {
-        clearCacheBtn.addEventListener('click', () => {
-            console.log('Кнопка очистки кэша нажата');
-            clearCacheBtn.disabled = true;
-            clearCacheBtn.textContent = '🗑️ Очищаем...';
-            
-            try {
-                // Очищаем кэш браузера для изображений
-                if ('caches' in window) {
-                    caches.keys().then(names => {
-                        names.forEach(name => {
-                            caches.delete(name);
-                        });
-                    });
-                }
-                
-                // Очищаем localStorage
-                clearState();
-                
-                // Перезагружаем страницу
-                setTimeout(() => {
-                    location.reload();
-                }, 1000);
-                
-            } catch (error) {
-                console.error('Ошибка очистки кэша:', error);
-                clearCacheBtn.disabled = false;
-                clearCacheBtn.textContent = '🗑️ Очистить кэш';
-            }
-        });
-    }
-}
-
 // Функция показа сообщения о снятии с производства
 function showDiscontinuedPopup() {
     const popup = document.createElement('div');
@@ -836,6 +775,52 @@ function showDiscontinuedPopup() {
 
 // Функция скрытия сообщения о снятии с производства
 function hideDiscontinuedPopup(closeButton) {
+    const popup = closeButton.closest('.popup-overlay');
+    if (popup) {
+        popup.classList.remove('show');
+        setTimeout(() => {
+            popup.remove();
+            document.body.classList.remove('popup-open');
+        }, 300);
+    }
+}
+
+// Функция показа сообщения о товаре не в наличии
+function showOutOfStockPopup() {
+    const popup = document.createElement('div');
+    popup.className = 'popup-overlay show';
+    popup.innerHTML = `
+        <div class="popup-content">
+            <button class="popup-close" onclick="hideOutOfStockPopup(this)">&times;</button>
+            <div class="popup-icon">
+                <span style="font-size: 48px;">📦</span>
+            </div>
+            <p class="popup-message">Товар временно отсутствует на складе. Попробуйте позже.</p>
+        </div>
+    `;
+    document.body.appendChild(popup);
+    
+    // Добавляем класс для body
+    document.body.classList.add('popup-open');
+    
+    // Закрытие по клику вне контента
+    popup.addEventListener('click', (event) => {
+        if (event.target === popup) {
+            hideOutOfStockPopup(popup.querySelector('.popup-close'));
+        }
+    });
+    
+    // Закрытие по Escape
+    document.addEventListener('keydown', function escapeHandler(e) {
+        if (e.key === 'Escape') {
+            hideOutOfStockPopup(popup.querySelector('.popup-close'));
+            document.removeEventListener('keydown', escapeHandler);
+        }
+    });
+}
+
+// Функция скрытия сообщения о товаре не в наличии
+function hideOutOfStockPopup(closeButton) {
     const popup = closeButton.closest('.popup-overlay');
     if (popup) {
         popup.classList.remove('show');
