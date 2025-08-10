@@ -1,34 +1,24 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-	<meta http-equiv="Pragma" content="no-cache">
-	<meta http-equiv="Expires" content="0">
-	<link rel="stylesheet" href="style.css?v=2.0">
-	<title>Магазин гитарных струн</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guitar Strings Shop</title>
+    <link rel="stylesheet" href="style.css?v=2.1">
 </head>
 <body>
-	<h2 style="text-align:center;">Магазин гитарных струн</h2>
-	
-	<div class="container">
-		<div class="inner">
-			<!-- Товары будут загружаться динамически -->
-		</div>
-	</div>
-	
-	<!-- Индикатор загрузки -->
-	<div id="loading-indicator" style="display: none;">
-		<div class="loading-spinner-small"></div>
-		<p>Загружаем еще товары...</p>
-	</div>
-	
-	<div class="usercard" id="usercard">
-		
-	</div>
-
-	<script src="https://telegram.org/js/telegram-web-app.js"></script>
-	<script src="app.js?v=2.0"></script>
+    <div class="container">
+        <div class="inner">
+            <!-- Товары будут загружены динамически -->
+        </div>
+        
+        <!-- Индикатор загрузки для бесконечной прокрутки -->
+        <div id="loading-indicator">
+            <div class="loading-spinner-small"></div>
+            <p>Загружаем еще товары...</p>
+        </div>
+    </div>
+    
+    <script src="app.js?v=2.1"></script>
 </body>
 </html>

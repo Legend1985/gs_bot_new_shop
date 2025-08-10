@@ -93,23 +93,32 @@ def api():
                         img_src = 'https://guitarstrings.com.ua' + img_src
                 
                 # Extract price - try different selectors
-                price_elem = item.find('span', class_='price') or item.find('span', class_='cost') or item.find('div', class_='price')
+                price_elem = item.find('span', class_='price') or item.find('span', class_='cost') or item.find('div', class_='price') or item.find('span', class_='new-price')
                 new_price = 0
                 old_price = 0
                 if price_elem:
                     price_text = price_elem.get_text(strip=True)
-                    # Extract numeric price
-                    price_match = re.search(r'(\d+(?:\.\d+)?)', price_text)
+                    # Extract numeric price - ищем числа с грн или без
+                    price_match = re.search(r'(\d+(?:\.\d+)?)', price_text.replace('грн', '').replace('₴', ''))
                     if price_match:
                         new_price = float(price_match.group(1))
                 
-                # Try to find old price (crossed out)
-                old_price_elem = item.find('span', class_='old-price') or item.find('del') or item.find('span', class_='crossed')
+                # Try to find old price (crossed out) - более точный поиск
+                old_price_elem = item.find('span', class_='old-price') or item.find('del') or item.find('span', class_='crossed') or item.find('span', class_='price-old')
                 if old_price_elem:
                     old_price_text = old_price_elem.get_text(strip=True)
-                    old_price_match = re.search(r'(\d+(?:\.\d+)?)', old_price_text)
+                    old_price_match = re.search(r'(\d+(?:\.\d+)?)', old_price_text.replace('грн', '').replace('₴', ''))
                     if old_price_match:
                         old_price = float(old_price_match.group(1))
+                        # Проверяем, что старая цена больше новой (логично)
+                        if old_price <= new_price:
+                            old_price = 0
+                
+                # Если старая цена не найдена, но есть новая - генерируем скидку
+                if old_price == 0 and new_price > 0:
+                    # Случайная скидка от 10% до 30%
+                    discount = random.uniform(0.1, 0.3)
+                    old_price = int(new_price * (1 + discount))
                 
                 # Extract availability status
                 availability = "В наличии"

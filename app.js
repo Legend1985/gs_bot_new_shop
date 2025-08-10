@@ -14,110 +14,6 @@ let maxProducts = 0;
 let loadedProductNames = new Set();
 let savedScrollPosition = 0;
 
-// Функция загрузки товаров
-async function loadProducts(page = 0) {
-    if (isLoading || !hasMoreProducts) return;
-    
-    isLoading = true;
-    const start = page * productsPerPage;
-    
-    try {
-        const response = await fetch(`api.php?start=${start}&limit=${productsPerPage}`);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            if (data.products && data.products.length > 0) {
-                renderProducts(data.products);
-                currentPage = page;
-                
-                // Устанавливаем максимальное количество товаров
-                if (data.total) {
-                    maxProducts = data.total;
-                }
-                
-                if (!data.hasMore) {
-                    hasMoreProducts = false;
-                }
-            } else {
-                hasMoreProducts = false;
-            }
-        } else {
-            console.error('Ошибка API:', data.error);
-        }
-    } catch (error) {
-        console.error('Ошибка загрузки:', error);
-    } finally {
-        isLoading = false;
-    }
-}
-
-// Функция отображения товаров
-function renderProducts(products) {
-    const container = document.querySelector('.inner');
-    
-    products.forEach((product, index) => {
-        const productCard = createProductCard(product, `btn${currentPage * productsPerPage + index + 1}`);
-        container.appendChild(productCard);
-    });
-}
-
-// Функция создания карточки товара
-function createProductCard(product, btnId) {
-    const card = document.createElement('div');
-    card.className = 'item';
-    card.innerHTML = `
-        <img src="${product.image}" alt="${product.name}">
-        <h3>${product.name}</h3>
-        <p class="price">
-            <span class="old-price">${product.oldPrice}</span>
-            <span class="new-price">${product.newPrice} грн</span>
-        </p>
-        <p class="availability">${product.availability}</p>
-        <button id="${btnId}" class="buy-btn">Купить</button>
-    `;
-    
-    // Добавляем обработчик для кнопки
-    const button = card.querySelector(`#${btnId}`);
-    button.addEventListener('click', () => {
-        tg.MainButton.text = `Выбрано: ${product.name}`;
-        tg.MainButton.show();
-    });
-    
-    return card;
-}
-
-// Функция загрузки дополнительных товаров при прокрутке
-function handleScroll() {
-    if (isLoading || !hasMoreProducts) {
-        if (isLoading) {
-            console.log('Загрузка уже идет, пропускаем...');
-        } else if (!hasMoreProducts) {
-            console.log('Больше товаров нет, пропускаем...');
-        }
-        return;
-    }
-    
-    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-    const windowHeight = window.innerHeight;
-    const documentHeight = document.documentElement.scrollHeight;
-    
-    console.log(`Прокрутка: ${scrollTop}, высота окна: ${windowHeight}, высота документа: ${documentHeight}`);
-    
-    // Загружаем новые товары когда пользователь приближается к концу страницы
-    if (scrollTop + windowHeight >= documentHeight - 200) {
-        console.log('Достигнут порог для загрузки новых товаров');
-        loadMoreProducts();
-    }
-}
-
-// Добавляем обработчик прокрутки
-window.addEventListener('scroll', handleScroll);
-
 // Функция создания экрана загрузки
 function createLoadingScreen() {
     const container = document.querySelector('.inner');
@@ -187,7 +83,7 @@ async function loadRealProducts() {
             const firstPageProducts = data.products.slice(0, 60);
             
             // Обновляем глобальные переменные
-            maxProducts = data.total || data.products.length; // Используем total из API или количество всех товаров
+            maxProducts = data.total || data.products.length;
             hasMoreProducts = data.products.length === 60 && maxProducts > 60;
             
             console.log(`Максимум товаров: ${maxProducts}, есть еще: ${hasMoreProducts}`);
@@ -242,6 +138,91 @@ async function loadRealProducts() {
     }
 }
 
+// Функция загрузки товаров
+async function loadProducts(page = 0) {
+    if (isLoading || !hasMoreProducts) return;
+    
+    isLoading = true;
+    const start = page * productsPerPage;
+    
+    try {
+        const response = await fetch(`api.php?start=${start}&limit=${productsPerPage}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            if (data.products && data.products.length > 0) {
+                renderProducts(data.products);
+                currentPage = page;
+                
+                // Устанавливаем максимальное количество товаров
+                if (data.total) {
+                    maxProducts = data.total;
+                }
+                
+                if (!data.hasMore) {
+                    hasMoreProducts = false;
+                }
+            } else {
+                hasMoreProducts = false;
+            }
+        } else {
+            console.error('Ошибка API:', data.error);
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки:', error);
+    } finally {
+        isLoading = false;
+    }
+}
+
+// Функция отображения товаров
+function renderProducts(products) {
+    const container = document.querySelector('.inner');
+    
+    products.forEach((product, index) => {
+        const productCard = createProductCardFromSiteData(product, `btn${loadedProductNames.size + index + 1}`);
+        container.appendChild(productCard);
+        
+        // Добавляем название в множество загруженных
+        loadedProductNames.add(product.name);
+    });
+    
+    // Настраиваем обработчики для новых изображений
+    setupImageHandlers();
+    
+    console.log(`Отображено ${products.length} товаров. Всего загружено: ${loadedProductNames.size}`);
+}
+
+// Функция создания карточки товара
+function createProductCard(product, btnId) {
+    const card = document.createElement('div');
+    card.className = 'item';
+    card.innerHTML = `
+        <img src="${product.image}" alt="${product.name}">
+        <h3>${product.name}</h3>
+        <p class="price">
+            <span class="old-price">${product.oldPrice}</span>
+            <span class="new-price">${product.newPrice} грн</span>
+        </p>
+        <p class="availability">${product.availability}</p>
+        <button id="${btnId}" class="buy-btn">Купить</button>
+    `;
+    
+    // Добавляем обработчик для кнопки
+    const button = card.querySelector(`#${btnId}`);
+    button.addEventListener('click', () => {
+        tg.MainButton.text = `Выбрано: ${product.name}`;
+        tg.MainButton.show();
+    });
+    
+    return card;
+}
+
 // Функция создания карточки товара из данных сайта
 function createProductCardFromSiteData(product, btnId) {
     const card = document.createElement('div');
@@ -284,7 +265,7 @@ function createProductCardFromSiteData(product, btnId) {
             <p class="product-status ${statusClass}">${product.availability}</p>
             <div class="product-bottom-row">
                 <div class="product-prices">
-                    ${product.oldPrice ? `<span class="old-price">${product.oldPrice} грн</span>` : ''}
+                    ${product.oldPrice && product.oldPrice !== '0' ? `<span class="old-price">${product.oldPrice} грн</span>` : ''}
                     <span class="new-price ${priceClass}">${product.newPrice}</span>
                 </div>
                 <button id="${btnId}" class="btn ${statusClass}">
@@ -350,65 +331,75 @@ async function loadMoreProducts() {
     showLoadingIndicator();
     
     try {
-        // Вычисляем следующую страницу на основе количества уже загруженных товаров
-        const nextPage = Math.floor(loadedProductNames.size / 60);
-        console.log(`Загружаем страницу ${nextPage + 1}, уже загружено: ${loadedProductNames.size}`);
+        const nextPage = currentPage + 1;
+        const start = nextPage * productsPerPage;
         
-        const data = await fetchProductData(nextPage);
+        console.log(`Загружаем страницу ${nextPage}, начиная с ${start}`);
         
-        if (data && data.products && data.products.length > 0) {
-            // Фильтруем только новые товары
+        const response = await fetch(`api.php?start=${start}&limit=${productsPerPage}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.success && data.products && data.products.length > 0) {
+            console.log(`Получено ${data.products.length} товаров`);
+            
+            // Фильтруем дубликаты
             const newProducts = data.products.filter(product => !loadedProductNames.has(product.name));
             
-            console.log(`Найдено ${newProducts.length} новых товаров из ${data.products.length} полученных`);
-            
             if (newProducts.length > 0) {
-                // Добавляем новые товары в контейнер
-                const container = document.querySelector('.inner');
+                renderProducts(newProducts);
+                currentPage = nextPage;
                 
-                newProducts.forEach((product, index) => {
-                    const productCard = createProductCardFromSiteData(product, `btn${loadedProductNames.size + index + 1}`);
-                    container.appendChild(productCard);
-                    
-                    // Добавляем название в множество загруженных
-                    loadedProductNames.add(product.name);
-                });
-                
-                // Обновляем состояние - проверяем, есть ли еще товары для загрузки
-                hasMoreProducts = data.products.length === 60 && loadedProductNames.size < maxProducts;
-                saveState();
-                
-                console.log(`Добавлено ${newProducts.length} товаров. Всего: ${loadedProductNames.size}, максимум: ${maxProducts}, hasMore: ${hasMoreProducts}`);
-                
-                // Настраиваем обработчики для новых изображений
-                setupImageHandlers();
-                
-                // Проверяем, нужно ли показать сообщение о конце
-                if (!hasMoreProducts) {
-                    showEndMessage();
-                }
-            } else {
-                console.log('Новых товаров не найдено');
-                // Если новых товаров нет, но есть еще товары на сервере, пробуем следующую страницу
-                if (data.products.length === 60) {
-                    hasMoreProducts = true;
-                } else {
+                // Обновляем флаг наличия товаров
+                if (!data.hasMore) {
                     hasMoreProducts = false;
-                    showEndMessage();
+                    console.log('Больше товаров нет');
                 }
+                
+                // Сохраняем состояние
+                saveState();
+            } else {
+                console.log('Все товары уже загружены');
+                hasMoreProducts = false;
             }
         } else {
-            console.log('Данные не получены или пусты');
+            console.log('Нет данных или ошибка API');
             hasMoreProducts = false;
-            showEndMessage();
         }
     } catch (error) {
         console.error('Ошибка загрузки дополнительных товаров:', error);
         hasMoreProducts = false;
     } finally {
         isLoading = false;
-        // Скрываем индикатор загрузки
         hideLoadingIndicator();
+    }
+}
+
+// Функция обработки прокрутки для бесконечной загрузки
+function handleScroll() {
+    if (isLoading || !hasMoreProducts) {
+        if (isLoading) {
+            console.log('Загрузка уже идет, пропускаем...');
+        } else if (!hasMoreProducts) {
+            console.log('Больше товаров нет, пропускаем...');
+        }
+        return;
+    }
+    
+    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+    const windowHeight = window.innerHeight;
+    const documentHeight = document.documentElement.scrollHeight;
+    
+    console.log(`Прокрутка: ${scrollTop}, высота окна: ${windowHeight}, высота документа: ${documentHeight}`);
+    
+    // Загружаем новые товары когда пользователь приближается к концу страницы
+    if (scrollTop + windowHeight >= documentHeight - 200) {
+        console.log('Достигнут порог для загрузки новых товаров');
+        loadMoreProducts();
     }
 }
 
@@ -633,58 +624,25 @@ function resetState() {
 }
 
 // Инициализация при загрузке страницы
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM загружен, начинаем инициализацию...');
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('Страница загружена, начинаем инициализацию...');
     
     // Показываем экран загрузки
     createLoadingScreen();
     
-    // Небольшая задержка для отображения экрана загрузки
-    setTimeout(async () => {
-        try {
-            console.log('Пытаемся восстановить состояние...');
-            
-            // Пытаемся восстановить состояние
-            const restored = await restoreAllProducts();
-            
-            if (!restored) {
-                console.log('Восстановление не удалось, загружаем первую страницу...');
-                // Если восстановление не удалось, загружаем первую страницу
-                await loadRealProducts();
-            } else {
-                console.log('Состояние успешно восстановлено');
-            }
-            
-            // Запускаем автоматическое сохранение
-            startAutoSave();
-            
-            // Настраиваем сохранение перед закрытием
-            setupBeforeUnload();
-            
-            // Настраиваем обработчики изображений
-            setupImageHandlers();
-            
-            // Настраиваем бесконечную прокрутку
-            window.addEventListener('scroll', handleScroll);
-            
-            console.log('Инициализация завершена успешно');
-            
-        } catch (error) {
-            console.error('Ошибка инициализации:', error);
-            hideLoadingScreen();
-            
-            // Показываем сообщение об ошибке
-            const container = document.querySelector('.inner');
-            if (container) {
-                container.innerHTML = `
-                    <div class="error-message">
-                        <p>Ошибка загрузки товаров. Попробуйте обновить страницу.</p>
-                        <button onclick="location.reload()" class="btn">Обновить страницу</button>
-                    </div>
-                `;
-            }
-        }
-    }, 100);
+    // Загружаем первую страницу товаров
+    await loadFirstPage();
+    
+    // Настраиваем обработчики для изображений
+    setupImageHandlers();
+    
+    // Запускаем автосохранение состояния
+    startAutoSave();
+    
+    // Настраиваем обработчик перед выгрузкой страницы
+    setupBeforeUnload();
+    
+    console.log('Инициализация завершена');
 });
 
 // Обработчики событий Telegram
