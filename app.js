@@ -407,25 +407,30 @@ function handleScroll() {
 async function fetchProductData(page = 0) {
     const start = page * 60;
     
-    console.log(`Загружаем страницу ${page + 1}, start: ${start}`);
+    console.log(`fetchProductData: Загружаем страницу ${page + 1}, start: ${start}`);
     
     try {
+        console.log(`fetchProductData: Отправляем запрос к API: api.php?start=${start}&limit=60`);
         const response = await fetch(`api.php?start=${start}&limit=60`);
+        
+        console.log(`fetchProductData: Получен ответ, статус: ${response.status}`);
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
+        console.log('fetchProductData: Парсим JSON ответ...');
         const data = await response.json();
-        console.log(`Получены данные: ${data.products ? data.products.length : 0} товаров`);
+        console.log(`fetchProductData: JSON распарсен, получены данные:`, data);
+        console.log(`fetchProductData: Количество товаров: ${data.products ? data.products.length : 0}`);
         
         if (!data.success) {
-            console.warn('API вернул ошибку:', data.error);
+            console.warn('fetchProductData: API вернул ошибку:', data.error);
         }
         
         return data;
     } catch (error) {
-        console.error('Ошибка получения данных:', error);
+        console.error('fetchProductData: Ошибка получения данных:', error);
         return {
             success: false,
             error: error.message,
@@ -554,15 +559,21 @@ async function restoreAllProducts() {
 // Функция загрузки первой страницы
 async function loadFirstPage() {
     try {
+        console.log('loadFirstPage: Начинаем загрузку данных...');
         const data = await fetchProductData(0);
+        console.log('loadFirstPage: Данные получены:', data);
         
         if (data && data.products && data.products.length > 0) {
+            console.log(`loadFirstPage: Загружено ${data.products.length} товаров`);
+            
             // Ограничиваем отображение первыми 60 товарами
             const firstPageProducts = data.products.slice(0, 60);
             
             // Обновляем глобальные переменные
             maxProducts = data.products.length;
             hasMoreProducts = data.products.length > 60;
+            
+            console.log(`loadFirstPage: maxProducts=${maxProducts}, hasMoreProducts=${hasMoreProducts}`);
             
             // Сохраняем названия загруженных товаров
             firstPageProducts.forEach(product => {
@@ -572,24 +583,48 @@ async function loadFirstPage() {
             // Очищаем контейнер и отображаем товары
             const container = document.querySelector('.inner');
             container.innerHTML = '';
+            console.log('loadFirstPage: Контейнер очищен');
             
             firstPageProducts.forEach((product, index) => {
+                console.log(`loadFirstPage: Создаем карточку для товара ${index + 1}:`, product.name);
                 const productCard = createProductCardFromSiteData(product, `btn${index + 1}`);
                 container.appendChild(productCard);
             });
             
+            console.log('loadFirstPage: Все карточки товаров добавлены');
+            
             // Скрываем экран загрузки
             hideLoadingScreen();
+            console.log('loadFirstPage: Экран загрузки скрыт');
             
             // Сохраняем состояние
             saveState();
+            console.log('loadFirstPage: Состояние сохранено');
         } else {
-            console.error('Не удалось загрузить товары');
+            console.error('loadFirstPage: Не удалось загрузить товары - нет данных');
             hideLoadingScreen();
+            
+            // Показываем сообщение об ошибке
+            const container = document.querySelector('.inner');
+            container.innerHTML = `
+                <div class="error-message">
+                    <p>Не удалось загрузить товары. API не вернул данные.</p>
+                    <button class="btn" onclick="location.reload()">Перезагрузить страницу</button>
+                </div>
+            `;
         }
     } catch (error) {
-        console.error('Ошибка загрузки товаров:', error);
+        console.error('loadFirstPage: Ошибка загрузки товаров:', error);
         hideLoadingScreen();
+        
+        // Показываем сообщение об ошибке
+        const container = document.querySelector('.inner');
+        container.innerHTML = `
+            <div class="error-message">
+                <p>Произошла ошибка при загрузке товаров: ${error.message}</p>
+                <button class="btn" onclick="location.reload()">Перезагрузить страницу</button>
+            </div>
+        `;
     }
 }
 
@@ -627,25 +662,46 @@ function resetState() {
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('Страница загружена, начинаем инициализацию...');
     
-    // Показываем экран загрузки
-    createLoadingScreen();
-    
-    // Загружаем первую страницу товаров
-    await loadFirstPage();
-    
-    // Настраиваем обработчики для изображений
-    setupImageHandlers();
-    
-    // Запускаем автосохранение состояния
-    startAutoSave();
-    
-    // Настраиваем обработчик перед выгрузкой страницы
-    setupBeforeUnload();
-    
-    // Настраиваем обработчик прокрутки для бесконечной загрузки
-    window.addEventListener('scroll', handleScroll);
-    
-    console.log('Инициализация завершена');
+    try {
+        // Показываем экран загрузки
+        createLoadingScreen();
+        console.log('Экран загрузки создан');
+        
+        // Загружаем первую страницу товаров
+        console.log('Начинаем загрузку первой страницы...');
+        await loadFirstPage();
+        console.log('Первая страница загружена');
+        
+        // Настраиваем обработчики для изображений
+        setupImageHandlers();
+        console.log('Обработчики изображений настроены');
+        
+        // Запускаем автосохранение состояния
+        startAutoSave();
+        console.log('Автосохранение запущено');
+        
+        // Настраиваем обработчик перед выгрузкой страницы
+        setupBeforeUnload();
+        console.log('Обработчик beforeunload настроен');
+        
+        // Настраиваем обработчик прокрутки для бесконечной загрузки
+        window.addEventListener('scroll', handleScroll);
+        console.log('Обработчик прокрутки настроен');
+        
+        console.log('Инициализация завершена успешно');
+    } catch (error) {
+        console.error('Ошибка во время инициализации:', error);
+        hideLoadingScreen();
+        
+        // Показываем сообщение об ошибке
+        const container = document.querySelector('.inner');
+        container.innerHTML = `
+            <div class="error-message">
+                <p>Произошла ошибка при загрузке товаров: ${error.message}</p>
+                <button class="btn" onclick="location.reload()">Перезагрузить страницу</button>
+            </div>
+        `;
+    }
 });
 
 // Обработчики событий Telegram

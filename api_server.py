@@ -50,6 +50,46 @@ def api():
     start = request.args.get('start', 0, type=int)
     limit = request.args.get('limit', 60, type=int)
     
+    # Сначала попробуем вернуть тестовые данные для диагностики
+    test_products = [
+        {
+            'name': 'Тестовые струны Ernie Ball 10-46',
+            'image': 'https://via.placeholder.com/150x150?text=Test+Strings',
+            'newPrice': '150',
+            'oldPrice': '200',
+            'availability': 'В наличии',
+            'rating': 4.5
+        },
+        {
+            'name': 'Тестовые струны D\'Addario 11-49',
+            'image': 'https://via.placeholder.com/150x150?text=DAddario',
+            'newPrice': '180',
+            'oldPrice': None,
+            'availability': 'В наличии',
+            'rating': 4.8
+        },
+        {
+            'name': 'Тестовые струны Elixir 12-52',
+            'image': 'https://via.placeholder.com/150x150?text=Elixir',
+            'newPrice': '250',
+            'oldPrice': '300',
+            'availability': 'Ожидается',
+            'rating': 4.2
+        }
+    ]
+    
+    # Возвращаем тестовые данные для диагностики
+    return jsonify({
+        'success': True,
+        'products': test_products,
+        'total': len(test_products),
+        'start': start,
+        'limit': limit,
+        'hasMore': False
+    })
+    
+    # Закомментируем оригинальный код для диагностики
+    """
     try:
         # Fetch HTML from the guitar strings website
         url = "https://guitarstrings.com.ua/electro"
@@ -177,6 +217,7 @@ def api():
             'limit': limit,
             'hasMore': False
         }), 500
+    """
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000, debug=True) 
