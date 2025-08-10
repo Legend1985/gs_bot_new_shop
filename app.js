@@ -35,6 +35,11 @@ async function loadProducts(page = 0) {
                 renderProducts(data.products);
                 currentPage = page;
                 
+                // Устанавливаем максимальное количество товаров
+                if (data.total) {
+                    maxProducts = data.total;
+                }
+                
                 if (!data.hasMore) {
                     hasMoreProducts = false;
                 }
@@ -183,7 +188,7 @@ async function loadRealProducts() {
             
             // Обновляем глобальные переменные
             maxProducts = data.total || data.products.length; // Используем total из API или количество всех товаров
-            hasMoreProducts = maxProducts > 60;
+            hasMoreProducts = data.products.length === 60 && maxProducts > 60;
             
             console.log(`Максимум товаров: ${maxProducts}, есть еще: ${hasMoreProducts}`);
             
@@ -250,12 +255,18 @@ function createProductCardFromSiteData(product, btnId) {
         statusClass = 'expected';
     } else if (product.availability === 'Под заказ') {
         statusClass = 'on-order';
+    } else if (product.availability === 'Снят с производства') {
+        statusClass = 'discontinued';
     }
     
     // Определяем CSS класс для цены
     let priceClass = '';
     if (product.availability === 'Нет в наличии' || product.availability === 'Ожидается') {
         priceClass = 'out-of-stock';
+    } else if (product.availability === 'Под заказ') {
+        priceClass = 'on-order';
+    } else if (product.availability === 'Снят с производства') {
+        priceClass = 'discontinued';
     }
     
     // Создаем HTML для карточки товара
@@ -279,7 +290,8 @@ function createProductCardFromSiteData(product, btnId) {
                 <button id="${btnId}" class="btn ${statusClass}">
                     ${product.availability === 'Нет в наличии' ? 'Нет в наличии' : 
                       product.availability === 'Ожидается' ? 'Ожидается' :
-                      product.availability === 'Под заказ' ? 'Под заказ' : 'Купить'}
+                      product.availability === 'Под заказ' ? 'Под заказ' : 
+                      product.availability === 'Снят с производства' ? 'Снят с производства' : 'Купить'}
                 </button>
             </div>
         </div>
@@ -288,8 +300,12 @@ function createProductCardFromSiteData(product, btnId) {
     // Добавляем обработчик для кнопки
     const button = card.querySelector(`#${btnId}`);
     button.addEventListener('click', () => {
-        tg.MainButton.text = `Выбрано: ${product.name}`;
-        tg.MainButton.show();
+        if (product.availability === 'Снят с производства') {
+            showDiscontinuedPopup();
+        } else {
+            tg.MainButton.text = `Выбрано: ${product.name}`;
+            tg.MainButton.show();
+        }
     });
     
     return card;
@@ -356,11 +372,11 @@ async function loadMoreProducts() {
                     loadedProductNames.add(product.name);
                 });
                 
-                // Обновляем состояние
-                hasMoreProducts = loadedProductNames.size < maxProducts;
+                // Обновляем состояние - проверяем, есть ли еще товары для загрузки
+                hasMoreProducts = data.products.length === 60 && loadedProductNames.size < maxProducts;
                 saveState();
                 
-                console.log(`Добавлено ${newProducts.length} товаров. Всего: ${loadedProductNames.size}, максимум: ${maxProducts}`);
+                console.log(`Добавлено ${newProducts.length} товаров. Всего: ${loadedProductNames.size}, максимум: ${maxProducts}, hasMore: ${hasMoreProducts}`);
                 
                 // Настраиваем обработчики для новых изображений
                 setupImageHandlers();
@@ -781,6 +797,52 @@ function setupControlButtons() {
                 clearCacheBtn.textContent = '🗑️ Очистить кэш';
             }
         });
+    }
+}
+
+// Функция показа сообщения о снятии с производства
+function showDiscontinuedPopup() {
+    const popup = document.createElement('div');
+    popup.className = 'popup-overlay show';
+    popup.innerHTML = `
+        <div class="popup-content">
+            <button class="popup-close" onclick="hideDiscontinuedPopup(this)">&times;</button>
+            <div class="popup-icon">
+                <img src="images/Discontinued.jpg" alt="Извиняющийся котик" title="Sorry!">
+            </div>
+            <p class="popup-message">Товар снят с производства. Не расстраивайтесь.</p>
+        </div>
+    `;
+    document.body.appendChild(popup);
+    
+    // Добавляем класс для body
+    document.body.classList.add('popup-open');
+    
+    // Закрытие по клику вне контента
+    popup.addEventListener('click', (event) => {
+        if (event.target === popup) {
+            hideDiscontinuedPopup(popup.querySelector('.popup-close'));
+        }
+    });
+    
+    // Закрытие по Escape
+    document.addEventListener('keydown', function escapeHandler(e) {
+        if (e.key === 'Escape') {
+            hideDiscontinuedPopup(popup.querySelector('.popup-close'));
+            document.removeEventListener('keydown', escapeHandler);
+        }
+    });
+}
+
+// Функция скрытия сообщения о снятии с производства
+function hideDiscontinuedPopup(closeButton) {
+    const popup = closeButton.closest('.popup-overlay');
+    if (popup) {
+        popup.classList.remove('show');
+        setTimeout(() => {
+            popup.remove();
+            document.body.classList.remove('popup-open');
+        }, 300);
     }
 }
 

@@ -376,14 +376,20 @@ body {
 
 /* Стили для цен товаров, которые не в наличии */
 .new-price.out-of-stock {
-    color: #f44336;
+    color: #d30000;
     opacity: 0.7;
 }
 
 /* Стили для цен товаров, которые ожидаются */
 .new-price.expected {
-    color: #ff9800;
+    color: #d30000;
     opacity: 0.8;
+}
+
+/* Стили для цен товаров под заказ */
+.new-price.on-order {
+    color: #d30000;
+    opacity: 0.9;
 }
 
 /* Стили для рейтинга товаров */

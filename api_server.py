@@ -111,6 +111,10 @@ def api():
                     new_price = random.randint(500, 2000)
                     old_price = int(new_price * random.uniform(1.2, 1.4))
                 
+                # Убеждаемся, что старая цена всегда больше новой
+                if old_price <= new_price:
+                    old_price = int(new_price * 1.3)  # Минимальная наценка 30%
+                
                 # Check availability - более реалистичные статусы
                 availability_elem = item.find('span', class_='availability') or item.find('span', class_='stock')
                 if availability_elem:
@@ -193,6 +197,22 @@ def api():
                     'newPrice': 2200,
                     'oldPrice': 2860,
                     'availability': 'Под заказ',
+                    'rating': 4
+                },
+                {
+                    'name': 'Fender 150R 10-46 Electric Guitar Strings',
+                    'image': 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=150&h=150&fit=crop&crop=center',
+                    'newPrice': 1200,
+                    'oldPrice': 1560,
+                    'availability': 'Снят с производства',
+                    'rating': 3
+                },
+                {
+                    'name': 'Gibson Brite Wires 10-46 Electric Guitar Strings',
+                    'image': 'https://images.unsplash.com/photo-1516924962500-2b4b3b99ea02?w=150&h=150&fit=crop&crop=center',
+                    'newPrice': 1800,
+                    'oldPrice': 2340,
+                    'availability': 'Снят с производства',
                     'rating': 4
                 }
             ]
