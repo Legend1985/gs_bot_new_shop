@@ -331,146 +331,27 @@ async function loadMoreProducts() {
 // Функция получения данных с сайта
 async function fetchProductData(page = 0) {
     const start = page * 60;
-    const targetUrl = `https://guitarstrings.com.ua/electro${page > 0 ? `?start=${start}` : ''}`;
     
-    console.log(`Загружаем страницу ${page + 1}, URL: ${targetUrl}`);
+    console.log(`Загружаем страницу ${page + 1}, start: ${start}`);
     
     try {
-        const response = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`);
+        const response = await fetch(`api.php?start=${start}&limit=60`);
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
-        const html = await response.text();
-        console.log(`Получен HTML размером: ${html.length} символов`);
+        const data = await response.json();
+        console.log(`Получены данные: ${data.products ? data.products.length : 0} товаров`);
         
-        const result = parseSiteHTML(html);
-        console.log(`Результат парсинга: ${result.products.length} товаров`);
-        
-        return result;
+        return data;
     } catch (error) {
         console.error('Ошибка получения данных:', error);
         return null;
     }
 }
 
-// Функция парсинга HTML сайта
-function parseSiteHTML(html) {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
-    
-    const products = [];
-    
-    // Попробуем разные селекторы для поиска товаров
-    let productElements = doc.querySelectorAll('.product-item, .item, .product, [class*="product"], .catalog-item');
-    
-    // Если не нашли, попробуем более общие селекторы
-    if (productElements.length === 0) {
-        productElements = doc.querySelectorAll('[class*="item"], [class*="product"], [class*="catalog"], .goods-item, .product-box');
-    }
-    
-    // Если все еще не нашли, попробуем найти по структуре
-    if (productElements.length === 0) {
-        // Ищем элементы, которые содержат изображение и название
-        const allElements = doc.querySelectorAll('div, article, section');
-        productElements = Array.from(allElements).filter(el => {
-            const hasImage = el.querySelector('img');
-            const hasName = el.querySelector('h1, h2, h3, h4, .title, .name, [class*="title"], [class*="name"]');
-            return hasImage && hasName;
-        });
-    }
-    
-    console.log(`Найдено элементов товаров: ${productElements.length}`);
-    console.log('HTML документа:', doc.documentElement.outerHTML.substring(0, 1000));
-    
-    productElements.forEach((element, index) => {
-        try {
-            // Ищем название товара в различных возможных местах
-            const nameElement = element.querySelector('h1, h2, h3, h4, .product-title, .title, .item-title, .name, [class*="title"], [class*="name"]');
-            const imageElement = element.querySelector('img');
-            const priceElement = element.querySelector('.price, .product-price, .item-price, [class*="price"], .cost, .value');
-            const availabilityElement = element.querySelector('.availability, .status, .stock, [class*="stock"], [class*="availability"], .presence');
-            
-            if (nameElement && imageElement) {
-                const name = nameElement.textContent.trim();
-                let image = imageElement.src;
-                
-                // Если изображение относительное, делаем абсолютным
-                if (image && !image.startsWith('http')) {
-                    image = 'https://guitarstrings.com.ua' + image;
-                }
-                
-                const price = priceElement ? priceElement.textContent.trim() : 'Цена не указана';
-                const availability = availabilityElement ? availabilityElement.textContent.trim() : 'В наличии';
-                
-                // Извлекаем числовую цену
-                const priceMatch = price.match(/(\d+)/);
-                const numericPrice = priceMatch ? priceMatch[1] : '0';
-                
-                // Определяем статус товара
-                let status = 'В наличии';
-                if (availability.toLowerCase().includes('нет') || availability.toLowerCase().includes('закончился')) {
-                    status = 'Нет в наличии';
-                } else if (availability.toLowerCase().includes('ожидается')) {
-                    status = 'Ожидается';
-                } else if (availability.toLowerCase().includes('под заказ')) {
-                    status = 'Под заказ';
-                } else if (availability.toLowerCase().includes('снят') || availability.toLowerCase().includes('производства')) {
-                    status = 'Снят с производства';
-                }
-                
-                products.push({
-                    name: name,
-                    image: image,
-                    newPrice: numericPrice,
-                    oldPrice: null,
-                    availability: status,
-                    rating: Math.random() * 5 // Случайный рейтинг для демонстрации
-                });
-                
-                console.log(`Товар ${index + 1}: ${name} - ${numericPrice} грн - ${status}`);
-            }
-        } catch (error) {
-            console.error('Ошибка парсинга товара:', error);
-        }
-    });
-    
-    console.log(`Всего обработано товаров: ${products.length}`);
-    
-    // Если товары не найдены, возвращаем тестовые данные
-    if (products.length === 0) {
-        console.log('Товары не найдены, возвращаем тестовые данные');
-        return {
-            success: true,
-            products: [
-                {
-                    name: 'Ernie Ball 2221 Regular Slinky 10-46',
-                    image: 'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg',
-                    newPrice: '350',
-                    oldPrice: null,
-                    availability: 'В наличии',
-                    rating: 4.5
-                },
-                {
-                    name: 'D\'Addario EXL110 Nickel Wound 10-46',
-                    image: 'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg',
-                    newPrice: '390',
-                    oldPrice: null,
-                    availability: 'В наличии',
-                    rating: 4.8
-                }
-            ],
-            hasMore: false
-        };
-    }
-    
-    return {
-        success: true,
-        products: products,
-        hasMore: products.length >= 60
-    };
-}
+// Функция парсинга HTML сайта больше не нужна, так как мы используем локальный API
 
 // Функция обновления цен товаров
 async function updateProductPrices() {
