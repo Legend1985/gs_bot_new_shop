@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест API</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .product { border: 1px solid #ccc; margin: 10px; padding: 15px; border-radius: 8px; }
+        .product img { max-width: 150px; max-height: 150px; }
+        .price { font-weight: bold; color: #2cab37; }
+        .old-price { text-decoration: line-through; color: #999; margin-right: 10px; }
+        .status { margin: 10px 0; padding: 5px; border-radius: 4px; }
+        .in-stock { background-color: #d4edda; color: #155724; }
+        .out-of-stock { background-color: #f8d7da; color: #721c24; }
+        .expected { background-color: #fff3cd; color: #856404; }
+        .on-order { background-color: #d1ecf1; color: #0c5460; }
+        .discontinued { background-color: #e2e3e5; color: #383d41; }
+        button { background-color: #2cab37; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
+        button:hover { background-color: #228e2e; }
+        .loading { text-align: center; padding: 20px; }
+        .error { color: red; padding: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Тест API Guitar Strings Shop</h1>
+    
+    <button onclick="testAPI()">Тестировать API</button>
+    <button onclick="clearResults()">Очистить результаты</button>
+    
+    <div id="results"></div>
+    
+    <script>
+        async function testAPI() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="loading">Загружаем данные...</div>';
+            
+            try {
+                const response = await fetch('http://localhost:8000/api.php?start=0&limit=10');
+                const data = await response.json();
+                
+                if (data.success && data.products) {
+                    displayProducts(data.products);
+                } else {
+                    resultsDiv.innerHTML = '<div class="error">Ошибка API: ' + (data.error || 'Неизвестная ошибка') + '</div>';
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = '<div class="error">Ошибка загрузки: ' + error.message + '</div>';
+            }
+        }
+        
+        function displayProducts(products) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '';
+            
+            products.forEach((product, index) => {
+                const productDiv = document.createElement('div');
+                productDiv.className = 'product';
+                
+                // Определяем CSS класс для статуса
+                let statusClass = '';
+                if (product.availability === 'Нет в наличии') {
+                    statusClass = 'out-of-stock';
+                } else if (product.availability === 'Ожидается') {
+                    statusClass = 'expected';
+                } else if (product.availability === 'Под заказ') {
+                    statusClass = 'on-order';
+                } else if (product.availability === 'Снят с производства') {
+                    statusClass = 'discontinued';
+                } else {
+                    statusClass = 'in-stock';
+                }
+                
+                productDiv.innerHTML = `
+                    <h3>${product.name}</h3>
+                    <img src="${product.image}" alt="${product.name}" onerror="this.style.display='none'">
+                    <div class="status ${statusClass}">${product.availability}</div>
+                    <div class="price">
+                        ${product.oldPrice ? `<span class="old-price">${product.oldPrice} грн</span>` : ''}
+                        <span class="new-price">${product.newPrice} грн</span>
+                    </div>
+                    <div>Рейтинг: ${product.rating}/5</div>
+                `;
+                
+                resultsDiv.appendChild(productDiv);
+            });
+        }
+        
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+        
+        // Автоматически тестируем API при загрузке страницы
+        window.addEventListener('load', testAPI);
+    </script>
+</body>
+</html> 

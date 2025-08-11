@@ -1,9 +1,28 @@
-let tg = window.Telegram.WebApp;
-
-tg.expand();
-
-tg.MainButton.textColor = '#FFFFFF';
-tg.MainButton.color = '#2cab37';
+// Проверяем, находимся ли мы в Telegram Web App
+let tg;
+if (window.Telegram && window.Telegram.WebApp) {
+    tg = window.Telegram.WebApp;
+    tg.expand();
+    tg.MainButton.textColor = '#FFFFFF';
+    tg.MainButton.color = '#2cab37';
+} else {
+    // Fallback для обычного браузера
+    tg = {
+        WebApp: {
+            expand: () => console.log('Telegram WebApp не доступен'),
+            MainButton: {
+                textColor: '#FFFFFF',
+                color: '#2cab37',
+                text: '',
+                show: () => console.log('Telegram MainButton не доступен'),
+                onClick: (callback) => console.log('Telegram MainButton onClick не доступен')
+            },
+            ready: () => console.log('Telegram WebApp ready не доступен'),
+            sendData: (data) => console.log('Telegram sendData не доступен:', data)
+        }
+    };
+    console.log('Запущено в обычном браузере, Telegram функции недоступны');
+}
 
 // Переменные для загрузки товаров
 let currentPage = 0;
@@ -67,6 +86,14 @@ function showEndMessage() {
         document.querySelector('.inner').appendChild(endMessage);
     }
     endMessage.style.display = 'block';
+    
+    // Скрываем индикатор загрузки
+    const loadingIndicator = document.getElementById('loading-indicator');
+    if (loadingIndicator) {
+        loadingIndicator.style.display = 'none';
+    }
+    
+    console.log('Показано сообщение о конце списка товаров');
 }
 
 // Функция загрузки реальных товаров с сайта
@@ -146,7 +173,7 @@ async function loadProducts(page = 0) {
     const start = page * productsPerPage;
     
     try {
-        const response = await fetch(`api.php?start=${start}&limit=${productsPerPage}`);
+        const response = await fetch(`http://localhost:8000/api.php?start=${start}&limit=${productsPerPage}`);
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -196,6 +223,11 @@ function renderProducts(products) {
     setupImageHandlers();
     
     console.log(`Отображено ${products.length} товаров. Всего загружено: ${loadedProductNames.size}`);
+    
+    // Проверяем, нужно ли показать сообщение о конце списка
+    if (!hasMoreProducts) {
+        showEndMessage();
+    }
 }
 
 // Функция создания карточки товара
@@ -230,14 +262,24 @@ function createProductCardFromSiteData(product, btnId) {
     
     // Определяем CSS класс для статуса
     let statusClass = '';
+    let buttonText = 'Купить';
+    
     if (product.availability === 'Нет в наличии') {
         statusClass = 'out-of-stock';
+        buttonText = 'Нет в наличии';
     } else if (product.availability === 'Ожидается') {
         statusClass = 'expected';
+        buttonText = 'Ожидается';
     } else if (product.availability === 'Под заказ') {
         statusClass = 'on-order';
+        buttonText = 'Под заказ';
     } else if (product.availability === 'Снят с производства') {
         statusClass = 'discontinued';
+        buttonText = 'Снят с производства';
+    } else {
+        // По умолчанию "В наличии"
+        statusClass = 'in-stock';
+        buttonText = 'Купить';
     }
     
     // Определяем CSS класс для цены
@@ -250,32 +292,41 @@ function createProductCardFromSiteData(product, btnId) {
         priceClass = 'discontinued';
     }
     
-    // Создаем HTML для карточки товара
+    // Создаем HTML для карточки товара в новом стиле
     card.innerHTML = `
-        <div class="product-card-top">
-            <div class="img-container">
-                <img src="${product.image}" alt="${product.name}" class="img">
-            </div>
-            <h3 class="product-title">${product.name}</h3>
-            <div class="product-rating">
-                ${generateRatingStars(product.rating)}
-            </div>
+        <div class="product-actions">
+            <button class="favorite-btn" title="Добавить в избранное">
+                <i class="far fa-heart"></i>
+            </button>
+            <button class="compare-btn" title="Добавить к сравнению">
+                <i class="fas fa-balance-scale"></i>
+            </button>
         </div>
-        <div class="product-card-bottom">
-            <p class="product-status ${statusClass}">${product.availability}</p>
-            <div class="product-bottom-row">
-                <div class="product-prices">
-                    ${product.oldPrice && product.oldPrice !== '0' ? `<span class="old-price">${product.oldPrice} грн</span>` : ''}
-                    <span class="new-price ${priceClass}">${product.newPrice}</span>
-                </div>
-                <button id="${btnId}" class="btn ${statusClass}">
-                    ${product.availability === 'Нет в наличии' ? 'Нет в наличии' : 
-                      product.availability === 'Ожидается' ? 'Ожидается' :
-                      product.availability === 'Под заказ' ? 'Под заказ' : 
-                      product.availability === 'Снят с производства' ? 'Снят с производства' : 'Купить'}
-                </button>
-            </div>
+        
+        <div class="img-container">
+            <img src="${product.image}" alt="${product.name}" class="img">
         </div>
+        
+        <h3 class="product-title">${product.name}</h3>
+        <p class="product-subtitle">Строка названия 2</p>
+        
+        <div class="compare-checkbox">
+            <input type="checkbox" id="compare-${btnId}">
+            <label for="compare-${btnId}">Сравнить</label>
+        </div>
+        
+        <div class="product-prices">
+            ${product.oldPrice && product.oldPrice !== '0' ? `<span class="old-price">Цена: ${product.oldPrice}грн.</span>` : ''}
+            <span class="new-price">Цена: ${product.newPrice}грн.</span>
+        </div>
+        
+        <div class="product-rating">
+            ${generateRatingStars(product.rating)}
+        </div>
+        
+        <button id="${btnId}" class="btn ${statusClass}">
+            ${buttonText}
+        </button>
     `;
     
     // Добавляем обработчик для кнопки
@@ -285,10 +336,34 @@ function createProductCardFromSiteData(product, btnId) {
             showDiscontinuedPopup();
         } else if (product.availability === 'Нет в наличии') {
             showOutOfStockPopup();
+        } else if (product.availability === 'Ожидается') {
+            showExpectedPopup();
+        } else if (product.availability === 'Под заказ') {
+            showOnOrderPopup();
         } else {
+            // Обычная покупка
             tg.MainButton.text = `Выбрано: ${product.name}`;
             tg.MainButton.show();
         }
+    });
+    
+    // Добавляем обработчики для кнопок действий
+    const favoriteBtn = card.querySelector('.favorite-btn');
+    favoriteBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        favoriteBtn.classList.toggle('favorited');
+        const icon = favoriteBtn.querySelector('i');
+        if (favoriteBtn.classList.contains('favorited')) {
+            icon.className = 'fas fa-heart';
+        } else {
+            icon.className = 'far fa-heart';
+        }
+    });
+    
+    const compareBtn = card.querySelector('.compare-btn');
+    compareBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        compareBtn.style.color = compareBtn.style.color === 'var(--primary-color)' ? 'var(--text-light)' : 'var(--primary-color)';
     });
     
     return card;
@@ -296,8 +371,26 @@ function createProductCardFromSiteData(product, btnId) {
 
 // Функция генерации звездочек рейтинга
 function generateRatingStars(rating) {
-    const fullStars = Math.floor(rating);
-    const hasHalfStar = rating % 1 >= 0.5;
+    if (!rating || rating === 0) {
+        rating = 4.0; // Дефолтный рейтинг если нет данных
+    }
+    
+    // Если рейтинг пришел как строка с голосами (например "4.6 - 10 голосов")
+    if (typeof rating === 'string' && rating.includes('-')) {
+        const ratingMatch = rating.match(/(\d+\.?\d*)/);
+        if (ratingMatch) {
+            rating = parseFloat(ratingMatch[1]);
+        } else {
+            rating = 4.0;
+        }
+    }
+    
+    // Округляем рейтинг для лучшего отображения
+    // Если рейтинг имеет четверти (например 4.25), округляем до половины (4.5)
+    const roundedRating = Math.round(rating * 2) / 2;
+    
+    const fullStars = Math.floor(roundedRating);
+    const hasHalfStar = roundedRating % 1 >= 0.5;
     const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
     
     let stars = '';
@@ -322,9 +415,12 @@ function generateRatingStars(rating) {
 
 // Функция загрузки дополнительных товаров при прокрутке
 async function loadMoreProducts() {
-    if (isLoading || !hasMoreProducts) return;
+    if (isLoading || !hasMoreProducts) {
+        console.log('loadMoreProducts: Загрузка уже идет или больше товаров нет');
+        return;
+    }
     
-    console.log('Начинаем загрузку дополнительных товаров...');
+    console.log('loadMoreProducts: Начинаем загрузку дополнительных товаров...');
     isLoading = true;
     
     // Показываем индикатор загрузки
@@ -334,48 +430,68 @@ async function loadMoreProducts() {
         const nextPage = currentPage + 1;
         const start = nextPage * productsPerPage;
         
-        console.log(`Загружаем страницу ${nextPage}, начиная с ${start}`);
+        console.log(`loadMoreProducts: Загружаем страницу ${nextPage}, начиная с ${start}`);
         
-        const response = await fetch(`api.php?start=${start}&limit=${productsPerPage}`);
+        const response = await fetch(`http://localhost:8000/api.php?start=${start}&limit=${productsPerPage}`);
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
         const data = await response.json();
+        console.log(`loadMoreProducts: Получен ответ, товаров: ${data.products ? data.products.length : 0}`);
         
         if (data.success && data.products && data.products.length > 0) {
-            console.log(`Получено ${data.products.length} товаров`);
+            console.log(`loadMoreProducts: Получено ${data.products.length} товаров`);
             
             // Фильтруем дубликаты
             const newProducts = data.products.filter(product => !loadedProductNames.has(product.name));
             
             if (newProducts.length > 0) {
-                renderProducts(newProducts);
+                console.log(`loadMoreProducts: Добавляем ${newProducts.length} новых товаров`);
+                
+                // Отображаем новые товары
+                const container = document.querySelector('.inner');
+                newProducts.forEach((product, index) => {
+                    const productCard = createProductCardFromSiteData(product, `btn${loadedProductNames.size + index + 1}`);
+                    container.appendChild(productCard);
+                    loadedProductNames.add(product.name);
+                });
+                
+                // Обновляем текущую страницу
                 currentPage = nextPage;
                 
+                // Настраиваем обработчики для новых изображений
+                setupImageHandlers();
+                
                 // Обновляем флаг наличия товаров
-                if (!data.hasMore) {
+                if (data.products.length < productsPerPage) {
                     hasMoreProducts = false;
-                    console.log('Больше товаров нет');
+                    console.log('loadMoreProducts: Больше товаров нет');
+                    showEndMessage();
                 }
                 
                 // Сохраняем состояние
                 saveState();
+                console.log('loadMoreProducts: Состояние сохранено');
             } else {
-                console.log('Все товары уже загружены');
+                console.log('loadMoreProducts: Все товары уже загружены');
                 hasMoreProducts = false;
+                showEndMessage();
             }
         } else {
-            console.log('Нет данных или ошибка API');
+            console.log('loadMoreProducts: Нет данных или ошибка API');
             hasMoreProducts = false;
+            showEndMessage();
         }
     } catch (error) {
-        console.error('Ошибка загрузки дополнительных товаров:', error);
+        console.error('loadMoreProducts: Ошибка загрузки дополнительных товаров:', error);
         hasMoreProducts = false;
+        showEndMessage();
     } finally {
         isLoading = false;
         hideLoadingIndicator();
+        console.log('loadMoreProducts: Загрузка завершена');
     }
 }
 
@@ -383,9 +499,9 @@ async function loadMoreProducts() {
 function handleScroll() {
     if (isLoading || !hasMoreProducts) {
         if (isLoading) {
-            console.log('Загрузка уже идет, пропускаем...');
+            console.log('handleScroll: Загрузка уже идет, пропускаем...');
         } else if (!hasMoreProducts) {
-            console.log('Больше товаров нет, пропускаем...');
+            console.log('handleScroll: Больше товаров нет, пропускаем...');
         }
         return;
     }
@@ -394,11 +510,11 @@ function handleScroll() {
     const windowHeight = window.innerHeight;
     const documentHeight = document.documentElement.scrollHeight;
     
-    console.log(`Прокрутка: ${scrollTop}, высота окна: ${windowHeight}, высота документа: ${documentHeight}`);
-    
     // Загружаем новые товары когда пользователь приближается к концу страницы
-    if (scrollTop + windowHeight >= documentHeight - 200) {
-        console.log('Достигнут порог для загрузки новых товаров');
+    // Уменьшаем порог для более плавной загрузки
+    if (scrollTop + windowHeight >= documentHeight - 300) {
+        console.log('handleScroll: Достигнут порог для загрузки новых товаров');
+        console.log(`handleScroll: scrollTop=${scrollTop}, windowHeight=${windowHeight}, documentHeight=${documentHeight}`);
         loadMoreProducts();
     }
 }
@@ -410,8 +526,16 @@ async function fetchProductData(page = 0) {
     console.log(`fetchProductData: Загружаем страницу ${page + 1}, start: ${start}`);
     
     try {
-        console.log(`fetchProductData: Отправляем запрос к API: api.php?start=${start}&limit=60`);
-        const response = await fetch(`api.php?start=${start}&limit=60`);
+        // Формируем правильный URL для пагинации
+        let url = 'https://guitarstrings.com.ua/electro';
+        if (start > 0) {
+            url += `?start=${start}`;
+        }
+        
+        console.log(`fetchProductData: Отправляем запрос к API: ${url}`);
+        
+        // Используем прокси через наш сервер для обхода CORS
+        const response = await fetch(`http://localhost:8000/api.php?start=${start}&limit=60`);
         
         console.log(`fetchProductData: Получен ответ, статус: ${response.status}`);
         
@@ -424,8 +548,20 @@ async function fetchProductData(page = 0) {
         console.log(`fetchProductData: JSON распарсен, получены данные:`, data);
         console.log(`fetchProductData: Количество товаров: ${data.products ? data.products.length : 0}`);
         
-        if (!data.success) {
-            console.warn('fetchProductData: API вернул ошибку:', data.error);
+        // Проверяем, есть ли товары в ответе
+        if (data.products && data.products.length > 0) {
+            // Добавляем флаг success, если его нет
+            if (data.success === undefined) {
+                data.success = true;
+            }
+            // Добавляем общее количество товаров
+            if (data.total === undefined) {
+                data.total = data.products.length;
+            }
+        } else {
+            data.success = false;
+            data.products = [];
+            data.total = 0;
         }
         
         return data;
@@ -565,12 +701,13 @@ async function loadFirstPage() {
         
         if (data && data.products && data.products.length > 0) {
             console.log(`loadFirstPage: Загружено ${data.products.length} товаров`);
+            console.log('loadFirstPage: Первые товары:', data.products.slice(0, 3));
             
             // Ограничиваем отображение первыми 60 товарами
             const firstPageProducts = data.products.slice(0, 60);
             
             // Обновляем глобальные переменные
-            maxProducts = data.products.length;
+            maxProducts = data.total || data.products.length;
             hasMoreProducts = data.products.length > 60;
             
             console.log(`loadFirstPage: maxProducts=${maxProducts}, hasMoreProducts=${hasMoreProducts}`);
@@ -582,16 +719,24 @@ async function loadFirstPage() {
             
             // Очищаем контейнер и отображаем товары
             const container = document.querySelector('.inner');
+            console.log('loadFirstPage: Контейнер найден:', container);
+            console.log('loadFirstPage: Размеры контейнера до очистки:', container.offsetWidth, 'x', container.offsetHeight);
             container.innerHTML = '';
             console.log('loadFirstPage: Контейнер очищен');
+            console.log('loadFirstPage: Размеры контейнера после очистки:', container.offsetWidth, 'x', container.offsetHeight);
             
             firstPageProducts.forEach((product, index) => {
                 console.log(`loadFirstPage: Создаем карточку для товара ${index + 1}:`, product.name);
                 const productCard = createProductCardFromSiteData(product, `btn${index + 1}`);
+                console.log('loadFirstPage: Карточка создана:', productCard);
+                console.log('loadFirstPage: HTML карточки:', productCard.outerHTML);
                 container.appendChild(productCard);
+                console.log(`loadFirstPage: Карточка ${index + 1} добавлена в контейнер`);
             });
             
             console.log('loadFirstPage: Все карточки товаров добавлены');
+            console.log('loadFirstPage: Количество карточек в контейнере:', container.children.length);
+            console.log('loadFirstPage: Размеры контейнера после добавления карточек:', container.offsetWidth, 'x', container.offsetHeight);
             
             // Скрываем экран загрузки
             hideLoadingScreen();
@@ -600,8 +745,20 @@ async function loadFirstPage() {
             // Сохраняем состояние
             saveState();
             console.log('loadFirstPage: Состояние сохранено');
+            
+            // Если есть еще товары, показываем индикатор загрузки
+            if (hasMoreProducts) {
+                const loadingIndicator = document.getElementById('loading-indicator');
+                if (loadingIndicator) {
+                    loadingIndicator.style.display = 'block';
+                }
+            } else {
+                // Если товаров меньше 60, показываем сообщение о конце
+                showEndMessage();
+            }
         } else {
             console.error('loadFirstPage: Не удалось загрузить товары - нет данных');
+            console.error('loadFirstPage: Полученные данные:', data);
             hideLoadingScreen();
             
             // Показываем сообщение об ошибке
@@ -705,15 +862,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // Обработчики событий Telegram
-tg.ready();
-
-tg.MainButton.onClick(() => {
-    tg.sendData("test");
-});
+if (window.Telegram && window.Telegram.WebApp) {
+    tg.ready();
+    
+    tg.MainButton.onClick(() => {
+        tg.sendData("test");
+    });
+} else {
+    console.log('Telegram WebApp не доступен, пропускаем инициализацию');
+}
 
 // Настройка обработчиков изображений
 function setupImageHandlers() {
-    const images = document.querySelectorAll('.img');
+    const images = document.querySelectorAll('.product-card .img');
     images.forEach(img => {
         // Проверяем, есть ли src у изображения
         if (!img.src || img.src === '' || img.src.includes('undefined')) {
@@ -738,6 +899,7 @@ function setupImageHandlers() {
                 container.style.justifyContent = 'center';
                 container.style.backgroundColor = '#f5f5f5';
                 container.style.borderRadius = '8px';
+                container.style.minHeight = '150px';
             }
         });
         
@@ -788,6 +950,8 @@ function showDiscontinuedPopup() {
             document.removeEventListener('keydown', escapeHandler);
         }
     });
+    
+    console.log('Показано всплывающее окно о снятии с производства');
 }
 
 // Функция скрытия сообщения о снятии с производства
@@ -847,6 +1011,379 @@ function hideOutOfStockPopup(closeButton) {
         }, 300);
     }
 }
+
+// Функция показа сообщения о товаре в ожидании
+function showExpectedPopup() {
+    const popup = document.createElement('div');
+    popup.className = 'popup-overlay show';
+    popup.innerHTML = `
+        <div class="popup-content">
+            <button class="popup-close" onclick="hideExpectedPopup(this)">&times;</button>
+            <div class="popup-icon">
+                <span style="font-size: 48px;">⏳</span>
+            </div>
+            <p class="popup-message">Товар ожидается в ближайшее время. Оставьте заявку!</p>
+        </div>
+    `;
+    document.body.appendChild(popup);
+    
+    // Добавляем класс для body
+    document.body.classList.add('popup-open');
+    
+    // Закрытие по клику вне контента
+    popup.addEventListener('click', (event) => {
+        if (event.target === popup) {
+            hideExpectedPopup(popup.querySelector('.popup-close'));
+        }
+    });
+    
+    // Закрытие по Escape
+    document.addEventListener('keydown', function escapeHandler(e) {
+        if (e.key === 'Escape') {
+            hideExpectedPopup(popup.querySelector('.popup-close'));
+            document.removeEventListener('keydown', escapeHandler);
+        }
+    });
+}
+
+// Функция скрытия сообщения о товаре в ожидании
+function hideExpectedPopup(closeButton) {
+    const popup = closeButton.closest('.popup-overlay');
+    if (popup) {
+        popup.classList.remove('show');
+        setTimeout(() => {
+            popup.remove();
+            document.body.classList.remove('popup-open');
+        }, 300);
+    }
+}
+
+// Функция показа сообщения о товаре под заказ
+function showOnOrderPopup() {
+    const popup = document.createElement('div');
+    popup.className = 'popup-overlay show';
+    popup.innerHTML = `
+        <div class="popup-content">
+            <button class="popup-close" onclick="hideOnOrderPopup(this)">&times;</button>
+            <div class="popup-icon">
+                <span style="font-size: 48px;">📋</span>
+            </div>
+            <p class="popup-message">Товар доступен под заказ. Срок поставки уточняйте у менеджера.</p>
+        </div>
+    `;
+    document.body.appendChild(popup);
+    
+    // Добавляем класс для body
+    document.body.classList.add('popup-open');
+    
+    // Закрытие по клику вне контента
+    popup.addEventListener('click', (event) => {
+        if (event.target === popup) {
+            hideOnOrderPopup(popup.querySelector('.popup-close'));
+        }
+    });
+    
+    // Закрытие по Escape
+    document.addEventListener('keydown', function escapeHandler(e) {
+        if (e.key === 'Escape') {
+            hideOnOrderPopup(popup.querySelector('.popup-close'));
+            document.removeEventListener('keydown', escapeHandler);
+        }
+    });
+}
+
+// Функция скрытия сообщения о товаре под заказ
+function hideOnOrderPopup(closeButton) {
+    const popup = closeButton.closest('.popup-overlay');
+    if (popup) {
+        popup.classList.remove('show');
+        setTimeout(() => {
+            popup.remove();
+            document.body.classList.remove('popup-open');
+        }, 300);
+    }
+}
+
+// Функциональность для нового интерфейса
+function setupNewInterface() {
+    // Обработчики для нижней навигации
+    const navItems = document.querySelectorAll('.nav-item');
+    navItems.forEach(item => {
+        item.addEventListener('click', () => {
+            // Убираем активный класс у всех элементов
+            navItems.forEach(nav => nav.classList.remove('active'));
+            // Добавляем активный класс к выбранному элементу
+            item.classList.add('active');
+            
+            // Здесь можно добавить логику для переключения между разделами
+            const section = item.querySelector('span').textContent;
+            console.log(`Переключение на раздел: ${section}`);
+        });
+    });
+    
+    // Обработчик для поиска
+    const searchInput = document.querySelector('.search-input');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            filterProducts(query);
+        });
+    }
+    
+    // Обработчик для кнопки настроек
+    const settingsBtn = document.querySelector('.settings-btn');
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', () => {
+            showSettingsPopup();
+        });
+    }
+    
+    // Обработчик для кнопки меню
+    const menuBtn = document.querySelector('.menu-btn');
+    if (menuBtn) {
+        menuBtn.addEventListener('click', () => {
+            showMenuPopup();
+        });
+    }
+    
+    // Обработчик для кнопки закрытия
+    const closeBtn = document.querySelector('.close-btn');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            // Здесь можно добавить логику закрытия приложения
+            console.log('Закрытие приложения');
+        });
+    }
+    
+    // Обработчик для онлайн статуса
+    const onlineStatus = document.querySelector('.online-status');
+    if (onlineStatus) {
+        onlineStatus.addEventListener('click', () => {
+            showContactPopup();
+        });
+    }
+}
+
+// Функция фильтрации товаров по поиску
+function filterProducts(query) {
+    const productCards = document.querySelectorAll('.product-card');
+    
+    productCards.forEach(card => {
+        const title = card.querySelector('.product-title').textContent.toLowerCase();
+        const subtitle = card.querySelector('.product-subtitle').textContent.toLowerCase();
+        
+        if (title.includes(query) || subtitle.includes(query)) {
+            card.style.display = 'block';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+}
+
+// Показ попапа настроек
+function showSettingsPopup() {
+    const popup = document.createElement('div');
+    popup.className = 'popup-overlay show';
+    popup.innerHTML = `
+        <div class="popup-content">
+            <button class="popup-close" onclick="hideSettingsPopup(this)">&times;</button>
+            <h3>Настройки</h3>
+            <div class="settings-options">
+                <div class="setting-item">
+                    <label>Уведомления</label>
+                    <input type="checkbox" checked>
+                </div>
+                <div class="setting-item">
+                    <label>Темная тема</label>
+                    <input type="checkbox">
+                </div>
+                <div class="setting-item">
+                    <label>Автообновление цен</label>
+                    <input type="checkbox" checked>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(popup);
+    
+    document.body.classList.add('popup-open');
+    
+    popup.addEventListener('click', (event) => {
+        if (event.target === popup) {
+            hideSettingsPopup(popup.querySelector('.popup-close'));
+        }
+    });
+}
+
+// Скрытие попапа настроек
+function hideSettingsPopup(closeButton) {
+    const popup = closeButton.closest('.popup-overlay');
+    if (popup) {
+        popup.classList.remove('show');
+        setTimeout(() => {
+            popup.remove();
+            document.body.classList.remove('popup-open');
+        }, 300);
+    }
+}
+
+// Показ попапа меню
+function showMenuPopup() {
+    const popup = document.createElement('div');
+    popup.className = 'popup-overlay show';
+    popup.innerHTML = `
+        <div class="popup-content">
+            <button class="popup-close" onclick="hideMenuPopup(this)">&times;</button>
+            <h3>Меню</h3>
+            <div class="menu-options">
+                <div class="menu-item">
+                    <i class="fas fa-user"></i>
+                    <span>Профиль</span>
+                </div>
+                <div class="menu-item">
+                    <i class="fas fa-cog"></i>
+                    <span>Настройки</span>
+                </div>
+                <div class="menu-item">
+                    <i class="fas fa-question-circle"></i>
+                    <span>Помощь</span>
+                </div>
+                <div class="menu-item">
+                    <i class="fas fa-info-circle"></i>
+                    <span>О приложении</span>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(popup);
+    
+    document.body.classList.add('popup-open');
+    
+    popup.addEventListener('click', (event) => {
+        if (event.target === popup) {
+            hideMenuPopup(popup.querySelector('.popup-close'));
+        }
+    });
+}
+
+// Скрытие попапа меню
+function hideMenuPopup(closeButton) {
+    const popup = closeButton.closest('.popup-overlay');
+    if (popup) {
+        popup.classList.remove('show');
+        setTimeout(() => {
+            popup.remove();
+            document.body.classList.remove('popup-open');
+        }, 300);
+    }
+}
+
+// Показ попапа контактов
+function showContactPopup() {
+    const popup = document.createElement('div');
+    popup.className = 'popup-overlay show';
+    popup.innerHTML = `
+        <div class="popup-content">
+            <button class="popup-close" onclick="hideContactPopup(this)">&times;</button>
+            <h3>Свяжитесь с нами</h3>
+            <div class="contact-info">
+                <div class="contact-item">
+                    <i class="fas fa-phone"></i>
+                    <span>+380 (99) 123-45-67</span>
+                </div>
+                <div class="contact-item">
+                    <i class="fab fa-telegram"></i>
+                    <span>@guitarstrings_ua</span>
+                </div>
+                <div class="contact-item">
+                    <i class="fas fa-envelope"></i>
+                    <span>info@guitarstrings.com.ua</span>
+                </div>
+            </div>
+            <p>Мы онлайн и готовы помочь!</p>
+        </div>
+    `;
+    document.body.appendChild(popup);
+    
+    document.body.classList.add('popup-open');
+    
+    popup.addEventListener('click', (event) => {
+        if (event.target === popup) {
+            hideContactPopup(popup.querySelector('.popup-close'));
+        }
+    });
+}
+
+// Скрытие попапа контактов
+function hideContactPopup(closeButton) {
+    const popup = closeButton.closest('.popup-overlay');
+    if (popup) {
+        popup.classList.remove('show');
+        setTimeout(() => {
+            popup.remove();
+            document.body.classList.remove('popup-open');
+        }, 300);
+    }
+}
+
+// Инициализация нового интерфейса при загрузке страницы
+document.addEventListener('DOMContentLoaded', () => {
+    setupNewInterface();
+    // Загружаем первую страницу товаров
+    loadFirstPage();
+});
+
+// Добавляем стили для новых попапов
+const newStyles = `
+<style>
+.settings-options, .menu-options, .contact-info {
+    margin: 20px 0;
+}
+
+.setting-item, .menu-item, .contact-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.setting-item:last-child, .menu-item:last-child, .contact-item:last-child {
+    border-bottom: none;
+}
+
+.menu-item, .contact-item {
+    cursor: pointer;
+    transition: background 0.2s ease;
+    padding: 12px;
+    border-radius: var(--border-radius-small);
+}
+
+.menu-item:hover, .contact-item:hover {
+    background: var(--bg-secondary);
+}
+
+.menu-item i, .contact-item i {
+    margin-right: 12px;
+    color: var(--primary-color);
+    width: 20px;
+    text-align: center;
+}
+
+.popup-content h3 {
+    margin-bottom: 20px;
+    color: var(--text-primary);
+}
+
+.popup-content p {
+    margin-top: 20px;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+</style>
+`;
+
+document.head.insertAdjacentHTML('beforeend', newStyles);
 
 
 

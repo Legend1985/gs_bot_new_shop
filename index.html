@@ -3,10 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Guitar Strings Shop</title>
-    <link rel="stylesheet" href="style.css?v=2.3">
+    <title>GuitarStrings.com.ua</title>
+    <link rel="stylesheet" href="style.css?v=4.1">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
+    <!-- Верхний хедер -->
+    <header class="app-header">
+        <div class="header-left">
+            <h1 class="app-title">GuitarStrings.com.ua</h1>
+            <div class="bonus-info">Кол-во бонусов: 100</div>
+        </div>
+        <div class="header-right">
+            <div class="profile-pic">
+                <i class="fas fa-user"></i>
+            </div>
+            <button class="menu-btn">
+                <i class="fas fa-ellipsis-v"></i>
+            </button>
+            <button class="close-btn">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Поисковая строка -->
+    <div class="search-section">
+        <div class="search-bar">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" placeholder="Поиск" class="search-input">
+            <button class="settings-btn">
+                <i class="fas fa-cog"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Главный баннер -->
+    <div class="main-banner">
+        <div class="banner-content">
+            <h2 class="banner-title">Electric Guitar Strings</h2>
+            <div class="brand-logos">
+                <div class="brand-logo">Pyramid</div>
+                <div class="brand-logo">Elixir</div>
+                <div class="brand-logo">D'Addario</div>
+                <div class="brand-logo">Monster</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Контейнер для товаров -->
     <div class="container">
         <div class="inner">
             <!-- Товары будут загружены динамически -->
@@ -18,7 +63,42 @@
             <p>Загружаем еще товары...</p>
         </div>
     </div>
+
+    <!-- Онлайн статус -->
+    <div class="online-status">
+        <div class="status-dot"></div>
+        <span>Напишите нам, мы онлайн!</span>
+    </div>
+
+    <!-- Нижняя навигация -->
+    <nav class="bottom-nav">
+        <div class="nav-item active">
+            <i class="fas fa-home"></i>
+            <span>Товары</span>
+        </div>
+        <div class="nav-item">
+            <i class="fas fa-user"></i>
+            <span>Кабинет</span>
+        </div>
+        <div class="nav-item">
+            <i class="far fa-heart"></i>
+            <span>Избранное</span>
+        </div>
+        <div class="nav-item">
+            <i class="fas fa-list"></i>
+            <span>Заказы</span>
+        </div>
+        <div class="nav-item">
+            <i class="fas fa-shopping-cart"></i>
+            <span>Корзина</span>
+        </div>
+    </nav>
+
+    <!-- Футер -->
+    <footer class="app-footer">
+        <span>GuitarStrings.com.ua</span>
+    </footer>
     
-    <script src="app.js?v=2.4"></script>
+    <script src="app.js?v=3.0"></script>
 </body>
 </html>
