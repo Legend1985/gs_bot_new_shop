@@ -1151,6 +1151,10 @@ function setupNewInterface() {
             showContactPopup();
         });
     }
+    
+    // Добавляем обработчик прокрутки для бесконечной загрузки
+    window.addEventListener('scroll', handleScroll);
+    console.log('setupNewInterface: Обработчик прокрутки добавлен');
 }
 
 // Функция фильтрации товаров по поиску
