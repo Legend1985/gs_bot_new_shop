@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест кнопки поддержки</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        }
+        
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+        }
+        
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        
+        .test-button:hover {
+            background: #0056b3;
+        }
+        
+        .status-display {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border-left: 4px solid #007bff;
+        }
+        
+        .online-status {
+            position: fixed;
+            bottom: 100px;
+            right: 20px;
+            background: #ffffff;
+            padding: 8px 16px;
+            border-radius: 20px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: #666666;
+            z-index: 90;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .online-status:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+        
+        .online-status.online {
+            background: rgba(76, 175, 80, 0.1);
+            border: 1px solid rgba(76, 175, 80, 0.3);
+        }
+        
+        .online-status.offline {
+            background: rgba(33, 150, 243, 0.1);
+            border: 1px solid rgba(33, 150, 243, 0.3);
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #2cab37;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+            transition: background 0.3s ease;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Тест кнопки поддержки</h1>
+        
+        <div class="test-section">
+            <h3>Функциональность кнопки поддержки</h3>
+            <p>Кнопка поддержки находится в правом нижнем углу экрана.</p>
+            <p>При нажатии на неё должен открываться чат в Telegram с @GuitarStringsUSA</p>
+            
+            <button class="test-button" onclick="testOnlineStatus()">Проверить онлайн статус</button>
+            <button class="test-button" onclick="forceOnline()">Принудительно онлайн</button>
+            <button class="test-button" onclick="forceOffline()">Принудительно оффлайн</button>
+            
+            <div class="status-display" id="status-display">
+                Статус: Не определен
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Описание функциональности</h3>
+            <ul>
+                <li><strong>Зеленый кружок</strong> - пользователь онлайн, текст: "Напишите нам, мы онлайн!"</li>
+                <li><strong>Синий кружок</strong> - пользователь оффлайн, текст: "Напишите нам, мы позже ответим"</li>
+                <li>Статус обновляется каждые 5 минут</li>
+                <li>При наведении кнопка поднимается и увеличивается тень</li>
+                <li>Клик открывает чат в Telegram</li>
+            </ul>
+        </div>
+    </div>
+    
+    <!-- Кнопка поддержки -->
+    <div class="online-status" id="support-button">
+        <div class="status-dot"></div>
+        <span>Напишите нам, мы онлайн!</span>
+    </div>
+    
+    <script>
+        // Функция проверки онлайн статуса пользователя в Telegram
+        async function checkTelegramUserStatus(username) {
+            try {
+                // Имитируем проверку статуса пользователя
+                // В реальном приложении здесь можно использовать Telegram Bot API
+                // или другие методы для определения онлайн статуса
+                
+                // Для демонстрации используем случайный статус
+                // В реальном приложении замените на реальную проверку
+                const isOnline = Math.random() > 0.5; // 50% вероятность быть онлайн
+                
+                // Можно также использовать время суток для более реалистичной имитации
+                const currentHour = new Date().getHours();
+                const isWorkingHours = currentHour >= 9 && currentHour <= 18; // Рабочие часы 9:00-18:00
+                
+                return {
+                    isOnline: isOnline && isWorkingHours,
+                    username: username
+                };
+            } catch (error) {
+                console.error('Ошибка проверки статуса пользователя Telegram:', error);
+                return { isOnline: false, username: username };
+            }
+        }
+        
+        // Функция открытия чата в Telegram
+        function openTelegramChat(username) {
+            try {
+                // Открываем чат с пользователем в Telegram
+                const telegramUrl = `https://t.me/${username}`;
+                
+                // Для тестирования показываем alert
+                alert(`Открывается чат с @${username}\nВ реальном приложении откроется: ${telegramUrl}`);
+                
+                // В реальном приложении раскомментируйте следующую строку:
+                // window.open(telegramUrl, '_blank');
+                
+                console.log(`Открыт чат с @${username}`);
+            } catch (error) {
+                console.error('Ошибка открытия чата в Telegram:', error);
+            }
+        }
+        
+        // Функция обновления статуса кнопки поддержки
+        async function updateSupportButtonStatus() {
+            const supportButton = document.getElementById('support-button');
+            const statusDot = supportButton.querySelector('.status-dot');
+            const statusText = supportButton.querySelector('span');
+            const statusDisplay = document.getElementById('status-display');
+            
+            try {
+                // Проверяем статус пользователя @GuitarStringsUSA
+                const userInfo = await checkTelegramUserStatus('GuitarStringsUSA');
+                
+                if (userInfo && userInfo.isOnline) {
+                    // Если пользователь онлайн, показываем зеленый статус
+                    statusDot.style.background = '#4CAF50'; // Зеленый цвет для онлайн
+                    statusText.textContent = 'Напишите нам, мы онлайн!';
+                    supportButton.classList.add('online');
+                    supportButton.classList.remove('offline');
+                    statusDisplay.innerHTML = '<strong>Статус: ОНЛАЙН</strong><br>Пользователь доступен для чата';
+                    statusDisplay.style.borderLeftColor = '#4CAF50';
+                } else {
+                    // Если пользователь оффлайн, показываем синий статус
+                    statusDot.style.background = '#2196F3'; // Синий цвет для оффлайн
+                    statusText.textContent = 'Напишите нам, мы позже ответим';
+                    supportButton.classList.add('offline');
+                    supportButton.classList.remove('online');
+                    statusDisplay.innerHTML = '<strong>Статус: ОФФЛАЙН</strong><br>Пользователь недоступен, ответит позже';
+                    statusDisplay.style.borderLeftColor = '#2196F3';
+                }
+            } catch (error) {
+                console.error('Ошибка обновления статуса поддержки:', error);
+                // По умолчанию показываем оффлайн статус
+                statusDot.style.background = '#2196F3';
+                statusText.textContent = 'Напишите нам, мы позже ответим';
+                supportButton.classList.add('offline');
+                supportButton.classList.remove('online');
+                statusDisplay.innerHTML = '<strong>Статус: ОШИБКА</strong><br>Не удалось определить статус';
+                statusDisplay.style.borderLeftColor = '#ff6b6b';
+            }
+        }
+        
+        // Тестовые функции
+        function testOnlineStatus() {
+            updateSupportButtonStatus();
+        }
+        
+        function forceOnline() {
+            const supportButton = document.getElementById('support-button');
+            const statusDot = supportButton.querySelector('.status-dot');
+            const statusText = supportButton.querySelector('span');
+            const statusDisplay = document.getElementById('status-display');
+            
+            statusDot.style.background = '#4CAF50';
+            statusText.textContent = 'Напишите нам, мы онлайн!';
+            supportButton.classList.add('online');
+            supportButton.classList.remove('offline');
+            statusDisplay.innerHTML = '<strong>Статус: ПРИНУДИТЕЛЬНО ОНЛАЙН</strong><br>Пользователь доступен для чата';
+            statusDisplay.style.borderLeftColor = '#4CAF50';
+        }
+        
+        function forceOffline() {
+            const supportButton = document.getElementById('support-button');
+            const statusDot = supportButton.querySelector('.status-dot');
+            const statusText = supportButton.querySelector('span');
+            const statusDisplay = document.getElementById('status-display');
+            
+            statusDot.style.background = '#2196F3';
+            statusText.textContent = 'Напишите нам, мы позже ответим';
+            supportButton.classList.add('offline');
+            supportButton.classList.remove('online');
+            statusDisplay.innerHTML = '<strong>Статус: ПРИНУДИТЕЛЬНО ОФФЛАЙН</strong><br>Пользователь недоступен, ответит позже';
+            statusDisplay.style.borderLeftColor = '#2196F3';
+        }
+        
+        // Инициализация при загрузке страницы
+        document.addEventListener('DOMContentLoaded', () => {
+            // Настраиваем кнопку поддержки
+            const supportButton = document.getElementById('support-button');
+            if (supportButton) {
+                supportButton.addEventListener('click', () => {
+                    openTelegramChat('GuitarStringsUSA');
+                });
+                
+                // Обновляем статус кнопки поддержки
+                updateSupportButtonStatus();
+                
+                // Обновляем статус каждые 5 минут
+                setInterval(updateSupportButtonStatus, 5 * 60 * 1000);
+            }
+        });
+    </script>
+</body>
+</html> 

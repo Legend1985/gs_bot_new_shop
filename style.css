@@ -11,6 +11,7 @@
     --border-color: #e0e0e0;
     --shadow-light: 0 2px 8px rgba(0, 0, 0, 0.1);
     --shadow-medium: 0 4px 16px rgba(0, 0, 0, 0.15);
+    --shadow-large: 0 8px 32px rgba(0, 0, 0, 0.2);
     --border-radius: 12px;
     --border-radius-small: 8px;
 }
@@ -491,6 +492,23 @@ body {
     font-size: 12px;
     color: var(--text-secondary);
     z-index: 90;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.online-status:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-large);
+}
+
+.online-status.online {
+    background: rgba(76, 175, 80, 0.1);
+    border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.online-status.offline {
+    background: rgba(33, 150, 243, 0.1);
+    border: 1px solid rgba(33, 150, 243, 0.3);
 }
 
 .status-dot {
@@ -499,6 +517,7 @@ body {
     background: var(--secondary-color);
     border-radius: 50%;
     animation: pulse 2s infinite;
+    transition: background 0.3s ease;
 }
 
 @keyframes pulse {

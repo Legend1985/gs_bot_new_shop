@@ -849,6 +849,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.addEventListener('scroll', handleScroll);
         console.log('Обработчик прокрутки настроен');
         
+        // Настраиваем кнопку поддержки
+        const supportButton = document.querySelector('.online-status');
+        if (supportButton) {
+            supportButton.addEventListener('click', () => {
+                openTelegramChat('GuitarStringsUSA');
+            });
+            
+            // Обновляем статус кнопки поддержки
+            updateSupportButtonStatus();
+            
+            // Обновляем статус каждые 5 минут
+            setInterval(updateSupportButtonStatus, 5 * 60 * 1000);
+        }
+        
         console.log('Инициализация завершена успешно');
     } catch (error) {
         console.error('Ошибка во время инициализации:', error);
@@ -1162,8 +1176,15 @@ function setupNewInterface() {
     const onlineStatus = document.querySelector('.online-status');
     if (onlineStatus) {
         onlineStatus.addEventListener('click', () => {
-            showContactPopup();
+            // Открываем чат в Telegram с @GuitarStringsUSA
+            openTelegramChat('GuitarStringsUSA');
         });
+        
+        // Обновляем статус кнопки поддержки
+        updateSupportButtonStatus();
+        
+        // Обновляем статус каждые 5 минут
+        setInterval(updateSupportButtonStatus, 5 * 60 * 1000);
     }
     
     // Добавляем обработчик прокрутки для бесконечной загрузки
@@ -1389,6 +1410,86 @@ const newStyles = `
 `;
 
 document.head.insertAdjacentHTML('beforeend', newStyles);
+
+// Функция проверки онлайн статуса пользователя в Telegram
+async function checkTelegramUserStatus(username) {
+    // Простая логика по времени: 9:00-19:00 = онлайн, остальное время = оффлайн
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const isWorkingHours = currentHour >= 9 && currentHour <= 19; // Рабочие часы 9:00-19:00, без выходных
+    
+    console.log(`Статус поддержки по времени:`, {
+        currentTime: `${currentHour}:${currentMinute.toString().padStart(2, '0')}`,
+        isWorkingHours,
+        isOnline: isWorkingHours
+    });
+    
+    return { 
+        isOnline: isWorkingHours, 
+        username: username,
+        debug: {
+            currentTime: `${currentHour}:${currentMinute.toString().padStart(2, '0')}`,
+            isWorkingHours
+        }
+    };
+}
+
+// Функция открытия чата в Telegram
+function openTelegramChat(username) {
+    try {
+        // Открываем чат с пользователем в Telegram
+        const telegramUrl = `https://t.me/${username}`;
+        
+        // Если мы в Telegram Web App, используем встроенные методы
+        if (window.Telegram && window.Telegram.WebApp) {
+            // Открываем внешнюю ссылку
+            tg.openTelegramLink(telegramUrl);
+        } else {
+            // Для обычного браузера открываем в новой вкладке
+            window.open(telegramUrl, '_blank');
+        }
+        
+        console.log(`Открыт чат с @${username}`);
+    } catch (error) {
+        console.error('Ошибка открытия чата в Telegram:', error);
+        // Fallback - открываем в новой вкладке
+        window.open(`https://t.me/${username}`, '_blank');
+    }
+}
+
+// Функция обновления статуса кнопки поддержки
+async function updateSupportButtonStatus() {
+    const supportButton = document.querySelector('.online-status');
+    const statusDot = supportButton.querySelector('.status-dot');
+    const statusText = supportButton.querySelector('span');
+    
+    try {
+        // Проверяем статус пользователя @GuitarStringsUSA
+        const userInfo = await checkTelegramUserStatus('GuitarStringsUSA');
+        
+        if (userInfo && userInfo.isOnline) {
+            // Если пользователь онлайн, показываем зеленый статус
+            statusDot.style.background = '#4CAF50'; // Зеленый цвет для онлайн
+            statusText.textContent = 'Напишите нам, мы онлайн!';
+            supportButton.classList.add('online');
+            supportButton.classList.remove('offline');
+        } else {
+            // Если пользователь оффлайн, показываем синий статус
+            statusDot.style.background = '#2196F3'; // Синий цвет для оффлайн
+            statusText.textContent = 'Напишите нам, мы позже ответим';
+            supportButton.classList.add('offline');
+            supportButton.classList.remove('online');
+        }
+    } catch (error) {
+        console.error('Ошибка обновления статуса поддержки:', error);
+        // По умолчанию показываем оффлайн статус
+        statusDot.style.background = '#2196F3';
+        statusText.textContent = 'Напишите нам, мы позже ответим';
+        supportButton.classList.add('offline');
+        supportButton.classList.remove('online');
+    }
+}
 
 
 
