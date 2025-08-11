@@ -465,10 +465,13 @@ async function loadMoreProducts() {
                 setupImageHandlers();
                 
                 // Обновляем флаг наличия товаров
-                if (data.products.length < productsPerPage) {
+                if (data.hasMore === false || data.products.length < productsPerPage) {
                     hasMoreProducts = false;
                     console.log('loadMoreProducts: Больше товаров нет');
                     showEndMessage();
+                } else {
+                    hasMoreProducts = true;
+                    console.log('loadMoreProducts: Есть еще товары для загрузки');
                 }
                 
                 // Сохраняем состояние
@@ -696,6 +699,11 @@ async function restoreAllProducts() {
 async function loadFirstPage() {
     try {
         console.log('loadFirstPage: Начинаем загрузку данных...');
+        
+        // Сохраняем текущую позицию прокрутки
+        const currentScrollPosition = window.pageYOffset || document.documentElement.scrollTop;
+        console.log('loadFirstPage: Сохраняем позицию прокрутки:', currentScrollPosition);
+        
         const data = await fetchProductData(0);
         console.log('loadFirstPage: Данные получены:', data);
         
@@ -708,7 +716,7 @@ async function loadFirstPage() {
             
             // Обновляем глобальные переменные
             maxProducts = data.total || data.products.length;
-            hasMoreProducts = data.products.length > 60;
+            hasMoreProducts = data.hasMore !== false && data.products.length >= 60;
             
             console.log(`loadFirstPage: maxProducts=${maxProducts}, hasMoreProducts=${hasMoreProducts}`);
             
@@ -737,6 +745,12 @@ async function loadFirstPage() {
             console.log('loadFirstPage: Все карточки товаров добавлены');
             console.log('loadFirstPage: Количество карточек в контейнере:', container.children.length);
             console.log('loadFirstPage: Размеры контейнера после добавления карточек:', container.offsetWidth, 'x', container.offsetHeight);
+            
+            // Восстанавливаем позицию прокрутки
+            setTimeout(() => {
+                window.scrollTo(0, currentScrollPosition);
+                console.log('loadFirstPage: Позиция прокрутки восстановлена:', currentScrollPosition);
+            }, 100);
             
             // Сохраняем состояние
             saveState();
@@ -1321,8 +1335,7 @@ function hideContactPopup(closeButton) {
 // Инициализация нового интерфейса при загрузке страницы
 document.addEventListener('DOMContentLoaded', () => {
     setupNewInterface();
-    // Загружаем первую страницу товаров
-    loadFirstPage();
+    // Убираем дублирующий вызов loadFirstPage() - он уже вызывается в setupNewInterface
 });
 
 // Добавляем стили для новых попапов

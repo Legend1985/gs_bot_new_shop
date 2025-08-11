@@ -71,14 +71,40 @@ def api():
         soup = BeautifulSoup(response.content, 'html.parser')
         
         # Find all product items - try different selectors
+        print(f"Debug: Trying to find product items...")
+        
         product_items = soup.find_all('div', class_='product-item')
+        print(f"Debug: Found {len(product_items)} items with class 'product-item'")
+        
         if not product_items:
             product_items = soup.find_all('div', class_='item')
+            print(f"Debug: Found {len(product_items)} items with class 'item'")
+        
         if not product_items:
             product_items = soup.find_all('div', class_='product')
+            print(f"Debug: Found {len(product_items)} items with class 'product'")
+        
+        # Попробуем найти любые div элементы с товарами
+        if not product_items:
+            # Ищем по более общим селекторам
+            product_items = soup.find_all('div', {'class': lambda x: x and ('product' in x.lower() or 'item' in x.lower())})
+            print(f"Debug: Found {len(product_items)} items with general product/item classes")
+        
+        # Если все еще ничего не найдено, попробуем найти по структуре
+        if not product_items:
+            # Ищем div элементы, которые содержат заголовки и цены
+            product_items = soup.find_all('div', recursive=True)
+            product_items = [item for item in product_items if item.find('h3') or item.find('h2') or item.find('span', class_='Price')]
+            print(f"Debug: Found {len(product_items)} potential product containers by structure")
+        
+        print(f"Debug: Total product items found: {len(product_items)}")
+        
+        # Упрощенная логика пагинации
+        # Каждая страница содержит свои товары, не нужно их объединять
+        paginated_items = product_items
         
         products = []
-        for item in product_items[:limit]:
+        for item in paginated_items:
             try:
                 # Extract product name - try different selectors
                 name_elem = item.find('h3', class_='product-title') or item.find('h3', class_='title') or item.find('h3') or item.find('h2') or item.find('a', class_='title')
@@ -250,14 +276,30 @@ def api():
                 }
             ]
         
+        # Добавляем отладочную информацию
+        print(f"Debug: total products found: {len(product_items)}")
+        print(f"Debug: start: {start}, limit: {limit}")
+        print(f"Debug: products returned: {len(products)}")
+        
+        # Улучшенная логика hasMore
+        # Если мы получили ровно limit товаров, значит есть еще страницы
+        # Если получили меньше limit, значит это последняя страница
+        has_more = len(products) == limit
+        print(f"Debug: hasMore calculation: products={len(products)}, limit={limit}, hasMore={has_more}")
+        
+        # Дополнительная проверка: если на странице меньше 60 товаров, это может быть последняя
+        if len(products) < limit:
+            print(f"Debug: Less than {limit} products found, likely last page")
+            has_more = False
+        
         # Return JSON response
         return jsonify({
             'success': True,
             'products': products,
-            'total': len(products),
+            'total': len(products),  # Количество товаров на текущей странице
             'start': start,
             'limit': limit,
-            'hasMore': len(products) == limit
+            'hasMore': has_more  # Есть ли еще товары после текущей страницы
         })
         
     except Exception as e:
@@ -305,6 +347,8 @@ def api():
                 'rating': 4.6
             }
         ]
+        
+        print(f"Debug: Error fallback - products: {len(products)}, hasMore: False")
         
         return jsonify({
             'success': True,
