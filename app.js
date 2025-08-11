@@ -33,6 +33,22 @@ let maxProducts = 0;
 let loadedProductNames = new Set();
 let savedScrollPosition = 0;
 
+// Функция для получения текста статуса товара
+function getStatusText(availability) {
+    if (availability === 'В наличии в Одессе') {
+        return 'В наличии';
+    } else if (availability === 'Нет в наличии') {
+        return 'Нет в наличии';
+    } else if (availability === 'Снят с производства') {
+        return 'Снят с производства';
+    } else if (availability === 'Ожидается') {
+        return 'Ожидается';
+    } else if (availability === 'Под заказ') {
+        return 'Под заказ';
+    } else {
+        return 'В наличии';
+    }
+}
 
 
 // Функция показа индикатора загрузки для бесконечной прокрутки
@@ -289,6 +305,10 @@ function createProductCardFromSiteData(product, btnId) {
         </div>
         
         <h3 class="product-title">${product.name}</h3>
+        
+        <div class="product-status ${statusClass}">
+            ${getStatusText(product.availability)}
+        </div>
         
         <div class="compare-checkbox">
             <input type="checkbox" id="compare-${btnId}">
