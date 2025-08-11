@@ -1,0 +1,15 @@
+# Telegram Bot Configuration
+# ВАЖНО: Этот файл НЕ должен попасть в Git!
+# Скопируйте содержимое в файл .env
+
+TELEGRAM_BOT_TOKEN=6752781677:AAHlYmFn6b5yQk1z685ikBqnFxGjoeA2H_E
+TELEGRAM_BOT_USERNAME=GSNEW_Bot
+SUPPORT_USERNAME=GuitarStringsUSA
+
+# Store Configuration
+STORE_WORKING_HOURS_START=9
+STORE_WORKING_HOURS_END=19
+STORE_WORKING_DAYS=7
+
+# API Configuration
+TELEGRAM_API_BASE_URL=https://api.telegram.org 
