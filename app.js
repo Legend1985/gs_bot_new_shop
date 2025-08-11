@@ -35,13 +35,13 @@ let savedScrollPosition = 0;
 
 // Функция для получения текста статуса товара
 function getStatusText(availability) {
-    if (availability === 'В наличии в Одессе') {
+    if (availability === 'В наличии в Одессе' || availability === 'В наличии') {
         return 'В наличии';
     } else if (availability === 'Нет в наличии') {
         return 'Нет в наличии';
     } else if (availability === 'Снят с производства') {
         return 'Снят с производства';
-    } else if (availability === 'Ожидается') {
+    } else if (availability === 'Ожидается' || availability === 'Ожидается поставка') {
         return 'Ожидается';
     } else if (availability === 'Под заказ') {
         return 'Под заказ';

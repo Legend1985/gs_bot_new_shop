@@ -177,7 +177,7 @@ def api():
                     elif 'под заказ' in status_text or 'заказ' in status_text:
                         availability = "Под заказ"
                     elif 'снят' in status_text or 'discontinued' in status_text:
-                        availability = "Снято с производства"
+                        availability = "Снят с производства"
                     else:
                         # Если текст содержит "В наличии в Одессе" или похожее
                         if 'в наличии' in status_text:
