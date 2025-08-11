@@ -3,12 +3,16 @@
 .env.local
 .env.production
 .env.staging
+env_local.txt
 
 # Telegram Bot Tokens and API Keys
 *.token
 *.key
 secrets.json
 config.json
+
+# Debug files with tokens (НЕ ОТПРАВЛЯТЬ В GIT!)
+debug_support.html
 
 # Logs
 *.log
