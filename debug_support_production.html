@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Отладка кнопки поддержки (Продакшен)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .online-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 20px 0;
+        }
+        .online-status:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        }
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #2196F3;
+            transition: background 0.3s ease;
+        }
+        .status-dot.online {
+            background: #4CAF50;
+        }
+        .status-dot.offline {
+            background: #2196F3;
+        }
+        .debug-info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background: #2196F3;
+            color: white;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #1976D2;
+        }
+        button.success {
+            background: #4CAF50;
+        }
+        button.success:hover {
+            background: #388E3C;
+        }
+        button.warning {
+            background: #FF9800;
+        }
+        button.warning:hover {
+            background: #F57C00;
+        }
+        .current-time {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin: 20px 0;
+        }
+        .api-response {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .security-notice {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Отладка кнопки поддержки (Продакшен)</h1>
+        
+        <div class="security-notice">
+            <strong>🔒 Безопасность:</strong> Этот файл не содержит токенов в коде. 
+            Токен должен быть установлен через переменную окружения или конфигурацию.
+        </div>
+        
+        <div class="current-time">
+            Текущее время: <span id="current-time"></span>
+        </div>
+        
+        <div class="online-status" onclick="openTelegramChat('GuitarStringsUSA')">
+            <div class="status-dot" id="status-dot"></div>
+            <span id="status-text">Проверяем статус...</span>
+        </div>
+        
+        <div class="controls">
+            <button onclick="checkStatus()">🔄 Проверить статус</button>
+            <button onclick="forceOnline()" class="success">✅ Принудительно онлайн</button>
+            <button onclick="forceOffline()" class="warning">❌ Принудительно оффлайн</button>
+            <button onclick="testAPI()">🔍 Тест API</button>
+            <button onclick="testBotInfo()">🤖 Информация о боте</button>
+            <button onclick="clearLog()">🗑️ Очистить лог</button>
+        </div>
+        
+        <h3>📊 Информация об отладке:</h3>
+        <div class="debug-info" id="debug-info">
+            Нажмите "Проверить статус" для начала отладки...
+        </div>
+        
+        <h3>📡 Ответ API Telegram:</h3>
+        <div class="api-response" id="api-response">
+            API ответ будет показан здесь...
+        </div>
+    </div>
+
+    <script>
+        let debugLog = [];
+        let apiResponse = '';
+
+        // Безопасное получение токена бота
+        function getBotToken() {
+            // Пытаемся получить токен из переменной окружения
+            if (typeof window !== 'undefined' && window.TELEGRAM_BOT_TOKEN) {
+                return window.TELEGRAM_BOT_TOKEN;
+            }
+            
+            // Пытаемся получить токен из конфигурации
+            if (typeof window !== 'undefined' && window.APP_CONFIG && window.APP_CONFIG.TELEGRAM_BOT_TOKEN) {
+                return window.APP_CONFIG.TELEGRAM_BOT_TOKEN;
+            }
+            
+            // Пытаемся получить токен из localStorage (для тестирования)
+            const storedToken = localStorage.getItem('TELEGRAM_BOT_TOKEN');
+            if (storedToken) {
+                return storedToken;
+            }
+            
+            // Токен не найден
+            return null;
+        }
+
+        // Обновляем текущее время каждую секунду
+        function updateCurrentTime() {
+            const now = new Date();
+            const timeString = now.toLocaleString('ru-RU');
+            document.getElementById('current-time').textContent = timeString;
+        }
+        
+        setInterval(updateCurrentTime, 1000);
+        updateCurrentTime();
+
+        // Функция логирования
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString('ru-RU');
+            const logEntry = `[${timestamp}] ${message}`;
+            debugLog.push(logEntry);
+            
+            if (debugLog.length > 50) {
+                debugLog.shift();
+            }
+            
+            document.getElementById('debug-info').textContent = debugLog.join('\n');
+            console.log(logEntry);
+        }
+
+        // Функция проверки статуса пользователя Telegram
+        async function checkTelegramUserStatus(username) {
+            try {
+                log(`🔍 Начинаем проверку статуса пользователя @${username}...`);
+                
+                // Безопасное получение токена
+                const botToken = getBotToken();
+                if (!botToken) {
+                    throw new Error('Токен бота не найден. Установите TELEGRAM_BOT_TOKEN в конфигурации.');
+                }
+                
+                const apiUrl = `https://api.telegram.org/bot${botToken}/getChat?chat_id=@${username}`;
+                
+                log(`📡 Отправляем запрос к API: ${apiUrl.replace(botToken, '***HIDDEN***')}`);
+                
+                const response = await fetch(apiUrl);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // Сохраняем ответ API для отображения
+                apiResponse = JSON.stringify(data, null, 2);
+                document.getElementById('api-response').textContent = apiResponse;
+                
+                log(`✅ Получен ответ от API: ${response.status}`);
+                
+                if (data.ok && data.result) {
+                    const user = data.result;
+                    
+                    const now = new Date();
+                    const currentHour = now.getHours();
+                    const currentMinute = now.getMinutes();
+                    const isWorkingHours = currentHour >= 9 && currentHour <= 19;
+                    
+                    const isUserActive = user && !user.is_bot && user.status !== 'kicked';
+                    const isRecentlyActive = user && user.last_activity_date;
+                    const lastActivityTime = user.last_activity_date ? new Date(user.last_activity_date * 1000) : null;
+                    const isActiveWithin24Hours = lastActivityTime ? (now - lastActivityTime) < (24 * 60 * 60 * 1000) : false;
+                    
+                    const isOnline = isUserActive && (isWorkingHours || isActiveWithin24Hours);
+                    
+                    log(`📊 Анализ статуса:`);
+                    log(`   - Время: ${currentHour}:${currentMinute.toString().padStart(2, '0')}`);
+                    log(`   - Рабочие часы: ${isWorkingHours ? 'Да' : 'Нет'}`);
+                    log(`   - Пользователь активен: ${isUserActive ? 'Да' : 'Нет'}`);
+                    log(`   - Недавно активен: ${isRecentlyActive ? 'Да' : 'Нет'}`);
+                    log(`   - Активен за 24 часа: ${isActiveWithin24Hours ? 'Да' : 'Нет'}`);
+                    log(`   - Итоговый статус: ${isOnline ? 'Онлайн' : 'Оффлайн'}`);
+                    
+                    return {
+                        isOnline: isOnline,
+                        username: username,
+                        userInfo: user,
+                        debug: {
+                            currentTime: `${currentHour}:${currentMinute.toString().padStart(2, '0')}`,
+                            isWorkingHours,
+                            isUserActive,
+                            isRecentlyActive,
+                            isActiveWithin24Hours
+                        }
+                    };
+                } else {
+                    log(`⚠️ Ошибка API: ${data.description || 'Неизвестная ошибка'}`);
+                    return { isOnline: false, username: username };
+                }
+            } catch (error) {
+                log(`❌ Ошибка: ${error.message}`);
+                
+                const now = new Date();
+                const currentHour = now.getHours();
+                const currentMinute = now.getMinutes();
+                const isWorkingHours = currentHour >= 9 && currentHour <= 19;
+                
+                log(`🔄 Fallback на время суток: ${isWorkingHours ? 'Рабочие часы' : 'Не рабочие часы'}`);
+                
+                return { 
+                    isOnline: isWorkingHours, 
+                    username: username,
+                    error: error.message
+                };
+            }
+        }
+
+        // Функция открытия чата в Telegram
+        function openTelegramChat(username) {
+            try {
+                const telegramUrl = `https://t.me/${username}`;
+                log(`🔗 Открываем чат: ${telegramUrl}`);
+                window.open(telegramUrl, '_blank');
+            } catch (error) {
+                log(`❌ Ошибка открытия чата: ${error.message}`);
+            }
+        }
+
+        // Функция обновления статуса кнопки
+        async function updateSupportButtonStatus() {
+            const statusDot = document.getElementById('status-dot');
+            const statusText = document.getElementById('status-text');
+            
+            try {
+                log(`🔄 Обновляем статус кнопки...`);
+                
+                const userInfo = await checkTelegramUserStatus('GuitarStringsUSA');
+                
+                if (userInfo && userInfo.isOnline) {
+                    statusDot.style.background = '#4CAF50';
+                    statusText.textContent = 'Напишите нам, мы онлайн!';
+                    statusDot.classList.add('online');
+                    statusDot.classList.remove('offline');
+                    log(`✅ Статус установлен: ОНЛАЙН (зеленый)`);
+                } else {
+                    statusDot.style.background = '#2196F3';
+                    statusText.textContent = 'Напишите нам, мы позже ответим';
+                    statusDot.classList.add('offline');
+                    statusDot.classList.remove('online');
+                    log(`🔵 Статус установлен: ОФФЛАЙН (синий)`);
+                }
+            } catch (error) {
+                log(`❌ Ошибка обновления статуса: ${error.message}`);
+                statusDot.style.background = '#2196F3';
+                statusText.textContent = 'Напишите нам, мы позже ответим';
+                statusDot.classList.add('offline');
+                statusDot.classList.remove('online');
+            }
+        }
+
+        // Функции управления
+        function checkStatus() {
+            log(`🚀 Запуск проверки статуса...`);
+            updateSupportButtonStatus();
+        }
+
+        function forceOnline() {
+            log(`🔧 Принудительно устанавливаем статус: ОНЛАЙН`);
+            const statusDot = document.getElementById('status-dot');
+            const statusText = document.getElementById('status-text');
+            
+            statusDot.style.background = '#4CAF50';
+            statusText.textContent = 'Напишите нам, мы онлайн!';
+            statusDot.classList.add('online');
+            statusDot.classList.remove('offline');
+        }
+
+        function forceOffline() {
+            log(`🔧 Принудительно устанавливаем статус: ОФФЛАЙН`);
+            const statusDot = document.getElementById('status-dot');
+            const statusText = document.getElementById('status-text');
+            
+            statusDot.style.background = '#2196F3';
+            statusText.textContent = 'Напишите нам, мы позже ответим';
+            statusDot.classList.add('offline');
+            statusDot.classList.remove('online');
+        }
+
+        function testAPI() {
+            log(`🧪 Тестируем API Telegram...`);
+            checkTelegramUserStatus('GuitarStringsUSA').then(result => {
+                log(`📊 Результат теста API: ${JSON.stringify(result, null, 2)}`);
+            });
+        }
+
+        function testBotInfo() {
+            log(`🤖 Получаем информацию о боте...`);
+            
+            const botToken = getBotToken();
+            if (!botToken) {
+                log(`❌ Токен бота не найден`);
+                return;
+            }
+            const apiUrl = `https://api.telegram.org/bot${botToken}/getMe`;
+            
+            log(`📡 Запрос: ${apiUrl.replace(botToken, '***HIDDEN***')}`);
+            
+            fetch(apiUrl)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.ok) {
+                        log(`✅ Информация о боте:`);
+                        log(`   - Имя: ${data.result.first_name}`);
+                        log(`   - Username: @${data.result.username}`);
+                        log(`   - ID: ${data.result.id}`);
+                        log(`   - Может читать сообщения: ${data.result.can_read_all_group_messages ? 'Да' : 'Нет'}`);
+                        log(`   - Поддерживает inline: ${data.result.supports_inline_queries ? 'Да' : 'Нет'}`);
+                    } else {
+                        log(`❌ Ошибка получения информации о боте: ${data.description}`);
+                    }
+                })
+                .catch(error => {
+                    log(`❌ Ошибка: ${error.message}`);
+                });
+        }
+
+        function clearLog() {
+            log(`🗑️ Лог очищен`);
+            debugLog = [];
+            document.getElementById('debug-info').textContent = 'Лог очищен...';
+            document.getElementById('api-response').textContent = 'API ответ будет показан здесь...';
+        }
+
+        // Автоматическая проверка при загрузке страницы
+        window.addEventListener('load', () => {
+            log(`🌐 Страница загружена, начинаем отладку...`);
+            
+            // Проверяем наличие токена
+            const token = getBotToken();
+            if (token) {
+                log(`✅ Токен бота найден`);
+                setTimeout(() => {
+                    checkStatus();
+                }, 1000);
+            } else {
+                log(`❌ Токен бота не найден. Установите TELEGRAM_BOT_TOKEN`);
+                log(`💡 Для тестирования установите токен в localStorage: localStorage.setItem('TELEGRAM_BOT_TOKEN', 'ваш_токен')`);
+            }
+        });
+    </script>
+</body>
+</html> 
