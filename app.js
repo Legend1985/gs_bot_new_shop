@@ -1139,9 +1139,8 @@ function filterProducts(query) {
     
     productCards.forEach(card => {
         const title = card.querySelector('.product-title').textContent.toLowerCase();
-        const subtitle = card.querySelector('.product-subtitle').textContent.toLowerCase();
         
-        if (title.includes(query) || subtitle.includes(query)) {
+        if (title.includes(query)) {
             card.style.display = 'block';
         } else {
             card.style.display = 'none';

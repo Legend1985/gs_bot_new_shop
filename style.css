@@ -294,7 +294,7 @@ body {
     margin-bottom: 10px;
     border-radius: var(--border-radius-small);
     overflow: hidden;
-    background: var(--bg-secondary);
+    background: transparent;
 }
 
 .img {
@@ -311,7 +311,7 @@ body {
 
 /* Информация о товаре */
 .product-title {
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 600;
     color: var(--text-primary);
     margin-bottom: 6px;
@@ -585,7 +585,7 @@ body {
     }
     
     .product-title {
-        font-size: 12px;
+        font-size: 10px;
         -webkit-line-clamp: 3;
     }
 }
