@@ -33,26 +33,7 @@ let maxProducts = 0;
 let loadedProductNames = new Set();
 let savedScrollPosition = 0;
 
-// Функция создания экрана загрузки
-function createLoadingScreen() {
-    const container = document.querySelector('.inner');
-    const loadingScreen = document.createElement('div');
-    loadingScreen.className = 'loading-screen';
-    loadingScreen.innerHTML = `
-        <div class="loading-spinner"></div>
-        <h3>Загружаем товары...</h3>
-        <p>Пожалуйста, подождите</p>
-    `;
-    container.appendChild(loadingScreen);
-}
 
-// Функция скрытия экрана загрузки
-function hideLoadingScreen() {
-    const loadingScreen = document.querySelector('.loading-screen');
-    if (loadingScreen) {
-        loadingScreen.remove();
-    }
-}
 
 // Функция показа индикатора загрузки для бесконечной прокрутки
 function showLoadingIndicator() {
@@ -308,7 +289,6 @@ function createProductCardFromSiteData(product, btnId) {
         </div>
         
         <h3 class="product-title">${product.name}</h3>
-        <p class="product-subtitle">Строка названия 2</p>
         
         <div class="compare-checkbox">
             <input type="checkbox" id="compare-${btnId}">
@@ -316,8 +296,8 @@ function createProductCardFromSiteData(product, btnId) {
         </div>
         
         <div class="product-prices">
-            ${product.oldPrice && product.oldPrice !== '0' ? `<span class="old-price">Цена: ${product.oldPrice}грн.</span>` : ''}
-            <span class="new-price">Цена: ${product.newPrice}грн.</span>
+            ${product.oldPrice && product.oldPrice !== '0' ? `<span class="old-price">Цена: ${product.oldPrice}грн</span>` : ''}
+            <span class="new-price">Цена: ${product.newPrice}грн</span>
         </div>
         
         <div class="product-rating">
@@ -738,10 +718,6 @@ async function loadFirstPage() {
             console.log('loadFirstPage: Количество карточек в контейнере:', container.children.length);
             console.log('loadFirstPage: Размеры контейнера после добавления карточек:', container.offsetWidth, 'x', container.offsetHeight);
             
-            // Скрываем экран загрузки
-            hideLoadingScreen();
-            console.log('loadFirstPage: Экран загрузки скрыт');
-            
             // Сохраняем состояние
             saveState();
             console.log('loadFirstPage: Состояние сохранено');
@@ -759,7 +735,6 @@ async function loadFirstPage() {
         } else {
             console.error('loadFirstPage: Не удалось загрузить товары - нет данных');
             console.error('loadFirstPage: Полученные данные:', data);
-            hideLoadingScreen();
             
             // Показываем сообщение об ошибке
             const container = document.querySelector('.inner');
@@ -772,7 +747,6 @@ async function loadFirstPage() {
         }
     } catch (error) {
         console.error('loadFirstPage: Ошибка загрузки товаров:', error);
-        hideLoadingScreen();
         
         // Показываем сообщение об ошибке
         const container = document.querySelector('.inner');
@@ -820,10 +794,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('Страница загружена, начинаем инициализацию...');
     
     try {
-        // Показываем экран загрузки
-        createLoadingScreen();
-        console.log('Экран загрузки создан');
-        
         // Загружаем первую страницу товаров
         console.log('Начинаем загрузку первой страницы...');
         await loadFirstPage();
@@ -848,7 +818,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log('Инициализация завершена успешно');
     } catch (error) {
         console.error('Ошибка во время инициализации:', error);
-        hideLoadingScreen();
         
         // Показываем сообщение об ошибке
         const container = document.querySelector('.inner');
