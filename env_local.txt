@@ -1,8 +1,9 @@
+# ⚠️ NOT SEND to git - содержит токены для локального использования
 # Telegram Bot Configuration
 # ВАЖНО: Этот файл НЕ должен попасть в Git!
 # Скопируйте содержимое в файл .env
 
-TELEGRAM_BOT_TOKEN=6752781677:AAHlYmFn6b5yQk1z685ikBqnFxGjoeA2H_E
+TELEGRAM_BOT_TOKEN=6752781677:AAHvkolGB1PJGb-kpi6pSMALmhw_fN5KAz8
 TELEGRAM_BOT_USERNAME=GSNEW_Bot
 SUPPORT_USERNAME=GuitarStringsUSA
 

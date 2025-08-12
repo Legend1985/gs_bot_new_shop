@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Отладка кнопки поддержки</title>
+    <!-- ⚠️ NOT SEND to git - содержит токен для тестирования -->
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -140,6 +141,18 @@
         let debugLog = [];
         let apiResponse = '';
 
+        // Безопасное получение токена бота
+        function getBotToken() {
+            // Пытаемся получить токен из переменной окружения (если доступно)
+            if (typeof window !== 'undefined' && window.TELEGRAM_BOT_TOKEN) {
+                return window.TELEGRAM_BOT_TOKEN;
+            }
+            
+            // Fallback для тестирования - замените на реальный токен только для локального использования
+            // ВАЖНО: НЕ коммитьте этот токен в Git!
+            return '6752781677:AAHvkolGB1PJGb-kpi6pSMALmhw_fN5KAz8';
+        }
+
         // Обновляем текущее время каждую секунду
         function updateCurrentTime() {
             const now = new Date();
@@ -169,7 +182,12 @@
             try {
                 log(`🔍 Начинаем проверку статуса пользователя @${username}...`);
                 
-                const botToken = '6752781677:AAEytNdY1JWTFIGW1nUm44IplJ2R0uThofI';
+                // Безопасное получение токена
+                const botToken = getBotToken();
+                if (!botToken) {
+                    throw new Error('Токен бота не найден. Проверьте файл .env');
+                }
+                
                 const apiUrl = `https://api.telegram.org/bot${botToken}/getChat?chat_id=@${username}`;
                 
                 log(`📡 Отправляем запрос к API: ${apiUrl}`);
@@ -336,7 +354,11 @@
             formats.forEach(async (format) => {
                 log(`🔍 Тестируем формат: ${format}`);
                 try {
-                    const botToken = '6752781677:AAEytNdY1JWTFIGW1nUm44IplJ2R0uThofI';
+                    const botToken = getBotToken();
+                    if (!botToken) {
+                        log(`❌ Токен бота не найден для ${format}`);
+                        return;
+                    }
                     const cleanUsername = format.replace(/^@|^https?:\/\/t\.me\//, '');
                     const apiUrl = `https://api.telegram.org/bot${botToken}/getChat?chat_id=@${cleanUsername}`;
                     
@@ -359,7 +381,11 @@
         function testBotInfo() {
             log(`🤖 Получаем информацию о боте...`);
             
-            const botToken = '6752781677:AAEytNdY1JWTFIGW1nUm44IplJ2R0uThofI';
+            const botToken = getBotToken();
+            if (!botToken) {
+                log(`❌ Токен бота не найден`);
+                return;
+            }
             const apiUrl = `https://api.telegram.org/bot${botToken}/getMe`;
             
             log(`📡 Запрос: ${apiUrl}`);

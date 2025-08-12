@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест всплывающего окна "Под заказ"</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+            transition: background 0.3s ease;
+        }
+        .test-button:hover {
+            background: #0056b3;
+        }
+        .test-info {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Тест всплывающего окна "Под заказ"</h1>
+        
+        <div class="test-info">
+            <h3>📋 Что тестируем:</h3>
+            <ul>
+                <li>Отображение нового текста с условиями</li>
+                <li>Стили и форматирование</li>
+                <li>Работу ссылки на Telegram</li>
+                <li>Закрытие окна (крестик, клик вне окна, Escape)</li>
+                <li>Адаптивность на мобильных устройствах</li>
+            </ul>
+        </div>
+        
+        <button class="test-button" onclick="showOnOrderPopup()">
+            📋 Показать всплывающее окно "Под заказ"
+        </button>
+        
+        <div class="test-info">
+            <h3>✅ Ожидаемый результат:</h3>
+            <p>Должно появиться окно с текстом:</p>
+            <ul>
+                <li><strong>Товар доступен под заказ. Срок поставки уточняйте у менеджера.</strong></li>
+                <li><strong>Условия оформления товара под заказ:</strong></li>
+                <li>1. Полная оплата</li>
+                <li>2. Срок доставки в Одессу с момента оплаты от 30-45 дней (по договорённости)</li>
+                <li>3. Стоимость пересылки по Украине оплачивает покупатель</li>
+                <li>4. Можно накапливать и использовать бонусные баллы</li>
+                <li>5. Консультация по поводу товаров Под заказ в Telegram с менеджером @GuitarStringsUSA</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Функция показа сообщения о товаре под заказ
+        function showOnOrderPopup() {
+            const popup = document.createElement('div');
+            popup.className = 'popup-overlay show';
+            popup.innerHTML = `
+                <div class="popup-content">
+                    <button class="popup-close" onclick="hideOnOrderPopup(this)">&times;</button>
+                    <div class="popup-icon">
+                        <span style="font-size: 48px;">📋</span>
+                    </div>
+                    <div class="popup-message">
+                        <p><strong>Товар доступен под заказ. Срок поставки уточняйте у менеджера.</strong></p>
+                        
+                        <p><strong>Условия оформления товара под заказ:</strong></p>
+                        
+                        <ol>
+                            <li>Полная оплата</li>
+                            <li>Срок доставки в Одессу с момента оплаты от 30-45 дней (по договорённости)</li>
+                            <li>Стоимость пересылки по Украине оплачивает покупатель</li>
+                            <li>Можно накапливать и использовать бонусные баллы</li>
+                            <li>Консультация по поводу товаров Под заказ в Telegram с менеджером <a href="https://t.me/GuitarStringsUSA" target="_blank" style="color: #007bff; text-decoration: underline;">@GuitarStringsUSA</a></li>
+                        </ol>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(popup);
+            
+            // Добавляем класс для body
+            document.body.classList.add('popup-open');
+            
+            // Закрытие по клику вне контента
+            popup.addEventListener('click', (event) => {
+                if (event.target === popup) {
+                    hideOnOrderPopup(popup.querySelector('.popup-close'));
+                }
+            });
+            
+            // Закрытие по Escape
+            document.addEventListener('keydown', function escapeHandler(e) {
+                if (e.key === 'Escape') {
+                    hideOnOrderPopup(popup.querySelector('.popup-close'));
+                    document.removeEventListener('keydown', escapeHandler);
+                }
+            });
+        }
+
+        // Функция скрытия сообщения о товаре под заказ
+        function hideOnOrderPopup(closeButton) {
+            const popup = closeButton.closest('.popup-overlay');
+            if (popup) {
+                popup.classList.remove('show');
+                setTimeout(() => {
+                    popup.remove();
+                    document.body.classList.remove('popup-open');
+                }, 300);
+            }
+        }
+    </script>
+</body>
+</html> 

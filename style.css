@@ -745,23 +745,123 @@ body {
 
 .popup-close {
     position: absolute;
-    top: 10px;
-    right: 15px;
-    background: none;
-    border: none;
-    font-size: 24px;
+    top: -15px;
+    right: -15px;
+    background: var(--bg-primary);
+    border: 2px solid var(--border-color);
+    font-size: 28px;
+    font-weight: 300;
     cursor: pointer;
-    color: var(--text-light);
-    width: 30px;
-    height: 30px;
+    color: var(--text-secondary);
+    width: 45px;
+    height: 45px;
     display: flex;
     align-items: center;
     justify-content: center;
     border-radius: 50%;
-    transition: all 0.2s ease;
+    box-shadow: var(--shadow-medium);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 10;
+    transform: scale(1);
 }
 
 .popup-close:hover {
-    background: var(--bg-secondary);
-    color: var(--text-primary);
+    background: var(--accent-color);
+    color: white;
+    border-color: var(--accent-color);
+    transform: scale(1.1);
+    box-shadow: var(--shadow-large);
+}
+
+.popup-close:active {
+    transform: scale(0.95);
+    transition: all 0.1s ease;
+}
+
+/* Анимация появления кнопки закрытия */
+.popup-content {
+    background: var(--bg-primary);
+    padding: 30px;
+    border-radius: var(--border-radius);
+    max-width: 90%;
+    width: 400px;
+    text-align: center;
+    position: relative;
+    box-shadow: var(--shadow-medium);
+    animation: popupSlideIn 0.3s ease-out;
+}
+
+.popup-content .popup-close {
+    animation: closeButtonAppear 0.4s ease-out 0.2s both;
+}
+
+@keyframes closeButtonAppear {
+    from {
+        opacity: 0;
+        transform: scale(0) rotate(-180deg);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) rotate(0deg);
+    }
+}
+
+/* Специальные стили для всплывающего окна "Под заказ" */
+.popup-message {
+    text-align: left;
+    line-height: 1.6;
+}
+
+.popup-message p {
+    margin-bottom: 15px;
+}
+
+.popup-message ol {
+    margin: 15px 0;
+    padding-left: 20px;
+}
+
+.popup-message li {
+    margin-bottom: 8px;
+    padding-left: 5px;
+}
+
+.popup-message a {
+    color: #007bff;
+    text-decoration: underline;
+    transition: color 0.2s ease;
+}
+
+.popup-message a:hover {
+    color: #0056b3;
+    text-decoration: none;
+}
+
+/* Адаптивность для мобильных устройств */
+@media (max-width: 768px) {
+    .popup-content {
+        width: 95%;
+        padding: 20px;
+        margin: 10px;
+    }
+    
+    .popup-close {
+        top: -12px;
+        right: -12px;
+        width: 40px;
+        height: 40px;
+        font-size: 24px;
+    }
+    
+    .popup-message {
+        font-size: 14px;
+    }
+    
+    .popup-message ol {
+        padding-left: 15px;
+    }
+    
+    .popup-message li {
+        margin-bottom: 6px;
+    }
 }

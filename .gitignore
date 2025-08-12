@@ -13,6 +13,20 @@ config.json
 
 # Debug files with tokens (НЕ ОТПРАВЛЯТЬ В GIT!)
 debug_support.html
+test_support.html
+debug.html
+test_api.html
+test.html
+test_final.html
+
+# Local configuration files with tokens
+env_local.txt
+env_example.txt
+
+# Scripts for cleaning Git (содержат инструкции по удалению)
+clean_git_tokens.ps1
+clean_git_tokens.bat
+clean_git_tokens.sh
 
 # Logs
 *.log
