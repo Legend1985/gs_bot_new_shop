@@ -235,6 +235,12 @@ body {
     justify-content: space-between;
 }
 
+/* Обеспечиваем стабильность layout во время поиска */
+.product-card[style*="display: block"],
+.product-card[style*="display: none"] {
+    transition: none; /* Отключаем transition при изменении display */
+}
+
 .product-card:hover {
     transform: translateY(-4px);
     box-shadow: var(--shadow-medium);
@@ -301,6 +307,10 @@ body {
 .img {
     width: 100%;
     height: 100%;
+    min-width: 100px;
+    min-height: 100px;
+    max-width: 150px;
+    max-height: 150px;
     object-fit: contain;
     border-radius: var(--border-radius-small);
     transition: transform 0.3s ease;
@@ -335,6 +345,11 @@ body {
     display: inline-block;
     margin-left: auto;
     margin-right: auto;
+    /* Обеспечиваем стабильность контента во время поиска */
+    min-height: 1.2em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .product-status.in-stock {
@@ -418,6 +433,9 @@ body {
     justify-content: center;
     gap: 3px;
     margin-bottom: 12px;
+    /* Обеспечиваем стабильность контента во время поиска */
+    min-height: 1.2em;
+    flex-shrink: 0;
 }
 
 .star-filled, .star-half, .star-empty {
@@ -430,10 +448,35 @@ body {
 
 .star-half {
     color: #ffd700;
+    position: relative;
+}
+
+.star-half::before {
+    content: '★';
+    position: absolute;
+    left: 0;
+    top: 0;
+    color: #ddd;
+    clip-path: polygon(0 0, 50% 0, 50% 100%, 0 100%);
+}
+
+.star-half::after {
+    content: '★';
+    position: absolute;
+    left: 0;
+    top: 0;
+    color: #ffd700;
+    clip-path: polygon(50% 0, 100% 0, 100% 100%, 50% 100%);
 }
 
 .star-empty {
     color: #ddd;
+}
+
+.no-rating {
+    color: #999;
+    font-size: 14px;
+    font-style: italic;
 }
 
 /* Кнопка покупки */
@@ -674,6 +717,37 @@ body {
     100% { transform: rotate(360deg); }
 }
 
+.load-all-btn {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: var(--border-radius-small);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 15px;
+    transition: all 0.2s ease;
+    box-shadow: var(--shadow-light);
+}
+
+.load-all-btn:hover {
+    background: #e69515;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-medium);
+}
+
+.load-all-btn:active {
+    transform: translateY(0);
+}
+
+.load-all-btn:disabled {
+    background: var(--text-light);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
 /* Сообщения об ошибках и успехе */
 .error-message, .success-message, .end-message {
     padding: 20px;
@@ -701,8 +775,55 @@ body {
     border: 1px solid #c8e6c9;
 }
 
+/* Выпадающее меню аватара */
+.avatar-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-medium);
+    min-width: 200px;
+    z-index: 1000;
+    display: none;
+    margin-top: 5px;
+}
+
+.avatar-dropdown.show {
+    display: block;
+}
+
+.dropdown-item {
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.dropdown-item:last-child {
+    border-bottom: none;
+}
+
+.dropdown-item:hover {
+    background-color: var(--bg-secondary);
+}
+
+.dropdown-item i {
+    color: var(--text-secondary);
+    width: 16px;
+}
+
+.dropdown-item span {
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
 /* Попапы */
-.popup-overlay {
+.popup {
     position: fixed;
     top: 0;
     left: 0;
@@ -716,7 +837,7 @@ body {
     backdrop-filter: blur(5px);
 }
 
-.popup-overlay.show {
+.popup.show {
     display: flex;
 }
 
@@ -732,6 +853,70 @@ body {
     animation: popupSlideIn 0.3s ease-out;
 }
 
+.popup-header {
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+}
+
+.popup-header i {
+    font-size: 48px;
+    color: var(--accent-color);
+}
+
+.popup-cat-image {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-bottom: 10px;
+}
+
+.popup-header h3 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.popup-body {
+    margin-bottom: 25px;
+    line-height: 1.6;
+}
+
+.popup-body p {
+    margin-bottom: 15px;
+    color: var(--text-secondary);
+}
+
+.popup-footer {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+}
+
+.btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-secondary {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+    background: var(--border-color);
+}
+
 @keyframes popupSlideIn {
     from {
         opacity: 0;
@@ -743,7 +928,7 @@ body {
     }
 }
 
-.popup-close {
+.close-btn {
     position: absolute;
     top: -15px;
     right: -15px;
@@ -765,7 +950,7 @@ body {
     transform: scale(1);
 }
 
-.popup-close:hover {
+.close-btn:hover {
     background: var(--accent-color);
     color: white;
     border-color: var(--accent-color);
@@ -773,37 +958,15 @@ body {
     box-shadow: var(--shadow-large);
 }
 
-.popup-close:active {
+.close-btn:active {
     transform: scale(0.95);
     transition: all 0.1s ease;
 }
 
 /* Анимация появления кнопки закрытия */
-.popup-content {
-    background: var(--bg-primary);
-    padding: 30px;
-    border-radius: var(--border-radius);
-    max-width: 90%;
-    width: 400px;
-    text-align: center;
-    position: relative;
-    box-shadow: var(--shadow-medium);
-    animation: popupSlideIn 0.3s ease-out;
-}
-
-.popup-content .popup-close {
-    animation: closeButtonAppear 0.4s ease-out 0.2s both;
-}
-
-@keyframes closeButtonAppear {
-    from {
-        opacity: 0;
-        transform: scale(0) rotate(-180deg);
-    }
-    to {
-        opacity: 1;
-        transform: scale(1) rotate(0deg);
-    }
+.popup-content .close-btn {
+    opacity: 1;
+    transform: scale(1);
 }
 
 /* Специальные стили для всплывающего окна "Под заказ" */
@@ -819,6 +982,19 @@ body {
 .popup-message ol {
     margin: 15px 0;
     padding-left: 20px;
+}
+
+/* Стили для ссылок в всплывающих окнах */
+.telegram-link {
+    color: var(--accent-color);
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s ease;
+}
+
+.telegram-link:hover {
+    color: var(--accent-color-dark);
+    text-decoration: underline;
 }
 
 .popup-message li {
@@ -864,4 +1040,26 @@ body {
     .popup-message li {
         margin-bottom: 6px;
     }
+}
+
+/* Кнопки для отладки */
+.debug-buttons {
+    display: flex;
+    gap: 10px;
+    margin-left: 20px;
+}
+
+.debug-btn {
+    background: #ff4757;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background 0.3s;
+}
+
+.debug-btn:hover {
+    background: #ff3742;
 }

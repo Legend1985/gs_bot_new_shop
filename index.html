@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GuitarStrings.com.ua</title>
-    <link rel="stylesheet" href="style.css?v=4.7">
+    <link rel="stylesheet" href="style.css?v=9.4">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="app.js?v=9.4" defer></script>
 </head>
 <body>
     <!-- Верхний хедер -->
@@ -15,15 +16,30 @@
             <div class="bonus-info">Кол-во бонусов: 100</div>
         </div>
         <div class="header-right">
-            <div class="profile-pic">
+            <div class="profile-pic" onclick="toggleAvatarMenu()">
                 <i class="fas fa-user"></i>
             </div>
-            <button class="menu-btn">
-                <i class="fas fa-ellipsis-v"></i>
-            </button>
-            <button class="close-btn">
-                <i class="fas fa-times"></i>
-            </button>
+        </div>
+        
+        <!-- Выпадающее меню аватара -->
+        <div class="avatar-dropdown" id="avatarDropdown">
+            <div class="dropdown-item">
+                <i class="fas fa-user"></i>
+                <span>Профиль</span>
+            </div>
+            <div class="dropdown-item">
+                <i class="fas fa-cog"></i>
+                <span>Настройки</span>
+            </div>
+            <div class="dropdown-item">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Выйти</span>
+            </div>
+        </div>
+
+        <!-- Кнопки для отладки -->
+        <div class="debug-buttons">
+            <button onclick="clearLocalStorage()" class="debug-btn">Принудительная очистка кеша</button>
         </div>
     </header>
 
@@ -56,7 +72,7 @@
         <div class="inner">
             <!-- Товары будут загружены динамически -->
         </div>
-        
+
         <!-- Индикатор загрузки для бесконечной прокрутки -->
         <div id="loading-indicator">
             <div class="loading-spinner-small"></div>
@@ -98,7 +114,91 @@
     <footer class="app-footer">
         <span>GuitarStrings.com.ua</span>
     </footer>
-    
-    <script src="app.js?v=3.6"></script>
+
+    <!-- Popup для товаров снятых с производства -->
+    <div class="popup" id="discontinuedPopup">
+        <div class="popup-content">
+            <button class="close-btn" onclick="closePopup('discontinuedPopup')">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="popup-header">
+                <img src="images/Discontinued.jpg" alt="Извиняющийся котик" class="popup-cat-image">
+                <h3>Товар снят с производства</h3>
+            </div>
+            <div class="popup-body">
+                <p>Данный товар больше не производится и недоступен для заказа.</p>
+                <p>Рекомендуем обратить внимание на аналогичные товары в нашем каталоге.</p>
+            </div>
+            <div class="popup-footer">
+                <button class="btn btn-secondary" onclick="closePopup('discontinuedPopup')">Понятно</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Popup для товаров которых нет в наличии -->
+    <div class="popup" id="outOfStockPopup">
+        <div class="popup-content">
+            <button class="close-btn" onclick="closePopup('outOfStockPopup')">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="popup-header">
+                <i class="fas fa-times-circle"></i>
+                <h3>Товар отсутствует</h3>
+            </div>
+            <div class="popup-body">
+                <p>К сожалению, данный товар временно отсутствует на складе.</p>
+                <p>Оставьте заявку менеджеру в Telegram @GuitarStringsUSA для уточнения сроков поступления.</p>
+            </div>
+            <div class="popup-footer">
+                <button class="btn btn-secondary" onclick="closePopup('outOfStockPopup')">Понятно</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Popup для товаров которые ожидаются -->
+    <div class="popup" id="expectedPopup">
+        <div class="popup-content">
+            <button class="close-btn" onclick="closePopup('expectedPopup')">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="popup-header">
+                <i class="fas fa-clock"></i>
+                <h3>Товар ожидается</h3>
+            </div>
+            <div class="popup-body">
+                <p>Товар ожидается в ближайшее время. Оставьте заявку на этот товар менеджеру в <a href="https://t.me/GuitarStringsUSA" target="_blank" class="telegram-link">Telegram @GuitarStringsUSA</a>.</p>
+                <p>Укажите какое количество товаров и наименования вам необходимы, после чего менеджер забронирует для вас товары из новой поставки и когда товары прибудут в Одессу свяжется с вами.</p>
+            </div>
+            <div class="popup-footer">
+                <button class="btn btn-secondary" onclick="closePopup('expectedPopup')">Понятно</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Popup для товаров под заказ -->
+    <div class="popup" id="onOrderPopup">
+        <div class="popup-content">
+            <button class="close-btn" onclick="closePopup('onOrderPopup')">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="popup-header">
+                <i class="fas fa-shopping-cart"></i>
+                <h3>Товар под заказ</h3>
+            </div>
+            <div class="popup-body">
+                <p>Данный товар доступен под заказ. Свяжитесь с менеджером в <a href="https://t.me/GuitarStringsUSA" target="_blank" class="telegram-link">Telegram @GuitarStringsUSA</a> для оформления заказа.</p>
+                <p>Укажите необходимое количество и менеджер сообщит сроки поставки и стоимость доставки.</p>
+            </div>
+            <div class="popup-footer">
+                <button class="btn btn-secondary" onclick="closePopup('onOrderPopup')">Понятно</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Telegram Web App API уже инициализирован в app.js
+        // Дополнительная инициализация не требуется
+    </script>
 </body>
+</html>
 </html>
