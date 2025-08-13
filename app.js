@@ -35,7 +35,7 @@ let savedScrollPosition = 0;
 
 // Счетчик обновлений страницы (F5)
 let refreshCounter = 0;
-const MAX_REFRESHES_BEFORE_CLEAR = 1; // После 1-го F5 (т.е. при 2-м F5) очищаем кеш
+const MAX_REFRESHES_BEFORE_CLEAR = 2; // После 2-го F5 (т.е. при 3-м F5) очищаем кеш
 
 // Функция для получения текста статуса товара
 function getStatusText(availability) {
@@ -1001,7 +1001,7 @@ function loadState() {
                     refreshCounter = state.refreshCounter;
                     console.log(`loadState: Счетчик обновлений: ${refreshCounter}`);
                     
-                    // Если это второе F5, автоматически очищаем кеш
+                    // Если это третье F5 или больше, автоматически очищаем кеш
                     if (refreshCounter >= MAX_REFRESHES_BEFORE_CLEAR) {
                         console.log('loadState: Достигнут лимит обновлений, автоматически очищаем кеш');
                         setTimeout(() => {
@@ -1038,6 +1038,21 @@ async function restoreAllProducts() {
     // Проверяем, есть ли товары для восстановления
     if (!state.loadedProducts || state.loadedProducts.length === 0) {
         console.log('restoreAllProducts: Нет товаров в сохраненном состоянии, очищаем localStorage');
+        localStorage.removeItem('gs_bot_state');
+        return false;
+    }
+    
+    // Дополнительная проверка валидности данных
+    const invalidProducts = state.loadedProducts.filter(product => 
+        !product.availability || 
+        product.availability === 'undefined' || 
+        product.availability === 'null' ||
+        product.availability === ''
+    );
+    
+    if (invalidProducts.length > 0) {
+        console.log('restoreAllProducts: Обнаружены товары с невалидными статусами:', invalidProducts.length);
+        console.log('restoreAllProducts: Очищаем localStorage и загружаем заново');
         localStorage.removeItem('gs_bot_state');
         return false;
     }
