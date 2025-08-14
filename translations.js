@@ -42,6 +42,17 @@ const translations = {
         
         // Статусы
         onlineStatus: "Напишіть нам, ми онлайн!",
+        onlineStatusOffline: "Напишіть нам, ми пізніше відповімо",
+        
+        // Статусы товаров
+        inStock: "В наявності",
+        outOfStock: "Відсутній",
+        expected: "Очікується",
+        onOrder: "Під замовлення",
+        discontinued: "Знят з виробництва",
+        
+        // Кнопки
+        compare: "Порівняти",
         
         // Попапы товаров
         discontinuedTitle: "Товар знято з виробництва",
@@ -114,6 +125,17 @@ const translations = {
         
         // Статусы
         onlineStatus: "Напишите нам, мы онлайн!",
+        onlineStatusOffline: "Напишите нам, мы позже ответим",
+        
+        // Статусы товаров
+        inStock: "В наличии",
+        outOfStock: "Отсутствует",
+        expected: "Ожидается",
+        onOrder: "Под заказ",
+        discontinued: "Снят с производства",
+        
+        // Кнопки
+        compare: "Сравнить",
         
         // Попапы товаров
         discontinuedTitle: "Товар снят с производства",
@@ -186,6 +208,17 @@ const translations = {
         
         // Statuses
         onlineStatus: "Write to us, we are online!",
+        onlineStatusOffline: "Write to us, we will answer later",
+        
+        // Product statuses
+        inStock: "In stock",
+        outOfStock: "Out of stock",
+        expected: "Expected",
+        onOrder: "On order",
+        discontinued: "Discontinued",
+        
+        // Buttons
+        compare: "Compare",
         
         // Product popups
         discontinuedTitle: "Product discontinued",
@@ -274,6 +307,20 @@ function applyTranslations(language = 'uk') {
     
     // Обновляем заголовок страницы
     document.title = getTranslation('appTitle', language);
+    
+    // Обновляем статус кнопки поддержки
+    if (typeof updateSupportButtonStatus === 'function') {
+        updateSupportButtonStatus();
+    }
+    
+    // Обновляем статусы товаров на странице
+    const statusElements = document.querySelectorAll('.product-status');
+    statusElements.forEach(element => {
+        const originalAvailability = element.closest('.product-card')?.getAttribute('data-original-availability');
+        if (originalAvailability) {
+            element.textContent = getStatusText(originalAvailability);
+        }
+    });
 }
 
 // Функция для инициализации системы переводов
@@ -283,11 +330,31 @@ function initTranslations() {
     setLanguage(savedLanguage);
 }
 
+// Функция для получения текста статуса товара
+function getStatusText(availability) {
+    const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
+    
+    if (availability === 'В наличии в Одессе' || availability === 'В наличии') {
+        return getTranslation('inStock', currentLanguage);
+    } else if (availability === 'Нет в наличии') {
+        return getTranslation('outOfStock', currentLanguage);
+    } else if (availability === 'Снят с производства') {
+        return getTranslation('discontinued', currentLanguage);
+    } else if (availability === 'Ожидается' || availability === 'Ожидается поставка') {
+        return getTranslation('expected', currentLanguage);
+    } else if (availability === 'Под заказ') {
+        return getTranslation('onOrder', currentLanguage);
+    } else {
+        return getTranslation('inStock', currentLanguage);
+    }
+}
+
 // Экспортируем функции для использования в других файлах
 window.translations = {
     getTranslation,
     getTranslationWithParams,
     setLanguage,
     applyTranslations,
-    initTranslations
+    initTranslations,
+    getStatusText
 }; 

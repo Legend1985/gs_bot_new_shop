@@ -52,6 +52,14 @@ const MAX_REFRESHES_BEFORE_CLEAR = 5; // После 5-го F5 (т.е. при 6-�
 
 // Функция для получения текста статуса товара
 function getStatusText(availability) {
+    // Используем функцию из translations.js
+    if (window.translations && window.translations.getStatusText) {
+        return window.translations.getStatusText(availability);
+    }
+    
+    // Fallback если translations.js не загружен
+    const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
+    
     if (availability === 'В наличии в Одессе' || availability === 'В наличии') {
         return 'В наличии';
     } else if (availability === 'Нет в наличии') {
@@ -371,16 +379,34 @@ async function displayProducts(products) {
         return;
     }
 
-    // Оптимизация: показываем все товары сразу для ускорения загрузки
-    const fragment = document.createDocumentFragment();
+    // ОПТИМИЗАЦИЯ: Показываем товары порциями для ускорения отображения
+    const batchSize = 20; // Показываем по 20 товаров за раз
+    let currentIndex = 0;
     
-    products.forEach((product, index) => {
-        const productCard = createProductCardFromSiteData(product, `btn${index + 1}`);
-        fragment.appendChild(productCard);
-    });
+    const showNextBatch = () => {
+        const fragment = document.createDocumentFragment();
+        const endIndex = Math.min(currentIndex + batchSize, products.length);
+        
+        for (let i = currentIndex; i < endIndex; i++) {
+            const productCard = createProductCardFromSiteData(products[i], `btn${i + 1}`);
+            fragment.appendChild(productCard);
+        }
+        
+        container.appendChild(fragment);
+        currentIndex = endIndex;
+        
+        // Если есть еще товары, показываем следующую порцию через небольшую задержку
+        if (currentIndex < products.length) {
+            setTimeout(showNextBatch, 10); // 10мс задержка между порциями
+        } else {
+            // Все товары показаны, настраиваем обработчики
+            setupImageHandlers();
+            console.log(`displayProducts: Все ${products.length} товаров отображены`);
+        }
+    };
     
-    // Добавляем все товары в контейнер сразу
-    container.appendChild(fragment);
+    // Начинаем показывать товары
+    showNextBatch();
 }
 
 // Функция для очистки поиска
@@ -444,6 +470,30 @@ function hideLoadingScreen() {
     if (loadingIndicator) {
         loadingIndicator.style.display = 'none';
         console.log('Индикатор загрузки скрыт');
+    }
+}
+
+// ОПТИМИЗАЦИЯ: Функция предварительной загрузки следующей страницы товаров
+async function preloadNextPage() {
+    if (isLoading || !hasMoreProducts || isSearchActive) return;
+    
+    try {
+        const nextPage = currentPage + 1;
+        const start = nextPage * productsPerPage;
+        
+        // Загружаем данные в фоне без блокировки интерфейса
+        const response = await fetch(`http://localhost:8000/api/products?start=${start}&limit=${productsPerPage}`);
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.products && data.products.length > 0) {
+                // Сохраняем предзагруженные товары
+                window.preloadedProducts = data.products;
+                console.log(`preloadNextPage: Предзагружено ${data.products.length} товаров для страницы ${nextPage}`);
+            }
+        }
+    } catch (error) {
+        console.log('preloadNextPage: Ошибка предзагрузки (не критично):', error);
     }
 }
 
@@ -601,33 +651,56 @@ function renderProducts(products) {
         return;
     }
     
-    products.forEach((product, index) => {
-        console.log(`renderProducts: Обрабатываем товар ${index + 1}:`, product);
-        const productCard = createProductCardFromSiteData(product, `btn${loadedProductNames.size + index + 1}`);
-        console.log(`renderProducts: Карточка создана для товара ${index + 1}:`, productCard);
-        container.appendChild(productCard);
-        console.log(`renderProducts: Карточка ${index + 1} добавлена в контейнер`);
+    // ОПТИМИЗАЦИЯ: Показываем товары порциями для ускорения отображения
+    const batchSize = 15; // Показываем по 15 товаров за раз
+    let currentIndex = 0;
+    
+    const showNextBatch = () => {
+        const fragment = document.createDocumentFragment();
+        const endIndex = Math.min(currentIndex + batchSize, products.length);
         
-        // Добавляем название в множество загруженных
-        loadedProductNames.add(product.name);
-    });
+        for (let i = currentIndex; i < endIndex; i++) {
+            const product = products[i];
+            console.log(`renderProducts: Обрабатываем товар ${i + 1}:`, product);
+            const productCard = createProductCardFromSiteData(product, `btn${loadedProductNames.size + i + 1}`);
+            console.log(`renderProducts: Карточка создана для товара ${i + 1}:`, productCard);
+            fragment.appendChild(productCard);
+            
+            // Добавляем название в множество загруженных
+            loadedProductNames.add(product.name);
+        }
+        
+        container.appendChild(fragment);
+        currentIndex = endIndex;
+        
+        console.log(`renderProducts: Показана порция товаров ${endIndex - batchSize + 1}-${endIndex} из ${products.length}`);
+        
+        // Если есть еще товары, показываем следующую порцию через небольшую задержку
+        if (currentIndex < products.length) {
+            setTimeout(showNextBatch, 5); // 5мс задержка между порциями
+        } else {
+            // Все товары показаны
+            console.log(`renderProducts: Всего товаров в контейнере после добавления:`, container.children.length);
+            
+            // Настраиваем обработчики для новых изображений
+            setupImageHandlers();
+            
+            console.log(`Отображено ${products.length} товаров. Всего загружено: ${loadedProductNames.size}`);
+            
+            // Сохраняем состояние после добавления новых товаров (только если это не восстановление)
+            if (!window.isRestoring) {
+                saveState();
+            }
+            
+            // Проверяем, нужно ли показать сообщение о конце списка
+            if (!hasMoreProducts) {
+                showEndMessage();
+            }
+        }
+    };
     
-    console.log(`renderProducts: Всего товаров в контейнере после добавления:`, container.children.length);
-    
-    // Настраиваем обработчики для новых изображений
-    setupImageHandlers();
-    
-    console.log(`Отображено ${products.length} товаров. Всего загружено: ${loadedProductNames.size}`);
-    
-    // Сохраняем состояние после добавления новых товаров (только если это не восстановление)
-    if (!window.isRestoring) {
-        saveState();
-    }
-    
-    // Проверяем, нужно ли показать сообщение о конце списка
-    if (!hasMoreProducts) {
-        showEndMessage();
-    }
+    // Начинаем показывать товары
+    showNextBatch();
 }
 
 // Функция создания карточки товара
@@ -723,7 +796,7 @@ function createProductCardFromSavedData(productData, btnId) {
         
         <div class="compare-checkbox">
             <input type="checkbox" id="compare-${btnId}">
-            <label for="compare-${btnId}">Сравнить</label>
+            <label for="compare-${btnId}" data-translate="compare">Сравнить</label>
         </div>
         
         <div class="product-prices">
@@ -863,7 +936,7 @@ function createProductCardFromSiteData(product, btnId) {
         
         <div class="compare-checkbox">
             <input type="checkbox" id="compare-${btnId}">
-            <label for="compare-${btnId}">Сравнить</label>
+            <label for="compare-${btnId}" data-translate="compare">Сравнить</label>
         </div>
         
         <div class="product-prices">
@@ -982,25 +1055,41 @@ async function loadMoreProducts() {
         const start = nextPage * productsPerPage;
         
         console.log(`loadMoreProducts: Загружаем страницу ${nextPage}, начиная с ${start}`);
-        console.log(`loadMoreProducts: URL: http://localhost:8000/api/products?start=${start}&limit=${productsPerPage}`);
         
-        const response = await fetch(`http://localhost:8000/api/products?start=${start}&limit=${productsPerPage}`);
+        // ОПТИМИЗАЦИЯ: Проверяем, есть ли предзагруженные товары
+        let data;
+        let newProducts;
         
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+        if (window.preloadedProducts && window.preloadedProducts.length > 0) {
+            console.log(`loadMoreProducts: Используем предзагруженные товары (${window.preloadedProducts.length} шт.)`);
+            data = { success: true, products: window.preloadedProducts, hasMore: true };
+            newProducts = window.preloadedProducts;
+            // Очищаем предзагруженные товары
+            window.preloadedProducts = null;
+        } else {
+            console.log(`loadMoreProducts: Загружаем товары с сервера...`);
+            console.log(`loadMoreProducts: URL: http://localhost:8000/api/products?start=${start}&limit=${productsPerPage}`);
+            
+            const response = await fetch(`http://localhost:8000/api/products?start=${start}&limit=${productsPerPage}`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            data = await response.json();
+            console.log(`loadMoreProducts: Получен ответ, товаров: ${data.products ? data.products.length : 0}`);
+            console.log(`loadMoreProducts: Данные API:`, data);
+            
+            if (data.success) {
+                newProducts = data.products;
+            } else {
+                throw new Error('API вернул ошибку');
+            }
         }
         
-        const data = await response.json();
-        console.log(`loadMoreProducts: Получен ответ, товаров: ${data.products ? data.products.length : 0}`);
-        console.log(`loadMoreProducts: Данные API:`, data);
-        
         if (data.success) {
-            if (data.products && data.products.length > 0) {
-                console.log(`loadMoreProducts: Получено ${data.products.length} товаров`);
-                
-                // НЕ фильтруем дубликаты для разных страниц - каждая страница содержит уникальные товары
-                // Фильтруем только если это действительно дубликаты в рамках одной страницы
-                const newProducts = data.products;
+            if (newProducts && newProducts.length > 0) {
+                console.log(`loadMoreProducts: Получено ${newProducts.length} товаров`);
                 
                 // Отладка для конкретного товара
                 data.products.forEach(product => {
@@ -1016,35 +1105,58 @@ async function loadMoreProducts() {
                 
                 console.log(`loadMoreProducts: Добавляем ${newProducts.length} новых товаров`);
                 
-                // Отображаем новые товары
+                // ОПТИМИЗАЦИЯ: Отображаем новые товары порциями для ускорения
                 const container = document.querySelector('.inner');
-                newProducts.forEach((product, index) => {
-                    const productCard = createProductCardFromSiteData(product, `btn${loadedProductNames.size + index + 1}`);
-                    container.appendChild(productCard);
-                    loadedProductNames.add(product.name);
-                });
+                const batchSize = 15; // Показываем по 15 товаров за раз
+                let currentIndex = 0;
                 
-                // Обновляем текущую страницу
-                currentPage = nextPage;
+                const showNextBatch = () => {
+                    const fragment = document.createDocumentFragment();
+                    const endIndex = Math.min(currentIndex + batchSize, newProducts.length);
+                    
+                    for (let i = currentIndex; i < endIndex; i++) {
+                        const product = newProducts[i];
+                        const productCard = createProductCardFromSiteData(product, `btn${loadedProductNames.size + i + 1}`);
+                        fragment.appendChild(productCard);
+                        loadedProductNames.add(product.name);
+                    }
+                    
+                    container.appendChild(fragment);
+                    currentIndex = endIndex;
+                    
+                    // Если есть еще товары, показываем следующую порцию через небольшую задержку
+                    if (currentIndex < newProducts.length) {
+                        setTimeout(showNextBatch, 5); // 5мс задержка между порциями
+                    } else {
+                        // Все товары показаны
+                        console.log('loadMoreProducts: Все новые товары отображены');
+                        
+                        // Обновляем текущую страницу
+                        currentPage = nextPage;
+                        
+                        // Настраиваем обработчики для новых изображений
+                        setupImageHandlers();
+                        
+                        // Обновляем флаг наличия товаров
+                        hasMoreProducts = data.hasMore;
+                        
+                        console.log(`loadMoreProducts: Обновлено - currentPage=${currentPage}, hasMoreProducts=${hasMoreProducts}`);
+                        
+                        if (!hasMoreProducts) {
+                            console.log('loadMoreProducts: Больше товаров нет');
+                            showEndMessage();
+                        }
+                        
+                        // Сохраняем состояние
+                        saveState();
+                        console.log('loadMoreProducts: Состояние сохранено');
+                        
+                        console.log('loadMoreProducts: Товары добавлены успешно');
+                    }
+                };
                 
-                // Настраиваем обработчики для новых изображений
-                setupImageHandlers();
-                
-                // Обновляем флаг наличия товаров
-                hasMoreProducts = data.hasMore;
-                
-                console.log(`loadMoreProducts: Обновлено - currentPage=${currentPage}, hasMoreProducts=${hasMoreProducts}`);
-                
-                if (!hasMoreProducts) {
-                    console.log('loadMoreProducts: Больше товаров нет');
-                    showEndMessage();
-                }
-                
-                // Сохраняем состояние
-                saveState();
-                console.log('loadMoreProducts: Состояние сохранено');
-                
-                console.log('loadMoreProducts: Товары добавлены успешно');
+                // Начинаем показывать товары порциями
+                showNextBatch();
             } else {
                 // Пустой список товаров означает конец пагинации
                 console.log('loadMoreProducts: Получен пустой список товаров - конец пагинации');
@@ -1363,8 +1475,10 @@ async function restoreAllProducts() {
             console.log(`restoreAllProducts: Загружено ${data.products.length} товаров с сервера`);
             
             // Фильтруем товары, которые были загружены ранее
+            // ОПТИМИЗАЦИЯ: Преобразуем массив в Set для быстрого поиска
+            const loadedNamesSet = new Set(state.loadedProductNames);
             const previouslyLoadedProducts = data.products.filter(product => 
-                state.loadedProductNames.has(product.name)
+                loadedNamesSet.has(product.name)
             );
             
             console.log(`restoreAllProducts: Найдено ${previouslyLoadedProducts.length} ранее загруженных товаров`);
@@ -1523,9 +1637,25 @@ async function loadFirstPage() {
             return;
         }
         
-        const data = await fetchProductData(0);
+        // ОПТИМИЗАЦИЯ: Показываем первые товары быстрее, не блокируя интерфейс
+        console.log('loadFirstPage: Начинаем загрузку товаров...');
+        
+        // Загружаем данные в фоне
+        const dataPromise = fetchProductData(0);
+        
+        // Показываем первые товары сразу, если они есть в кеше
+        if (allProducts && allProducts.length > 0) {
+            console.log('loadFirstPage: Показываем кешированные товары...');
+            displayProducts(allProducts);
+            hideLoadingScreen();
+        }
+        
+        // Ждем загрузки свежих данных
+        const data = await dataPromise;
         
         if (data && data.products && data.products.length > 0) {
+            console.log(`loadFirstPage: Загружено ${data.products.length} товаров`);
+            
             // Обновляем глобальные переменные
             maxProducts = data.total || data.products.length;
             hasMoreProducts = data.hasMore;
@@ -1539,8 +1669,10 @@ async function loadFirstPage() {
                 loadedProductNames.add(product.name);
             });
             
-            // Отображаем товары с поддержкой поиска
-            displayProducts(allProducts);
+            // Отображаем товары с поддержкой поиска (если они еще не показаны)
+            if (!container.children.length || container.children.length < data.products.length) {
+                displayProducts(allProducts);
+            }
             
             // Скрываем экран загрузки
             hideLoadingScreen();
@@ -1558,6 +1690,11 @@ async function loadFirstPage() {
             // Если товаров больше нет, показываем сообщение о конце
             if (!hasMoreProducts) {
                 showEndMessage();
+            } else {
+                // ОПТИМИЗАЦИЯ: Запускаем предзагрузку следующей страницы
+                setTimeout(() => {
+                    preloadNextPage();
+                }, 1000); // Запускаем через 1 секунду после загрузки первой страницы
             }
         } else {
             console.error('loadFirstPage: Не удалось загрузить товары - нет данных');
@@ -1604,10 +1741,10 @@ async function loadFirstPage() {
         
         // Восстанавливаем loading indicator если он был
         if (loadingIndicator) {
-            container.appendChild(loadingIndicator);
+                container.appendChild(loadingIndicator);
+            }
         }
     }
-}
 
 // Функция очистки состояния
 function clearState() {
@@ -1665,6 +1802,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         if (savedState) {
             console.log('Найдено сохранённое состояние, пытаемся восстановить...');
+            
+            // ОПТИМИЗАЦИЯ: Проверяем корректность сохраненного состояния
+            if (!savedState.loadedProductNames || !Array.isArray(savedState.loadedProductNames)) {
+                console.log('Состояние повреждено, очищаем localStorage и загружаем заново');
+                clearLocalStorage();
+                await loadFirstPage();
+                return;
+            }
             
             // Проверяем, не устарело ли состояние (24 часа)
             if (Date.now() - savedState.timestamp < 24 * 60 * 60 * 1000) {
@@ -2197,14 +2342,20 @@ function setupPopupClickOutside() {
 
 // Функция проверки онлайн статуса пользователя в Telegram
 async function checkTelegramUserStatus(username) {
-    // Простая логика по времени: 9:00-19:00 = онлайн, остальное время = оффлайн
+    // ОПТИМИЗАЦИЯ: Используем Киевское время (UTC+3) для правильного отображения статуса
     const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-    const isWorkingHours = currentHour >= 9 && currentHour <= 19; // Рабочие часы 9:00-19:00, без выходных
     
-    console.log(`Статус поддержки по времени:`, {
-        currentTime: `${currentHour}:${currentMinute.toString().padStart(2, '0')}`,
+    // Получаем время в Киевском часовом поясе (UTC+3)
+    const kievTime = new Date(now.getTime() + (3 * 60 * 60 * 1000)); // UTC+3 для Киева
+    const currentHour = kievTime.getUTCHours();
+    const currentMinute = kievTime.getUTCMinutes();
+    
+    // Рабочие часы 9:00-19:00 по Киевскому времени
+    const isWorkingHours = currentHour >= 9 && currentHour <= 19;
+    
+    console.log(`Статус поддержки по Киевскому времени:`, {
+        localTime: `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`,
+        kievTime: `${currentHour}:${currentMinute.toString().padStart(2, '0')}`,
         isWorkingHours,
         isOnline: isWorkingHours
     });
@@ -2213,7 +2364,8 @@ async function checkTelegramUserStatus(username) {
         isOnline: isWorkingHours, 
         username: username,
         debug: {
-            currentTime: `${currentHour}:${currentMinute.toString().padStart(2, '0')}`,
+            localTime: `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`,
+            kievTime: `${currentHour}:${currentMinute.toString().padStart(2, '0')}`,
             isWorkingHours
         }
     };
@@ -2254,19 +2406,21 @@ async function updateSupportButtonStatus() {
         // Проверяем статус пользователя @GuitarStringsUSA
         const userInfo = await checkTelegramUserStatus('GuitarStringsUSA');
         
-        if (userInfo && userInfo.isOnline) {
-            // Если пользователь онлайн, показываем зеленый статус
-            statusDot.style.background = '#4CAF50'; // Зеленый цвет для онлайн
-            statusText.textContent = 'Напишите нам, мы онлайн!';
-            supportButton.classList.add('online');
-            supportButton.classList.remove('offline');
-        } else {
-            // Если пользователь оффлайн, показываем синий статус
-            statusDot.style.background = '#2196F3'; // Синий цвет для оффлайн
-            statusText.textContent = 'Напишите нам, мы позже ответим';
-            supportButton.classList.add('offline');
-            supportButton.classList.remove('online');
-        }
+        const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
+        
+            if (userInfo && userInfo.isOnline) {
+        // Если пользователь онлайн, показываем зеленый статус
+        statusDot.style.background = '#4CAF50'; // Зеленый цвет для онлайн
+        statusText.textContent = window.translations.getTranslation('onlineStatus', currentLanguage);
+        supportButton.classList.add('online');
+        supportButton.classList.remove('offline');
+    } else {
+        // Если пользователь оффлайн, показываем синий статус
+        statusDot.style.background = '#2196F3'; // Синий цвет для оффлайн
+        statusText.textContent = window.translations.getTranslation('onlineStatusOffline', currentLanguage);
+        supportButton.classList.add('offline');
+        supportButton.classList.remove('online');
+    }
     } catch (error) {
         console.error('Ошибка обновления статуса поддержки:', error);
         // По умолчанию показываем оффлайн статус
