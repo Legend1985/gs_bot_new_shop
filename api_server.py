@@ -125,14 +125,45 @@ def static_files(filename):
 def api_products():
     start = request.args.get('start', 0, type=int)
     limit = request.args.get('limit', 60, type=int)
+    search = request.args.get('search', '').lower().strip()
     
-    print(f"API Products: start={start}, limit={limit}")
+    print(f"API Products: start={start}, limit={limit}, search='{search}'")
     
     try:
         # Get all products from all pages
         product_items = scrape_all_pages()
         
         print(f"Debug: Total products available: {len(product_items)}")
+        
+        # Если есть поисковый запрос, фильтруем товары
+        if search:
+            print(f"Debug: Filtering products for search term: '{search}'")
+            filtered_items = []
+            for item in product_items:
+                try:
+                    # Извлекаем название товара для поиска
+                    name_elem = item.find('h3', class_='product-title') or item.find('h3', class_='title') or item.find('h3') or item.find('h2') or item.find('a', class_='title')
+                    name = name_elem.get_text(strip=True) if name_elem else ""
+                    
+                    # Ищем в названии товара
+                    if search in name.lower():
+                        filtered_items.append(item)
+                        continue
+                    
+                    # Также можно искать в описании, если оно есть
+                    desc_elem = item.find('div', class_='product-description') or item.find('p', class_='description') or item.find('div', class_='desc')
+                    if desc_elem:
+                        description = desc_elem.get_text(strip=True)
+                        if search in description.lower():
+                            filtered_items.append(item)
+                            continue
+                            
+                except Exception as e:
+                    print(f"Error filtering product: {e}")
+                    continue
+            
+            product_items = filtered_items
+            print(f"Debug: After filtering, {len(product_items)} products match search term")
         
         # Apply pagination to the combined product list
         if start >= len(product_items):
@@ -141,7 +172,7 @@ def api_products():
             return jsonify({
                 'success': True,
                 'products': [],
-                'total': 0,
+                'total': len(product_items),
                 'start': start,
                 'limit': limit,
                 'hasMore': False

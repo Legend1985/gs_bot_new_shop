@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест кнопок v2</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #f8a818;
+            --accent-color: #ff6b6b;
+            --bg-secondary: #f8f9fa;
+            --border-color: #e0e0e0;
+            --shadow-small: 0 2px 4px rgba(0, 0, 0, 0.1);
+            --border-radius: 12px;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-secondary);
+            padding: 20px;
+        }
+        
+        .test-section {
+            background: white;
+            padding: 20px;
+            border-radius: var(--border-radius);
+            margin-bottom: 20px;
+            box-shadow: var(--shadow-small);
+        }
+        
+        .menu-btn {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            width: 40px;
+            height: 40px;
+            border-radius: var(--border-radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: var(--shadow-small);
+            position: relative;
+            z-index: 1000;
+            pointer-events: auto;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+        
+        .settings-btn {
+            background: var(--accent-color);
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: var(--border-radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: var(--shadow-small);
+            position: relative;
+            z-index: 1000;
+            pointer-events: auto;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+        
+        .menu-btn:hover {
+            background: var(--accent-color);
+            color: white;
+            transform: scale(1.05);
+        }
+        
+        .settings-btn:hover {
+            background: #e55555;
+            transform: scale(1.05);
+        }
+        
+        .debug-btn {
+            background: #ff4757;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.3s;
+        }
+        
+        .debug-btn:hover {
+            background: #ff3742;
+        }
+        
+        .popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+            display: none;
+            z-index: 2000;
+        }
+        
+        .popup.show {
+            display: block;
+        }
+        
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Тест кнопок v2</h1>
+    
+    <div class="test-section">
+        <h2>Кнопки меню и настроек</h2>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <button class="menu-btn" id="menuBtn">
+                <i class="fas fa-bars"></i>
+            </button>
+            <button class="settings-btn" id="settingsBtn">
+                <i class="fas fa-cog"></i>
+            </button>
+            <button class="debug-btn" onclick="clearCache()">
+                Принудительная очистка кеша
+            </button>
+        </div>
+        
+        <div class="log" id="log"></div>
+    </div>
+    
+    <!-- Popup для меню -->
+    <div class="popup" id="menuPopup">
+        <h3>Меню</h3>
+        <p>Это popup меню</p>
+        <button onclick="closePopup('menuPopup')">Закрыть</button>
+    </div>
+    
+    <!-- Popup для настроек -->
+    <div class="popup" id="settingsPopup">
+        <h3>Настройки</h3>
+        <p>Это popup настроек</p>
+        <button onclick="closePopup('settingsPopup')">Закрыть</button>
+    </div>
+    
+    <script>
+        function log(message) {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.innerHTML += `[${timestamp}] ${message}<br>`;
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(message);
+        }
+        
+        function showMenuPopup() {
+            log('=== showMenuPopup: Показываем popup меню ===');
+            const popup = document.getElementById('menuPopup');
+            log('menuPopup найден: ' + (popup ? 'ДА' : 'НЕТ'));
+            openPopup('menuPopup');
+        }
+        
+        function showSettingsPopup() {
+            log('=== showSettingsPopup: Показываем popup настроек ===');
+            const popup = document.getElementById('settingsPopup');
+            log('settingsPopup найден: ' + (popup ? 'ДА' : 'НЕТ'));
+            openPopup('settingsPopup');
+        }
+        
+        function openPopup(popupId) {
+            log(`openPopup: Открываем popup с ID: ${popupId}`);
+            
+            // Сначала закрываем все другие popup'ы
+            const allPopups = ['menuPopup', 'settingsPopup'];
+            allPopups.forEach(id => {
+                if (id !== popupId) {
+                    const popup = document.getElementById(id);
+                    if (popup && popup.classList.contains('show')) {
+                        popup.classList.remove('show');
+                        log(`openPopup: Закрыт popup ${id} перед открытием ${popupId}`);
+                    }
+                }
+            });
+            
+            // Теперь открываем нужный popup
+            const popup = document.getElementById(popupId);
+            if (popup) {
+                popup.classList.add('show');
+                log(`openPopup: Popup ${popupId} открыт`);
+            } else {
+                log(`openPopup: Popup с ID ${popupId} не найден`);
+            }
+        }
+        
+        function closePopup(popupId) {
+            const popup = document.getElementById(popupId);
+            if (popup) {
+                popup.classList.remove('show');
+                log(`closePopup: Popup ${popupId} закрыт`);
+            }
+        }
+        
+        function clearCache() {
+            log('=== clearCache: Функция вызвана ===');
+            try {
+                localStorage.clear();
+                log('clearCache: localStorage очищен');
+                
+                if ('caches' in window) {
+                    caches.keys().then(function(names) {
+                        for (let name of names) {
+                            caches.delete(name);
+                            log('clearCache: Кеш удален: ' + name);
+                        }
+                    });
+                }
+                
+                alert('Кеш очищен! Страница будет перезагружена.');
+                setTimeout(() => {
+                    window.location.reload(true);
+                }, 1000);
+                
+            } catch (error) {
+                log('clearCache: Ошибка: ' + error.message);
+            }
+        }
+        
+        // Инициализация при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            log('=== Инициализация теста кнопок v2 ===');
+            
+            // Настраиваем обработчики для кнопок меню и настроек
+            log('=== НАСТРОЙКА КНОПОК МЕНЮ И НАСТРОЕК ===');
+            
+            const menuBtn = document.querySelector('#menuBtn');
+            log('menuBtn найден: ' + (menuBtn ? 'ДА' : 'НЕТ'));
+            if (menuBtn) {
+                // Добавляем несколько обработчиков для надежности
+                menuBtn.addEventListener('click', (e) => {
+                    log('КНОПКА МЕНЮ НАЖАТА! (addEventListener)');
+                    e.stopPropagation();
+                    e.preventDefault();
+                    showMenuPopup();
+                });
+                
+                // Добавляем обработчик onclick для дополнительной надежности
+                menuBtn.onclick = (e) => {
+                    log('КНОПКА МЕНЮ НАЖАТА! (onclick)');
+                    e.stopPropagation();
+                    e.preventDefault();
+                    showMenuPopup();
+                };
+                
+                log('Обработчик кнопки меню настроен');
+            } else {
+                log('ОШИБКА: Кнопка меню не найдена!');
+            }
+            
+            const settingsBtn = document.querySelector('#settingsBtn');
+            log('settingsBtn найден: ' + (settingsBtn ? 'ДА' : 'НЕТ'));
+            if (settingsBtn) {
+                // Добавляем несколько обработчиков для надежности
+                settingsBtn.addEventListener('click', (e) => {
+                    log('КНОПКА НАСТРОЕК НАЖАТА! (addEventListener)');
+                    e.stopPropagation();
+                    e.preventDefault();
+                    showSettingsPopup();
+                });
+                
+                // Добавляем обработчик onclick для дополнительной надежности
+                settingsBtn.onclick = (e) => {
+                    log('КНОПКА НАСТРОЕК НАЖАТА! (onclick)');
+                    e.stopPropagation();
+                    e.preventDefault();
+                    showSettingsPopup();
+                };
+                
+                log('Обработчик кнопки настроек настроен');
+            } else {
+                log('ОШИБКА: Кнопка настроек не найдена!');
+            }
+            
+            log('=== КОНЕЦ НАСТРОЙКИ КНОПОК ===');
+            log('Инициализация завершена успешно');
+        });
+    </script>
+</body>
+</html> 

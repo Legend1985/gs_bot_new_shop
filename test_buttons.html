@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест кнопок</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+        }
+        .menu-btn, .settings-btn {
+            padding: 10px 15px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            background: #f0f0f0;
+        }
+        .menu-btn:hover, .settings-btn:hover {
+            background: #e0e0e0;
+        }
+        .popup-menu, .popup-settings {
+            position: absolute;
+            display: none;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 10px;
+            margin-top: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .popup-menu.show, .popup-settings.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <h1>Тест кнопок меню и настроек</h1>
+    
+    <div class="test-section">
+        <h3>Тест 1: Простые кнопки</h3>
+        <button class="menu-btn" onclick="testMenuClick()">Меню</button>
+        <button class="settings-btn" onclick="testSettingsClick()">Настройки</button>
+        
+        <div class="popup-menu" id="menuPopup">
+            <h4>Меню открыто!</h4>
+            <p>Это тестовое меню</p>
+            <button onclick="closePopup('menuPopup')">Закрыть</button>
+        </div>
+        
+        <div class="popup-settings" id="settingsPopup">
+            <h4>Настройки открыты!</h4>
+            <p>Это тестовые настройки</p>
+            <button onclick="closePopup('settingsPopup')">Закрыть</button>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Тест 2: Кнопки с обработчиками событий</h3>
+        <button class="menu-btn" id="menuBtn2">Меню (addEventListener)</button>
+        <button class="settings-btn" id="settingsBtn2">Настройки (addEventListener)</button>
+    </div>
+    
+    <div class="test-section">
+        <h3>Логи консоли:</h3>
+        <div id="logs" style="background: #f5f5f5; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto;"></div>
+    </div>
+
+    <script>
+        function log(message) {
+            console.log(message);
+            const logsDiv = document.getElementById('logs');
+            logsDiv.innerHTML += new Date().toLocaleTimeString() + ': ' + message + '<br>';
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+        
+        function testMenuClick() {
+            log('Кнопка меню нажата (onclick)');
+            openPopup('menuPopup');
+        }
+        
+        function testSettingsClick() {
+            log('Кнопка настроек нажата (onclick)');
+            openPopup('settingsPopup');
+        }
+        
+        function openPopup(popupId) {
+            log(`Открываем popup: ${popupId}`);
+            const popup = document.getElementById(popupId);
+            if (popup) {
+                popup.classList.add('show');
+                log(`Popup ${popupId} открыт`);
+            } else {
+                log(`ОШИБКА: Popup ${popupId} не найден`);
+            }
+        }
+        
+        function closePopup(popupId) {
+            log(`Закрываем popup: ${popupId}`);
+            const popup = document.getElementById(popupId);
+            if (popup) {
+                popup.classList.remove('show');
+                log(`Popup ${popupId} закрыт`);
+            } else {
+                log(`ОШИБКА: Popup ${popupId} не найден`);
+            }
+        }
+        
+        // Настройка обработчиков событий
+        document.addEventListener('DOMContentLoaded', function() {
+            log('DOM загружен, настраиваем обработчики...');
+            
+            const menuBtn2 = document.getElementById('menuBtn2');
+            const settingsBtn2 = document.getElementById('settingsBtn2');
+            
+            if (menuBtn2) {
+                menuBtn2.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    log('Кнопка меню нажата (addEventListener)');
+                    openPopup('menuPopup');
+                });
+                log('Обработчик кнопки меню настроен');
+            } else {
+                log('ОШИБКА: Кнопка меню не найдена');
+            }
+            
+            if (settingsBtn2) {
+                settingsBtn2.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    log('Кнопка настроек нажата (addEventListener)');
+                    openPopup('settingsPopup');
+                });
+                log('Обработчик кнопки настроек настроен');
+            } else {
+                log('ОШИБКА: Кнопка настроек не найдена');
+            }
+            
+            // Закрытие при клике вне popup
+            document.addEventListener('click', function(e) {
+                const menuPopup = document.getElementById('menuPopup');
+                const settingsPopup = document.getElementById('settingsPopup');
+                
+                if (menuPopup && menuPopup.classList.contains('show')) {
+                    const menuBtn = document.querySelector('.menu-btn');
+                    if (!menuBtn.contains(e.target) && !menuPopup.contains(e.target)) {
+                        closePopup('menuPopup');
+                    }
+                }
+                
+                if (settingsPopup && settingsPopup.classList.contains('show')) {
+                    const settingsBtn = document.querySelector('.settings-btn');
+                    if (!settingsBtn.contains(e.target) && !settingsPopup.contains(e.target)) {
+                        closePopup('settingsPopup');
+                    }
+                }
+            });
+            
+            log('Все обработчики настроены');
+        });
+    </script>
+</body>
+</html> 

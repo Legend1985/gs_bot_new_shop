@@ -1,63 +1,133 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="uk">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GuitarStrings.com.ua</title>
-    <link rel="stylesheet" href="style.css?v=9.5">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <script src="app.js?v=9.5" defer></script>
+                                <link rel="stylesheet" href="style.css?v=10.49">
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+        <script src="translations.js?v=10.49"></script>
+        <script src="app.js?v=10.49" defer></script>
 </head>
 <body>
     <!-- Верхний хедер -->
     <header class="app-header">
         <div class="header-left">
-            <h1 class="app-title">GuitarStrings.com.ua</h1>
-            <div class="bonus-info">Кол-во бонусов: 100</div>
+            <h1 class="app-title" data-translate="appTitle">GuitarStrings.com.ua</h1>
+            <div class="bonus-info" data-translate="bonusInfo">Кол-во бонусов: 100</div>
         </div>
         <div class="header-right">
             <div class="profile-pic" onclick="toggleAvatarMenu()">
-                <i class="fas fa-user"></i>
+                <img id="profile-image" class="profile-image" src="" alt="Profile" style="display: none;">
+                <i class="fas fa-user" id="profile-icon"></i>
             </div>
-        </div>
-        
-        <!-- Выпадающее меню аватара -->
-        <div class="avatar-dropdown" id="avatarDropdown">
-            <div class="dropdown-item">
-                <i class="fas fa-user"></i>
-                <span>Профиль</span>
-            </div>
-            <div class="dropdown-item">
-                <i class="fas fa-cog"></i>
-                <span>Настройки</span>
-            </div>
-            <div class="dropdown-item">
-                <i class="fas fa-sign-out-alt"></i>
-                <span>Выйти</span>
+            
+            <!-- Выпадающее меню аватара -->
+            <div class="avatar-dropdown" id="avatarDropdown">
+                <div class="dropdown-item">
+                    <i class="fas fa-user"></i>
+                    <span data-translate="profile">Профиль</span>
+                </div>
+                <div class="dropdown-item">
+                    <i class="fas fa-cog"></i>
+                    <span data-translate="settings">Настройки</span>
+                </div>
+                <div class="dropdown-item">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span data-translate="logout">Выйти</span>
+                </div>
             </div>
         </div>
 
         <!-- Кнопки для отладки -->
         <div class="debug-buttons">
-            <button onclick="clearLocalStorage()" class="debug-btn">Принудительная очистка кеша</button>
+            <button onclick="clearLocalStorage()" class="debug-btn" data-translate="clearCache">Принудительная очистка кеша</button>
         </div>
     </header>
 
     <!-- Поисковая строка -->
     <div class="search-section">
+        <button class="menu-btn">
+            <i class="fas fa-bars"></i>
+        </button>
         <div class="search-bar">
             <i class="fas fa-search search-icon"></i>
-            <input type="text" placeholder="Поиск" class="search-input">
-            <button class="settings-btn">
-                <i class="fas fa-cog"></i>
-            </button>
+            <input type="text" placeholder="Поиск" class="search-input" data-translate="searchPlaceholder">
+        </div>
+        <button class="settings-btn">
+            <i class="fas fa-cog"></i>
+        </button>
+        
+        <!-- Popup для меню -->
+        <div class="popup-menu" id="menuPopup">
+            <div class="popup-menu-content">
+                <button class="close-btn" onclick="closePopup('menuPopup')">
+                    <i class="fas fa-times"></i>
+                </button>
+                <div class="popup-menu-header">
+                    <h3 data-translate="menu">Меню</h3>
+                </div>
+                <div class="popup-menu-body">
+                    <div class="menu-item">
+                        <i class="fas fa-home"></i>
+                        <span data-translate="home">Главная</span>
+                    </div>
+                    <div class="menu-item">
+                        <i class="fas fa-guitar"></i>
+                        <span data-translate="catalog">Каталог</span>
+                    </div>
+                    <div class="menu-item">
+                        <i class="fas fa-info-circle"></i>
+                        <span data-translate="about">О нас</span>
+                    </div>
+                    <div class="menu-item">
+                        <i class="fas fa-phone"></i>
+                        <span data-translate="contacts">Контакты</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Popup для настроек -->
+        <div class="popup-settings" id="settingsPopup">
+            <div class="popup-settings-content">
+                <button class="close-btn" onclick="closePopup('settingsPopup')">
+                    <i class="fas fa-times"></i>
+                </button>
+                <div class="popup-settings-header">
+                    <h3 data-translate="settings">Настройки</h3>
+                </div>
+                <div class="popup-settings-body">
+                    <div class="settings-item">
+                        <i class="fas fa-bell"></i>
+                        <span data-translate="notifications">Уведомления</span>
+                    </div>
+                    <div class="settings-item">
+                        <i class="fas fa-palette"></i>
+                        <span data-translate="theme">Тема</span>
+                    </div>
+                    <div class="settings-item language-selector">
+                        <i class="fas fa-language"></i>
+                        <span data-translate="language">Язык</span>
+                        <div class="language-buttons">
+                            <button class="language-btn" data-lang="uk" data-translate="ukr">UKR</button>
+                            <button class="language-btn" data-lang="ru" data-translate="rus">RUS</button>
+                            <button class="language-btn" data-lang="en" data-translate="eng">ENG</button>
+                        </div>
+                    </div>
+                    <div class="settings-item">
+                        <i class="fas fa-cog"></i>
+                        <span data-translate="additional">Дополнительно</span>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- Главный баннер -->
     <div class="main-banner">
         <div class="banner-content">
-            <h2 class="banner-title">Electric Guitar Strings</h2>
+            <h2 class="banner-title" data-translate="bannerTitle">Electric Guitar Strings</h2>
             <div class="brand-logos">
                 <div class="brand-logo">Pyramid</div>
                 <div class="brand-logo">Elixir</div>
@@ -71,42 +141,41 @@
     <div class="container">
         <div class="inner">
             <!-- Товары будут загружены динамически -->
-        </div>
-
-        <!-- Индикатор загрузки для бесконечной прокрутки -->
-        <div id="loading-indicator">
-            <div class="loading-spinner-small"></div>
-            <p>Загружаем еще товары...</p>
+            
+            <!-- Индикатор загрузки для бесконечной прокрутки -->
+            <div id="loading-indicator">
+                <div class="loading-spinner-small"></div>
+            </div>
         </div>
     </div>
 
     <!-- Онлайн статус -->
     <div class="online-status">
         <div class="status-dot"></div>
-        <span>Напишите нам, мы онлайн!</span>
+        <span data-translate="onlineStatus">Напишите нам, мы онлайн!</span>
     </div>
 
     <!-- Нижняя навигация -->
     <nav class="bottom-nav">
         <div class="nav-item active">
             <i class="fas fa-home"></i>
-            <span>Товары</span>
+            <span data-translate="products">Товары</span>
         </div>
         <div class="nav-item">
             <i class="fas fa-user"></i>
-            <span>Кабинет</span>
+            <span data-translate="cabinet">Кабинет</span>
         </div>
         <div class="nav-item">
             <i class="far fa-heart"></i>
-            <span>Избранное</span>
+            <span data-translate="favorites">Избранное</span>
         </div>
         <div class="nav-item">
             <i class="fas fa-list"></i>
-            <span>Заказы</span>
+            <span data-translate="orders">Заказы</span>
         </div>
         <div class="nav-item">
             <i class="fas fa-shopping-cart"></i>
-            <span>Корзина</span>
+            <span data-translate="cart">Корзина</span>
         </div>
     </nav>
 
@@ -123,14 +192,14 @@
             </button>
             <div class="popup-header">
                 <img src="images/Discontinued.jpg" alt="Извиняющийся котик" class="popup-cat-image">
-                <h3>Товар снят с производства</h3>
+                <h3 data-translate="discontinuedTitle">Товар снят с производства</h3>
             </div>
             <div class="popup-body">
-                <p>Данный товар больше не производится и недоступен для заказа.</p>
-                <p>Рекомендуем обратить внимание на аналогичные товары в нашем каталоге.</p>
+                <p data-translate="discontinuedText1">Данный товар больше не производится и недоступен для заказа.</p>
+                <p data-translate="discontinuedText2">Рекомендуем обратить внимание на аналогичные товары в нашем каталоге.</p>
             </div>
             <div class="popup-footer">
-                <button class="btn btn-secondary" onclick="closePopup('discontinuedPopup')">Понятно</button>
+                <button class="btn btn-secondary" onclick="closePopup('discontinuedPopup')" data-translate="understand">Понятно</button>
             </div>
         </div>
     </div>
@@ -143,14 +212,14 @@
             </button>
             <div class="popup-header">
                 <i class="fas fa-times-circle"></i>
-                <h3>Товар отсутствует</h3>
+                <h3 data-translate="outOfStockTitle">Товар отсутствует</h3>
             </div>
             <div class="popup-body">
-                <p>К сожалению, данный товар временно отсутствует на складе.</p>
-                <p>Оставьте заявку менеджеру в Telegram @GuitarStringsUSA для уточнения сроков поступления.</p>
+                <p data-translate="outOfStockText1">К сожалению, данный товар временно отсутствует на складе.</p>
+                <p data-translate="outOfStockText2">Оставьте заявку менеджеру в Telegram @GuitarStringsUSA для уточнения сроков поступления.</p>
             </div>
             <div class="popup-footer">
-                <button class="btn btn-secondary" onclick="closePopup('outOfStockPopup')">Понятно</button>
+                <button class="btn btn-secondary" onclick="closePopup('outOfStockPopup')" data-translate="understand">Понятно</button>
             </div>
         </div>
     </div>
@@ -163,14 +232,14 @@
             </button>
             <div class="popup-header">
                 <i class="fas fa-clock"></i>
-                <h3>Товар ожидается</h3>
+                <h3 data-translate="expectedTitle">Товар ожидается</h3>
             </div>
             <div class="popup-body">
-                <p>Товар ожидается в ближайшее время. Оставьте заявку на этот товар менеджеру в <a href="https://t.me/GuitarStringsUSA" target="_blank" class="telegram-link">Telegram @GuitarStringsUSA</a>.</p>
-                <p>Укажите какое количество товаров и наименования вам необходимы, после чего менеджер забронирует для вас товары из новой поставки и когда товары прибудут в Одессу свяжется с вами.</p>
+                <p><span data-translate="expectedText1">Товар ожидается в ближайшее время. Оставьте заявку на этот товар менеджеру в</span> <a href="https://t.me/GuitarStringsUSA" target="_blank" class="telegram-link">Telegram @GuitarStringsUSA</a>.</p>
+                <p data-translate="expectedText2">Укажите какое количество товаров и наименования вам необходимы, после чего менеджер забронирует для вас товары из новой поставки и когда товары прибудут в Одессу свяжется с вами.</p>
             </div>
             <div class="popup-footer">
-                <button class="btn btn-secondary" onclick="closePopup('expectedPopup')">Понятно</button>
+                <button class="btn btn-secondary" onclick="closePopup('expectedPopup')" data-translate="understand">Понятно</button>
             </div>
         </div>
     </div>
@@ -183,14 +252,14 @@
             </button>
             <div class="popup-header">
                 <i class="fas fa-shopping-cart"></i>
-                <h3>Товар под заказ</h3>
+                <h3 data-translate="onOrderTitle">Товар под заказ</h3>
             </div>
             <div class="popup-body">
-                <p>Данный товар доступен под заказ. Свяжитесь с менеджером в <a href="https://t.me/GuitarStringsUSA" target="_blank" class="telegram-link">Telegram @GuitarStringsUSA</a> для оформления заказа.</p>
-                <p>Укажите необходимое количество и менеджер сообщит сроки поставки и стоимость доставки.</p>
+                <p><span data-translate="onOrderText1">Данный товар доступен под заказ. Свяжитесь с менеджером в</span> <a href="https://t.me/GuitarStringsUSA" target="_blank" class="telegram-link">Telegram @GuitarStringsUSA</a> <span data-translate="onOrderText1End">для оформления заказа.</span></p>
+                <p data-translate="onOrderText2">Укажите необходимое количество и менеджер сообщит сроки поставки и стоимость доставки.</p>
             </div>
             <div class="popup-footer">
-                <button class="btn btn-secondary" onclick="closePopup('onOrderPopup')">Понятно</button>
+                <button class="btn btn-secondary" onclick="closePopup('onOrderPopup')" data-translate="understand">Понятно</button>
             </div>
         </div>
     </div>
@@ -200,5 +269,4 @@
         // Дополнительная инициализация не требуется
     </script>
 </body>
-</html>
 </html>

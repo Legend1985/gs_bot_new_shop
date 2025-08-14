@@ -1,3 +1,11 @@
+// Инициализация системы переводов
+if (typeof window.translations !== 'undefined') {
+    window.translations.initTranslations();
+    console.log('Система переводов инициализирована');
+} else {
+    console.warn('Система переводов не найдена');
+}
+
 // Проверяем, находимся ли мы в Telegram Web App
 let tg;
 if (window.Telegram && window.Telegram.WebApp) {
@@ -33,9 +41,14 @@ let maxProducts = 0;
 let loadedProductNames = new Set();
 let savedScrollPosition = 0;
 
+// Переменные для поиска
+let allProducts = []; // Массив всех загруженных товаров
+let searchTerm = ''; // Текущий поисковый запрос
+let isSearchActive = false; // Флаг активного поиска
+
 // Счетчик обновлений страницы (F5)
 let refreshCounter = 0;
-const MAX_REFRESHES_BEFORE_CLEAR = 2; // После 2-го F5 (т.е. при 3-м F5) очищаем кеш
+const MAX_REFRESHES_BEFORE_CLEAR = 5; // После 5-го F5 (т.е. при 6-м F5) очищаем кеш
 
 // Функция для получения текста статуса товара
 function getStatusText(availability) {
@@ -100,57 +113,303 @@ function clearLocalStorage() {
         currentPage = 0;
         isLoading = false;
         hasMoreProducts = true;
-        loadedProductNames.clear();
         maxProducts = 0;
+        loadedProductNames.clear();
         savedScrollPosition = 0;
+        
+        // Сбрасываем переменные поиска
+        allProducts = [];
+        searchTerm = '';
+        isSearchActive = false;
         
         console.log('clearLocalStorage: Глобальные переменные сброшены');
         
-        // Скрываем сообщение о конце
-        const endMessage = document.querySelector('.end-message');
-        if (endMessage) {
-            endMessage.style.display = 'none';
-            console.log('clearLocalStorage: Сообщение о конце скрыто');
+        // Очищаем кеш браузера
+        if ('caches' in window) {
+            caches.keys().then(names => {
+                names.forEach(name => {
+                    caches.delete(name);
+                });
+                console.log('clearLocalStorage: Кеш браузера очищен');
+            });
         }
         
-        // Обновляем текст индикатора загрузки
-        const loadingText = document.querySelector('#loading-indicator p');
-        if (loadingText) {
-            loadingText.textContent = 'Загружаем еще товары...';
-            console.log('clearLocalStorage: Текст индикатора загрузки обновлен');
-        }
-        
-        // Показываем индикатор загрузки
-        const loadingIndicator = document.getElementById('loading-indicator');
-        if (loadingIndicator) {
-            loadingIndicator.style.display = 'block';
-            console.log('clearLocalStorage: Индикатор загрузки показан');
-        }
-        
-        // Очищаем контейнер с товарами
-        const container = document.querySelector('.inner');
-        if (container) {
-            container.innerHTML = '';
-            console.log('clearLocalStorage: Контейнер с товарами очищен');
-        }
-        
-        console.log('clearLocalStorage: Все данные очищены, начинаем загрузку заново...');
-        
-        // Загружаем данные заново
-        loadFirstPage();
+        // Принудительная перезагрузка страницы
+        console.log('clearLocalStorage: Выполняем принудительную перезагрузку...');
+        window.location.reload(true);
         
     } catch (error) {
         console.error('clearLocalStorage: Ошибка при очистке:', error);
+        // Даже при ошибке пытаемся перезагрузить
+        window.location.reload(true);
+    }
+}
+
+// Функция для поиска товаров
+async function searchProducts(query) {
+    console.log(`=== ПОИСК ТОВАРОВ: "${query}" ===`);
+    
+    searchTerm = query.toLowerCase().trim();
+    isSearchActive = searchTerm.length > 0;
+    
+    console.log(`Поисковый запрос: "${searchTerm}"`);
+    console.log(`Активный поиск: ${isSearchActive}`);
+    console.log(`Всего товаров для поиска: ${allProducts.length}`);
+    
+    if (!isSearchActive) {
+        // Если поиск отменен, показываем все загруженные товары
+        console.log('Поиск отменен, показываем все загруженные товары');
+        displayProducts(allProducts);
+        return;
+    }
+    
+    // Сначала фильтруем уже загруженные товары
+    const filteredProducts = allProducts.filter(product => {
+        const name = product.name.toLowerCase();
+        const description = (product.description || '').toLowerCase();
+        const category = (product.category || '').toLowerCase();
         
-        // В случае ошибки все равно пытаемся загрузить заново
-        try {
-            loadFirstPage();
-        } catch (loadError) {
-            console.error('clearLocalStorage: Ошибка при загрузке заново:', loadError);
+        return name.includes(searchTerm) || 
+               description.includes(searchTerm) || 
+               category.includes(searchTerm);
+    });
+    
+    console.log(`Найдено товаров в загруженных: ${filteredProducts.length}`);
+    
+    // Если найдены товары, показываем их
+    if (filteredProducts.length > 0) {
+        await displayProducts(filteredProducts);
+    } else {
+        // Если товары не найдены в загруженных, сначала попробуем загрузить больше товаров
+        // с сервера, а затем искать в них
+        console.log('Товары не найдены в загруженных, загружаем больше товаров с сервера...');
+        
+        // Если у нас меньше 500 товаров загружено, попробуем загрузить больше
+        if (allProducts.length < 500) {
+            await loadMoreProductsForSearch(searchTerm);
+        } else {
+            // Если уже много товаров загружено, но ничего не найдено, 
+            // делаем прямой поиск на сервере
+            await searchProductsFromServer(searchTerm);
         }
     }
 }
 
+// Функция для загрузки дополнительных товаров для поиска
+async function loadMoreProductsForSearch(searchTerm) {
+    try {
+        console.log(`loadMoreProductsForSearch: Загружаем больше товаров для поиска "${searchTerm}"...`);
+        
+        // Показываем индикатор загрузки
+        showLoadingIndicator();
+        
+        // Загружаем больше товаров без поиска, чтобы расширить базу для поиска
+        const response = await fetch(`http://localhost:8000/api/products?start=${allProducts.length}&limit=500`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log(`loadMoreProductsForSearch: Получено ${data.products ? data.products.length : 0} дополнительных товаров`);
+        
+        if (data.success && data.products && data.products.length > 0) {
+            // Создаем временный массив для поиска, НЕ добавляя в allProducts
+            const tempProducts = [...allProducts];
+            
+            // Добавляем новые товары только во временный массив
+            data.products.forEach(product => {
+                const exists = tempProducts.some(existing => existing.name === product.name);
+                if (!exists) {
+                    tempProducts.push(product);
+                }
+            });
+            
+            console.log(`loadMoreProductsForSearch: Временный массив содержит ${tempProducts.length} товаров`);
+            
+            // Ищем в расширенном временном списке
+            const filteredProducts = tempProducts.filter(product => {
+                const name = product.name.toLowerCase();
+                const description = (product.description || '').toLowerCase();
+                const category = (product.category || '').toLowerCase();
+                
+                return name.includes(searchTerm) || 
+                       description.includes(searchTerm) || 
+                       category.includes(searchTerm);
+            });
+            
+            console.log(`loadMoreProductsForSearch: После загрузки найдено товаров: ${filteredProducts.length}`);
+            
+            if (filteredProducts.length > 0) {
+                await displayProducts(filteredProducts);
+            } else {
+                // Если все еще не найдено, делаем прямой поиск на сервере
+                console.log('loadMoreProductsForSearch: Товары все еще не найдены, делаем прямой поиск на сервере');
+                await searchProductsFromServer(searchTerm);
+            }
+        } else {
+            // Если больше товаров нет, делаем прямой поиск на сервере
+            console.log('loadMoreProductsForSearch: Больше товаров нет, делаем прямой поиск на сервере');
+            await searchProductsFromServer(searchTerm);
+        }
+    } catch (error) {
+        console.error('loadMoreProductsForSearch: Ошибка загрузки дополнительных товаров:', error);
+        // В случае ошибки делаем прямой поиск на сервере
+        await searchProductsFromServer(searchTerm);
+    } finally {
+        // Скрываем индикатор загрузки
+        hideLoadingIndicator();
+    }
+}
+
+// Функция для поиска товаров на сервере
+async function searchProductsFromServer(searchTerm) {
+    try {
+        console.log(`searchProductsFromServer: Ищем "${searchTerm}" на сервере...`);
+        
+        // Показываем индикатор загрузки
+        showLoadingIndicator();
+        
+        // Сначала пробуем поиск с большим лимитом
+        let response = await fetch(`http://localhost:8000/api/products?search=${encodeURIComponent(searchTerm)}&start=0&limit=2000`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        let data = await response.json();
+        console.log(`searchProductsFromServer: Первый запрос, товаров: ${data.products ? data.products.length : 0}`);
+        
+        // Если получили 2000 товаров, возможно есть еще больше
+        if (data.success && data.products && data.products.length === 2000) {
+            console.log('searchProductsFromServer: Получено 2000 товаров, загружаем еще...');
+            
+            // Загружаем еще товары без поиска, чтобы расширить базу
+            const additionalResponse = await fetch(`http://localhost:8000/api/products?start=2000&limit=2000`);
+            if (additionalResponse.ok) {
+                const additionalData = await additionalResponse.json();
+                if (additionalData.success && additionalData.products) {
+                    // Фильтруем дополнительные товары локально
+                    const additionalFiltered = additionalData.products.filter(product => {
+                        const name = product.name.toLowerCase();
+                        const description = (product.description || '').toLowerCase();
+                        const category = (product.category || '').toLowerCase();
+                        
+                        return name.includes(searchTerm.toLowerCase()) || 
+                               description.includes(searchTerm.toLowerCase()) || 
+                               category.includes(searchTerm.toLowerCase());
+                    });
+                    
+                    // Объединяем результаты
+                    data.products = [...data.products, ...additionalFiltered];
+                    console.log(`searchProductsFromServer: После добавления дополнительных товаров: ${data.products.length}`);
+                }
+            }
+        }
+        
+        if (data.success && data.products && data.products.length > 0) {
+            console.log(`searchProductsFromServer: Найдено ${data.products.length} товаров на сервере`);
+            
+            // Показываем найденные товары (НЕ добавляем в allProducts)
+            await displayProducts(data.products);
+        } else {
+            // Товары не найдены на сервере
+            console.log('searchProductsFromServer: Товары не найдены на сервере');
+            await displayProducts([]);
+        }
+    } catch (error) {
+        console.error('searchProductsFromServer: Ошибка поиска на сервере:', error);
+        // Показываем пустой результат
+        await displayProducts([]);
+    } finally {
+        // Скрываем индикатор загрузки
+        hideLoadingIndicator();
+    }
+}
+
+// Функция для отображения товаров (с поддержкой поиска)
+async function displayProducts(products) {
+    const container = document.querySelector('.inner');
+    if (!container) {
+        console.error('displayProducts: Контейнер .inner не найден');
+        return;
+    }
+    
+    // Сохраняем loading indicator перед очисткой
+    const loadingIndicator = container.querySelector('#loading-indicator');
+    
+    // Очищаем контейнер
+    container.innerHTML = '';
+    
+    // Восстанавливаем loading indicator если он был
+    if (loadingIndicator) {
+        container.appendChild(loadingIndicator);
+    }
+    
+    if (products.length === 0) {
+        // Показываем сообщение о том, что товары не найдены
+        const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
+        const noProductsFoundText = window.translations ? window.translations.getTranslation('noProductsFound', currentLanguage) : 'Товары не найдены';
+        const noProductsForQueryText = window.translations ? window.translations.getTranslationWithParams('noProductsForQuery', { query: searchTerm }, currentLanguage) : `По запросу "${searchTerm}" ничего не найдено`;
+        const clearSearchText = window.translations ? window.translations.getTranslation('clearSearch', currentLanguage) : 'Очистить поиск';
+        
+        container.innerHTML = `
+            <div class="no-results" style="text-align: center; padding: 40px; color: var(--text-light);">
+                <i class="fas fa-search" style="font-size: 48px; margin-bottom: 20px; opacity: 0.5;"></i>
+                <h3>${noProductsFoundText}</h3>
+                <p>${noProductsForQueryText}</p>
+                <button class="btn" onclick="clearSearch()" style="margin-top: 20px;">
+                    <i class="fas fa-times"></i> ${clearSearchText}
+                </button>
+            </div>
+        `;
+        
+        // Восстанавливаем loading indicator если он был
+        if (loadingIndicator) {
+            container.appendChild(loadingIndicator);
+        }
+        return;
+    }
+
+    // Оптимизация: показываем все товары сразу для ускорения загрузки
+    const fragment = document.createDocumentFragment();
+    
+    products.forEach((product, index) => {
+        const productCard = createProductCardFromSiteData(product, `btn${index + 1}`);
+        fragment.appendChild(productCard);
+    });
+    
+    // Добавляем все товары в контейнер сразу
+    container.appendChild(fragment);
+}
+
+// Функция для очистки поиска
+async function clearSearch() {
+    console.log('=== ОЧИСТКА ПОИСКА ===');
+    
+    const searchInput = document.querySelector('.search-input');
+    if (searchInput) {
+        searchInput.value = '';
+    }
+    
+    searchTerm = '';
+    isSearchActive = false;
+    
+    console.log('Поиск очищен, показываем все загруженные товары');
+    console.log(`Всего загружено товаров: ${allProducts.length}`);
+    
+    // Показываем все загруженные товары (не только первые 60)
+    await displayProducts(allProducts);
+    
+    // Восстанавливаем индикатор загрузки для бесконечной прокрутки
+    if (hasMoreProducts) {
+        showLoadingIndicator();
+        console.log('clearSearch: Восстановлен индикатор загрузки для бесконечной прокрутки');
+    }
+    
+    // Восстанавливаем обычный режим загрузки товаров
+    console.log('clearSearch: Восстановлен обычный режим загрузки товаров');
+}
 
 // Функция показа индикатора загрузки для бесконечной прокрутки
 function showLoadingIndicator() {
@@ -178,6 +437,13 @@ function hideLoadingScreen() {
     if (loadingScreen) {
         loadingScreen.style.display = 'none';
         console.log('Экран загрузки скрыт');
+    }
+    
+    // Скрываем индикатор загрузки
+    const loadingIndicator = document.getElementById('loading-indicator');
+    if (loadingIndicator) {
+        loadingIndicator.style.display = 'none';
+        console.log('Индикатор загрузки скрыт');
     }
 }
 
@@ -466,7 +732,7 @@ function createProductCardFromSavedData(productData, btnId) {
             <span class="new-price">${productData.newPrice.includes('грн') ? productData.newPrice : productData.newPrice + ' грн'}</span>
         </div>
         
-        <div class="product-rating">
+        <div class="product-rating" data-numeric-rating="${productData.rating}">
             ${generateRatingStars(productData.rating)}
         </div>
         
@@ -521,8 +787,8 @@ function createProductCardFromSavedData(productData, btnId) {
 
 // Функция создания карточки товара из данных сайта
 function createProductCardFromSiteData(product, btnId) {
-    console.log('createProductCardFromSiteData: Создаем карточку для товара:', product);
-    console.log('createProductCardFromSiteData: btnId:', btnId);
+    // console.log('createProductCardFromSiteData: Создаем карточку для товара:', product);
+    // console.log('createProductCardFromSiteData: btnId:', btnId);
     
     const card = document.createElement('div');
     card.className = 'product-card';
@@ -533,7 +799,10 @@ function createProductCardFromSiteData(product, btnId) {
     
     // Определяем CSS класс для статуса
     let statusClass = '';
-    let buttonText = 'Купить';
+    let buttonText = '';
+    
+    // Получаем текущий язык
+    const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
     
     // Отладка для конкретного товара
     if (product.name && product.name.includes('Dean Markley 2558A')) {
@@ -548,17 +817,17 @@ function createProductCardFromSiteData(product, btnId) {
         buttonText = 'Нет в наличии';
     } else if (product.availability === 'Ожидается') {
         statusClass = 'expected';
-        buttonText = 'Ожидается';
+        buttonText = window.translations ? window.translations.getTranslation('expectedButton', currentLanguage) : 'Ожидается';
     } else if (product.availability === 'Под заказ') {
         statusClass = 'on-order';
-        buttonText = 'Под заказ';
+        buttonText = window.translations ? window.translations.getTranslation('orderButton', currentLanguage) : 'Под заказ';
     } else if (product.availability === 'Снят с производства') {
         statusClass = 'discontinued';
-        buttonText = 'Снят с производства';
+        buttonText = window.translations ? window.translations.getTranslation('discontinuedButton', currentLanguage) : 'Снят с производства';
     } else {
         // По умолчанию "В наличии"
         statusClass = 'in-stock';
-        buttonText = 'Купить';
+        buttonText = window.translations ? window.translations.getTranslation('buyButton', currentLanguage) : 'Купить';
     }
     
     // Определяем CSS класс для цены
@@ -574,10 +843,10 @@ function createProductCardFromSiteData(product, btnId) {
     // Создаем HTML для карточки товара в новом стиле
     card.innerHTML = `
         <div class="product-actions">
-            <button class="favorite-btn" title="Добавить в избранное">
+            <button class="favorite-btn" title="Добавить в избранное" data-product-id="${btnId}">
                 <i class="far fa-heart"></i>
             </button>
-            <button class="compare-btn" title="Добавить к сравнению">
+            <button class="compare-btn" title="Добавить к сравнению" data-product-id="${btnId}">
                 <i class="fas fa-balance-scale"></i>
             </button>
         </div>
@@ -602,51 +871,14 @@ function createProductCardFromSiteData(product, btnId) {
             <span class="new-price">${product.newPrice} грн</span>
         </div>
         
-        <div class="product-rating">
+        <div class="product-rating" data-numeric-rating="${product.rating}">
             ${generateRatingStars(product.rating)}
         </div>
         
-        <button id="${btnId}" class="btn ${statusClass}">
+        <button id="${btnId}" class="btn ${statusClass}" data-product-availability="${product.availability}" data-product-name="${product.name}">
             ${buttonText}
         </button>
     `;
-    
-    // Добавляем обработчик для кнопки
-    const button = card.querySelector(`#${btnId}`);
-    button.addEventListener('click', () => {
-        if (product.availability === 'Снят с производства') {
-            showDiscontinuedPopup();
-        } else if (product.availability === 'Нет в наличии') {
-            showOutOfStockPopup();
-        } else if (product.availability === 'Ожидается') {
-            showExpectedPopup();
-        } else if (product.availability === 'Под заказ') {
-            showOnOrderPopup();
-        } else {
-            // Обычная покупка
-            tg.MainButton.text = `Выбрано: ${product.name}`;
-            tg.MainButton.show();
-        }
-    });
-    
-    // Добавляем обработчики для кнопок действий
-    const favoriteBtn = card.querySelector('.favorite-btn');
-    favoriteBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        favoriteBtn.classList.toggle('favorited');
-        const icon = favoriteBtn.querySelector('i');
-        if (favoriteBtn.classList.contains('favorited')) {
-            icon.className = 'fas fa-heart';
-        } else {
-            icon.className = 'far fa-heart';
-        }
-    });
-    
-    const compareBtn = card.querySelector('.compare-btn');
-    compareBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        compareBtn.style.color = compareBtn.style.color === 'var(--primary-color)' ? 'var(--text-light)' : 'var(--primary-color)';
-    });
     
     return card;
 }
@@ -721,7 +953,13 @@ function generateRatingStars(rating) {
 
 // Функция загрузки дополнительных товаров при прокрутке
 async function loadMoreProducts() {
-    console.log(`loadMoreProducts: Проверка условий - isLoading=${isLoading}, hasMoreProducts=${hasMoreProducts}, currentPage=${currentPage}`);
+    console.log(`loadMoreProducts: Проверка условий - isLoading=${isLoading}, hasMoreProducts=${hasMoreProducts}, currentPage=${currentPage}, isSearchActive=${isSearchActive}`);
+    
+    // Не загружаем дополнительные товары во время поиска
+    if (isSearchActive) {
+        console.log('loadMoreProducts: Поиск активен, пропускаем загрузку дополнительных товаров...');
+        return;
+    }
     
     if (isLoading || !hasMoreProducts) {
         if (isLoading) {
@@ -829,6 +1067,90 @@ async function loadMoreProducts() {
     }
 }
 
+// Функция загрузки всех товаров
+async function loadAllProducts() {
+    console.log('=== loadAllProducts: Загружаем все товары ===');
+    
+    if (isLoading) {
+        console.log('loadAllProducts: Загрузка уже идет, пропускаем...');
+        return;
+    }
+    
+    try {
+        isLoading = true;
+        showLoadingIndicator();
+        
+        // Скрываем кнопку "Загрузить все" во время загрузки
+        const loadAllBtn = document.getElementById('load-all-btn');
+        if (loadAllBtn) {
+            loadAllBtn.disabled = true;
+            loadAllBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Загружаем все товары...';
+        }
+        
+        console.log('loadAllProducts: Отправляем запрос на загрузку всех товаров...');
+        
+        // Загружаем все товары через API
+        const response = await fetch('http://localhost:8000/api/products?start=0&limit=377');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('loadAllProducts: Получены данные:', data);
+        
+        if (data.products && data.products.length > 0) {
+            console.log(`loadAllProducts: Получено ${data.products.length} товаров`);
+            
+            // Очищаем контейнер
+            const container = document.querySelector('.inner');
+            container.innerHTML = '';
+            loadedProductNames.clear();
+            
+            // Отображаем все товары
+            data.products.forEach((product, index) => {
+                const productCard = createProductCardFromSiteData(product, `btn${index + 1}`);
+                container.appendChild(productCard);
+                loadedProductNames.add(product.name);
+            });
+            
+            // Обновляем состояние
+            currentPage = 0;
+            hasMoreProducts = false;
+            maxProducts = data.products.length;
+            
+            // Настраиваем обработчики для всех изображений
+            setupImageHandlers();
+            
+            // Показываем сообщение о завершении
+            showEndMessage();
+            
+            // Сохраняем состояние
+            saveState();
+            
+            console.log('loadAllProducts: Все товары загружены успешно');
+        } else {
+            console.log('loadAllProducts: Получен пустой список товаров');
+            showEndMessage();
+        }
+        
+    } catch (error) {
+        console.error('loadAllProducts: Ошибка загрузки всех товаров:', error);
+        showEndMessage();
+    } finally {
+        isLoading = false;
+        hideLoadingIndicator();
+        
+        // Восстанавливаем кнопку "Загрузить все"
+        if (loadAllBtn) {
+            loadAllBtn.disabled = false;
+            loadAllBtn.innerHTML = '<i class="fas fa-download"></i> Загрузить все 377 товаров категории Струны для электрогитары';
+        }
+        
+        console.log('loadAllProducts: Загрузка завершена');
+    }
+}
+
 // Функция обработки прокрутки для бесконечной загрузки
 function handleScroll() {
     console.log(`handleScroll: Проверка - isLoading=${isLoading}, hasMoreProducts=${hasMoreProducts}, currentPage=${currentPage}`);
@@ -855,31 +1177,29 @@ function handleScroll() {
         console.log(`handleScroll: currentPage=${currentPage}, hasMoreProducts=${hasMoreProducts}, loadedProducts=${loadedProductNames.size}`);
         loadMoreProducts();
     }
+    
+    // Сохраняем позицию скролла при прокрутке (с дебаунсингом)
+    if (loadedProductNames.size > 0) {
+        clearTimeout(window.scrollSaveTimeout);
+        window.scrollSaveTimeout = setTimeout(() => {
+            saveState();
+        }, 100); // Сохраняем через 100ms после остановки прокрутки
+    }
 }
 
 // Функция получения данных с сайта
 async function fetchProductData(page = 0) {
     const start = page * 60;
     
-    console.log(`fetchProductData: Загружаем страницу ${page + 1}, start: ${start}`);
-    
     try {
-        console.log('fetchProductData: Отправляем запрос к API...');
-        
         // Используем прокси через наш сервер для обхода CORS
         const response = await fetch(`http://localhost:8000/api/products?start=${start}&limit=60`);
-        
-        console.log(`fetchProductData: Получен ответ, статус: ${response.status}`);
-        console.log(`fetchProductData: Заголовки ответа:`, response.headers);
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
-        console.log('fetchProductData: Парсим JSON ответ...');
         const data = await response.json();
-        console.log(`fetchProductData: JSON распарсен, получены данные:`, data);
-        console.log(`fetchProductData: Количество товаров: ${data.products ? data.products.length : 0}`);
         
         // Проверяем, есть ли товары в ответе
         if (data.products && data.products.length > 0) {
@@ -939,47 +1259,29 @@ async function updateProductPrices() {
 // Функция сохранения состояния
 function saveState() {
     console.log('saveState: Начинаем сохранение состояния...');
-    // Собираем все загруженные товары из DOM
-    const loadedProducts = [];
-    const productCards = document.querySelectorAll('.product-card');
     
-    console.log('saveState: Найдено карточек товаров:', productCards.length);
-    
-    productCards.forEach((card, index) => {
-        // Получаем исходные данные из data-атрибутов
-        const originalAvailability = card.getAttribute('data-original-availability');
-        const originalRating = card.getAttribute('data-original-rating');
-        
-        const productData = {
-            name: card.querySelector('.product-title')?.textContent || '',
-            image: card.querySelector('.img')?.src || '',
-            availability: originalAvailability || card.querySelector('.product-status')?.textContent || '',
-            oldPrice: card.querySelector('.old-price')?.textContent || '',
-            newPrice: card.querySelector('.new-price')?.textContent || '',
-            rating: originalRating || card.querySelector('.product-rating')?.innerHTML || '',
-            subtitle: card.querySelector('.product-subtitle')?.textContent || ''
-        };
-        console.log(`saveState: Данные товара ${index + 1}:`, productData);
-        loadedProducts.push(productData);
-    });
-    
-    // Получаем текущую позицию скролла
+    // Сохраняем только имена товаров и позицию скролла
     const currentScrollPosition = window.pageYOffset || document.documentElement.scrollTop;
     
     const state = {
         currentPage: currentPage,
         loadedProductNames: Array.from(loadedProductNames),
-        loadedProducts: loadedProducts,
         maxProducts: maxProducts,
         hasMoreProducts: hasMoreProducts,
         scrollPosition: currentScrollPosition,
         timestamp: Date.now(),
-        refreshCounter: refreshCounter // Сохраняем счетчик обновлений
+        refreshCounter: refreshCounter
     };
     
     localStorage.setItem('gs_bot_state', JSON.stringify(state));
     console.log('Состояние сохранено:', state);
     console.log('Позиция скролла сохранена:', currentScrollPosition);
+    
+    // Дополнительная отладка позиции скролла
+    console.log('saveState: Текущая позиция скролла:', currentScrollPosition);
+    console.log('saveState: window.pageYOffset:', window.pageYOffset);
+    console.log('saveState: document.documentElement.scrollTop:', document.documentElement.scrollTop);
+    console.log('saveState: document.body.scrollTop:', document.body.scrollTop);
 }
 
 // Функция загрузки состояния
@@ -999,7 +1301,8 @@ function loadState() {
                 // Проверяем счетчик обновлений
                 if (state.refreshCounter !== undefined) {
                     refreshCounter = state.refreshCounter;
-                    console.log(`loadState: Счетчик обновлений: ${refreshCounter}`);
+                    console.log(`loadState: Счетчик обновлений загружен из localStorage: ${refreshCounter}`);
+                    console.log(`loadState: MAX_REFRESHES_BEFORE_CLEAR: ${MAX_REFRESHES_BEFORE_CLEAR}`);
                     
                     // Если это третье F5 или больше, автоматически очищаем кеш
                     if (refreshCounter >= MAX_REFRESHES_BEFORE_CLEAR) {
@@ -1009,6 +1312,9 @@ function loadState() {
                         }, 100);
                         return null;
                     }
+                } else {
+                    console.log('loadState: Счетчик обновлений не найден в состоянии, устанавливаем 0');
+                    refreshCounter = 0;
                 }
                 
                 return state;
@@ -1036,23 +1342,8 @@ async function restoreAllProducts() {
     console.log('restoreAllProducts: Состояние найдено:', state);
     
     // Проверяем, есть ли товары для восстановления
-    if (!state.loadedProducts || state.loadedProducts.length === 0) {
+    if (!state.loadedProductNames || state.loadedProductNames.length === 0) {
         console.log('restoreAllProducts: Нет товаров в сохраненном состоянии, очищаем localStorage');
-        localStorage.removeItem('gs_bot_state');
-        return false;
-    }
-    
-    // Дополнительная проверка валидности данных
-    const invalidProducts = state.loadedProducts.filter(product => 
-        !product.availability || 
-        product.availability === 'undefined' || 
-        product.availability === 'null' ||
-        product.availability === ''
-    );
-    
-    if (invalidProducts.length > 0) {
-        console.log('restoreAllProducts: Обнаружены товары с невалидными статусами:', invalidProducts.length);
-        console.log('restoreAllProducts: Очищаем localStorage и загружаем заново');
         localStorage.removeItem('gs_bot_state');
         return false;
     }
@@ -1064,114 +1355,159 @@ async function restoreAllProducts() {
         maxProducts = state.maxProducts || 0;
         hasMoreProducts = state.hasMoreProducts || false;
         
-        // Восстанавливаем товары из сохраненных данных
-        const container = document.querySelector('.inner');
-        if (!container) {
-            console.error('restoreAllProducts: Контейнер .inner не найден');
-            return false;
-        }
-        container.innerHTML = '';
+        // Загружаем свежие данные с сервера
+        console.log('restoreAllProducts: Загружаем свежие данные с сервера...');
+        const data = await fetchProductData(0);
         
-        if (state.loadedProducts && state.loadedProducts.length > 0) {
-            console.log('restoreAllProducts: Начинаем восстановление товаров из localStorage...');
-            console.log('restoreAllProducts: Количество товаров для восстановления:', state.loadedProducts.length);
+        if (data && data.products && data.products.length > 0) {
+            console.log(`restoreAllProducts: Загружено ${data.products.length} товаров с сервера`);
             
-            state.loadedProducts.forEach((productData, index) => {
-                console.log(`restoreAllProducts: Создаем карточку для товара ${index + 1}:`, productData.name);
-                const productCard = createProductCardFromSavedData(productData, `btn${index + 1}`);
-                container.appendChild(productCard);
-                console.log(`restoreAllProducts: Карточка ${index + 1} добавлена в контейнер`);
-            });
+            // Фильтруем товары, которые были загружены ранее
+            const previouslyLoadedProducts = data.products.filter(product => 
+                state.loadedProductNames.has(product.name)
+            );
             
-            console.log(`Восстановлено ${state.loadedProducts.length} товаров из localStorage`);
-        } else {
-            console.log('restoreAllProducts: Нет товаров для восстановления в localStorage');
-        }
-        
-        // Восстанавливаем позицию скролла
-        if (state.scrollPosition > 0) {
-            console.log('restoreAllProducts: Восстанавливаем позицию скролла:', state.scrollPosition);
+            console.log(`restoreAllProducts: Найдено ${previouslyLoadedProducts.length} ранее загруженных товаров`);
             
-            // Функция для восстановления позиции скролла
-            const restoreScroll = () => {
-                try {
-                    window.scrollTo(0, state.scrollPosition);
-                    console.log('restoreAllProducts: Позиция скролла восстановлена:', state.scrollPosition);
-                    
-                    // Проверяем, что скролл действительно восстановился
-                    const currentScroll = window.pageYOffset || document.documentElement.scrollTop;
-                    if (Math.abs(currentScroll - state.scrollPosition) > 10) {
-                        console.log('restoreAllProducts: Позиция скролла не восстановилась корректно, повторяем...');
+            // Восстанавливаем товары из свежих данных
+            const container = document.querySelector('.inner');
+            if (!container) {
+                console.error('restoreAllProducts: Контейнер .inner не найден');
+                return false;
+            }
+            container.innerHTML = '';
+            
+            if (previouslyLoadedProducts.length > 0) {
+                console.log('restoreAllProducts: Начинаем восстановление товаров из свежих данных...');
+                
+                previouslyLoadedProducts.forEach((productData, index) => {
+                    console.log(`restoreAllProducts: Создаем карточку для товара ${index + 1}:`, productData.name);
+                    const productCard = createProductCardFromSiteData(productData, `btn${index + 1}`);
+                    container.appendChild(productCard);
+                    console.log(`restoreAllProducts: Карточка ${index + 1} добавлена в контейнер`);
+                });
+                
+                console.log(`Восстановлено ${previouslyLoadedProducts.length} товаров из свежих данных`);
+            } else {
+                console.log('restoreAllProducts: Нет товаров для восстановления');
+                return false;
+            }
+            
+            // Восстанавливаем позицию скролла
+            if (state.scrollPosition > 0) {
+                console.log('restoreAllProducts: Восстанавливаем позицию скролла:', state.scrollPosition);
+                
+                // Функция для надежного восстановления позиции скролла
+                const restoreScrollPosition = (position) => {
+                    try {
+                        console.log('=== ВОССТАНОВЛЕНИЕ СКРОЛЛА ===');
+                        console.log('Пытаемся восстановить позицию:', position);
+                        console.log('Текущая позиция до восстановления:', window.pageYOffset || document.documentElement.scrollTop);
+                        console.log('Высота документа:', document.documentElement.scrollHeight);
+                        console.log('Высота окна:', window.innerHeight);
+                        
+                        // Проверяем, что позиция не превышает максимальную высоту страницы
+                        const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+                        const safePosition = Math.min(position, maxScroll);
+                        
+                        if (safePosition !== position) {
+                            console.log(`Позиция скорректирована с ${position} на ${safePosition} (максимум: ${maxScroll})`);
+                        }
+                        
+                        // Проверяем, что страница достаточно загружена
+                        if (document.documentElement.scrollHeight < window.innerHeight + 100) {
+                            console.log('Страница еще не полностью загружена, откладываем восстановление');
+                            return false;
+                        }
+                        
+                        window.scrollTo(0, safePosition);
+                        console.log('Позиция скролла восстановлена:', safePosition);
+                        
+                        // Проверяем, что скролл действительно восстановился
+                        setTimeout(() => {
+                            const currentScroll = window.pageYOffset || document.documentElement.scrollTop;
+                            console.log('Проверка после восстановления. Текущая позиция:', currentScroll);
+                            if (Math.abs(currentScroll - safePosition) > 10) {
+                                console.log('Позиция скролла не восстановилась корректно, повторяем...');
+                                window.scrollTo(0, safePosition);
+                                return false;
+                            } else {
+                                console.log('Позиция скролла восстановлена успешно!');
+                                return true;
+                            }
+                        }, 50);
+                        
+                        return true;
+                    } catch (error) {
+                        console.error('Ошибка при восстановлении позиции скролла:', error);
                         return false;
                     }
-                    return true;
-                } catch (error) {
-                    console.error('restoreAllProducts: Ошибка при восстановлении скролла:', error);
-                    return false;
-                }
-            };
-            
-            // Первая попытка сразу
-            let restored = restoreScroll();
-            
-            // Если не удалось, пробуем с задержками
-            if (!restored) {
-                setTimeout(() => {
-                    restoreScroll();
-                }, 100);
+                };
                 
-                setTimeout(() => {
-                    restoreScroll();
-                }, 500);
-                
-                setTimeout(() => {
-                    restoreScroll();
-                }, 1000);
-            }
-        }
-        
-        // Скрываем экран загрузки
-        hideLoadingScreen();
-        
-        // Сбрасываем флаг загрузки
-        isLoading = false;
-        
-        // Правильно обрабатываем индикатор загрузки и сообщение о конце
-        if (hasMoreProducts) {
-            // Если есть еще товары, показываем индикатор загрузки
-            showLoadingIndicator();
-            console.log('restoreAllProducts: Показан индикатор загрузки для следующих страниц');
-        } else {
-            // Если товаров больше нет, скрываем индикатор и показываем сообщение о конце
-            hideLoadingIndicator();
-            showEndMessage();
-            console.log('restoreAllProducts: Показано сообщение о конце списка');
-        }
-        
-        // Дополнительная проверка: если все товары загружены, убеждаемся что индикатор скрыт
-        if (!hasMoreProducts) {
-            const loadingIndicator = document.getElementById('loading-indicator');
-            if (loadingIndicator && loadingIndicator.style.display !== 'none') {
-                loadingIndicator.style.display = 'none';
-                console.log('restoreAllProducts: Принудительно скрыт индикатор загрузки');
-            }
-        }
-        
-                        console.log(`Восстановлено ${state.loadedProducts.length} товаров. Есть еще: ${hasMoreProducts}`);
-                
-                // Отладка статусов товаров
-                state.loadedProducts.forEach((product, index) => {
-                    if (product.name && product.name.includes('Dean Markley 2558A')) {
-                        console.log(`=== FRONTEND DEBUG: Dean Markley 2558A found in restored data ===`);
-                        console.log(`Product: ${product.name}`);
-                        console.log(`Status: ${product.status}`);
-                        console.log(`Availability: ${product.availability}`);
-                        console.log(`Full product data:`, product);
-                        console.log(`=== END FRONTEND DEBUG ===`);
+                // Функция для попыток восстановления с проверкой успеха
+                const attemptRestoreScroll = (position, attempts = 0) => {
+                    if (attempts >= 10) {
+                        console.log('Достигнуто максимальное количество попыток восстановления скролла');
+                        return;
                     }
-                });
-        
-        return true;
+                    
+                    const success = restoreScrollPosition(position);
+                    if (!success) {
+                        console.log(`Попытка ${attempts + 1} не удалась, повторяем через 500мс...`);
+                        setTimeout(() => attemptRestoreScroll(position, attempts + 1), 500);
+                    }
+                };
+                
+                // Используем улучшенную логику восстановления
+                attemptRestoreScroll(state.scrollPosition);
+            }
+            
+            // Скрываем экран загрузки
+            hideLoadingScreen();
+            
+            // Сбрасываем флаг загрузки
+            isLoading = false;
+            
+            // Правильно обрабатываем индикатор загрузки и сообщение о конце
+            if (hasMoreProducts) {
+                // Если есть еще товары, показываем индикатор загрузки
+                showLoadingIndicator();
+                console.log('restoreAllProducts: Показан индикатор загрузки для следующих страниц');
+            } else {
+                // Если товаров больше нет, скрываем индикатор и показываем сообщение о конце
+                hideLoadingIndicator();
+                showEndMessage();
+                console.log('restoreAllProducts: Показано сообщение о конце списка');
+            }
+            
+            // Дополнительная проверка: если все товары загружены, убеждаемся что индикатор скрыт
+            if (!hasMoreProducts) {
+                const loadingIndicator = document.getElementById('loading-indicator');
+                if (loadingIndicator && loadingIndicator.style.display !== 'none') {
+                    loadingIndicator.style.display = 'none';
+                    console.log('restoreAllProducts: Принудительно скрыт индикатор загрузки');
+                }
+            }
+            
+            console.log(`Восстановлено ${state.loadedProductNames.length} товаров. Есть еще: ${hasMoreProducts}`);
+            
+            // Отладка статусов товаров
+            state.loadedProductNames.forEach((product, index) => {
+                if (product.name && product.name.includes('Dean Markley 2558A')) {
+                    console.log(`=== FRONTEND DEBUG: Dean Markley 2558A found in restored data ===`);
+                    console.log(`Product: ${product.name}`);
+                    console.log(`Status: ${product.status}`);
+                    console.log(`Availability: ${product.availability}`);
+                    console.log(`Full product data:`, product);
+                    console.log(`=== END FRONTEND DEBUG ===`);
+                }
+            });
+            
+            return true;
+        } else {
+            console.log('restoreAllProducts: Нет данных с сервера');
+            return false;
+        }
     } catch (error) {
         console.error('Ошибка восстановления товаров:', error);
         return false;
@@ -1181,98 +1517,95 @@ async function restoreAllProducts() {
 // Функция загрузки первой страницы
 async function loadFirstPage() {
     try {
-        console.log('loadFirstPage: Начинаем загрузку данных...');
+        const container = document.querySelector('.inner');
+        if (!container) {
+            console.error('loadFirstPage: КРИТИЧЕСКАЯ ОШИБКА - контейнер .inner не найден!');
+            return;
+        }
         
         const data = await fetchProductData(0);
-        console.log('loadFirstPage: Данные получены:', data);
         
         if (data && data.products && data.products.length > 0) {
-            console.log(`loadFirstPage: Загружено ${data.products.length} товаров`);
-            console.log('loadFirstPage: Данные API:', data);
-            
             // Обновляем глобальные переменные
             maxProducts = data.total || data.products.length;
             hasMoreProducts = data.hasMore;
             currentPage = 0; // Сбрасываем страницу на первую
             
-            console.log(`loadFirstPage: maxProducts=${maxProducts}, hasMoreProducts=${hasMoreProducts}, currentPage=${currentPage}`);
-            console.log(`loadFirstPage: hasMore из API: ${data.hasMore}`);
+            // Сохраняем товары в массив для поиска
+            allProducts = [...data.products];
             
             // Сохраняем названия загруженных товаров
             data.products.forEach(product => {
                 loadedProductNames.add(product.name);
-                
-                // Отладка для конкретного товара
-                if (product.name && product.name.includes('Dean Markley 2558A')) {
-                    console.log(`=== FRONTEND DEBUG: Dean Markley 2558A found in loadFirstPage API response ===`);
-                    console.log(`Product: ${product.name}`);
-                    console.log(`Availability: ${product.availability}`);
-                    console.log(`Status: ${product.status}`);
-                    console.log(`Full product data:`, product);
-                    console.log(`=== END FRONTEND DEBUG ===`);
-                }
             });
             
-            console.log(`loadFirstPage: Добавлено в loadedProductNames: ${loadedProductNames.size} товаров`);
-            
-            // Очищаем контейнер и отображаем товары
-            const container = document.querySelector('.inner');
-            console.log('loadFirstPage: Контейнер найден:', container);
-            container.innerHTML = '';
-            console.log('loadFirstPage: Контейнер очищен');
-            
-            data.products.forEach((product, index) => {
-                console.log(`loadFirstPage: Создаем карточку для товара ${index + 1}:`, product.name);
-                const productCard = createProductCardFromSiteData(product, `btn${index + 1}`);
-                container.appendChild(productCard);
-                console.log(`loadFirstPage: Карточка ${index + 1} добавлена в контейнер`);
-            });
-            
-            console.log('loadFirstPage: Все карточки товаров добавлены');
-            console.log('loadFirstPage: Количество карточек в контейнере:', container.children.length);
+            // Отображаем товары с поддержкой поиска
+            displayProducts(allProducts);
             
             // Скрываем экран загрузки
             hideLoadingScreen();
             
             // Сохраняем состояние
             saveState();
-            console.log('loadFirstPage: Состояние сохранено');
             
-            // Если есть еще товары, показываем индикатор загрузки
-            if (hasMoreProducts) {
-                const loadingIndicator = document.getElementById('loading-indicator');
-                if (loadingIndicator) {
-                    loadingIndicator.style.display = 'block';
-                }
-                console.log('loadFirstPage: Показан индикатор загрузки для следующих страниц');
-            } else {
-                // Если товаров больше нет, показываем сообщение о конце
+            // Скрываем индикатор загрузки после загрузки первых товаров
+            // Он будет показан только при прокрутке вниз для бесконечной загрузки
+            const loadingIndicator = document.getElementById('loading-indicator');
+            if (loadingIndicator) {
+                loadingIndicator.style.display = 'none';
+            }
+            
+            // Если товаров больше нет, показываем сообщение о конце
+            if (!hasMoreProducts) {
                 showEndMessage();
-                console.log('loadFirstPage: Показано сообщение о конце списка');
             }
         } else {
             console.error('loadFirstPage: Не удалось загрузить товары - нет данных');
             
+            // Скрываем индикатор загрузки
+            hideLoadingScreen();
+            
             // Показываем сообщение об ошибке
             const container = document.querySelector('.inner');
+            
+            // Сохраняем loading indicator перед очисткой
+            const loadingIndicator = container.querySelector('#loading-indicator');
+            
             container.innerHTML = `
                 <div class="error-message">
                     <p>Не удалось загрузить товары. API не вернул данные.</p>
                     <button class="btn" onclick="location.reload()">Перезагрузить страницу</button>
                 </div>
             `;
+            
+            // Восстанавливаем loading indicator если он был
+            if (loadingIndicator) {
+                container.appendChild(loadingIndicator);
+            }
         }
     } catch (error) {
         console.error('loadFirstPage: Ошибка загрузки товаров:', error);
         
+        // Скрываем индикатор загрузки
+        hideLoadingScreen();
+        
         // Показываем сообщение об ошибке
         const container = document.querySelector('.inner');
+        
+        // Сохраняем loading indicator перед очисткой
+        const loadingIndicator = container.querySelector('#loading-indicator');
+        
         container.innerHTML = `
             <div class="error-message">
                 <p>Произошла ошибка при загрузке товаров: ${error.message}</p>
                 <button class="btn" onclick="location.reload()">Перезагрузить страницу</button>
             </div>
         `;
+        
+        // Восстанавливаем loading indicator если он был
+        if (loadingIndicator) {
+            container.appendChild(loadingIndicator);
+        }
     }
 }
 
@@ -1293,7 +1626,22 @@ function startAutoSave() {
 
 // Функция настройки сохранения перед закрытием
 function setupBeforeUnload() {
+    // Сохраняем состояние при закрытии страницы
     window.addEventListener('beforeunload', () => {
+        if (loadedProductNames.size > 0) {
+            saveState();
+        }
+    });
+    
+    // Сохраняем состояние при изменении видимости страницы (включая F5)
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden' && loadedProductNames.size > 0) {
+            saveState();
+        }
+    });
+    
+    // Сохраняем состояние при потере фокуса окна
+    window.addEventListener('blur', () => {
         if (loadedProductNames.size > 0) {
             saveState();
         }
@@ -1308,11 +1656,8 @@ function resetState() {
 
 // Основная функция инициализации
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('=== Инициализация приложения ===');
-    
-    // Увеличиваем счетчик обновлений при загрузке страницы
-    refreshCounter++;
-    console.log(`Инициализация: Счетчик обновлений увеличен до ${refreshCounter}`);
+    console.log('=== Инициализация приложения v10.9 ===');
+    console.log('DOM загружен, начинаем инициализацию...');
     
     try {
         // Проверяем, есть ли сохранённое состояние
@@ -1325,8 +1670,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (Date.now() - savedState.timestamp < 24 * 60 * 60 * 1000) {
                 console.log('Состояние актуально, восстанавливаем...');
                 
+                // Увеличиваем счетчик обновлений после загрузки состояния
+                refreshCounter++;
+                console.log(`Инициализация: Счетчик обновлений увеличен до ${refreshCounter}`);
+                
                 // Проверяем, не нужно ли автоматически очистить кеш
-                if (refreshCounter > MAX_REFRESHES_BEFORE_CLEAR) {
+                if (refreshCounter >= MAX_REFRESHES_BEFORE_CLEAR) {
                     console.log('Достигнут лимит обновлений, автоматически очищаем кеш и загружаем заново');
                     clearLocalStorage();
                     await loadFirstPage();
@@ -1342,6 +1691,75 @@ document.addEventListener('DOMContentLoaded', async () => {
                     // Затем загружаем свежие данные для обновления статусов и рейтингов
                     console.log('Загружаем свежие данные для обновления статусов и рейтингов...');
                     await refreshProductData();
+                    
+                    // Восстанавливаем позицию скролла после обновления данных
+                    if (savedState.scrollPosition > 0) {
+                        console.log('Восстанавливаем позицию скролла после обновления данных:', savedState.scrollPosition);
+                        
+                        // Функция для надежного восстановления позиции скролла
+                        const restoreScrollPosition = (position) => {
+                            try {
+                                console.log('=== ВОССТАНОВЛЕНИЕ СКРОЛЛА ===');
+                                console.log('Пытаемся восстановить позицию:', position);
+                                console.log('Текущая позиция до восстановления:', window.pageYOffset || document.documentElement.scrollTop);
+                                console.log('Высота документа:', document.documentElement.scrollHeight);
+                                console.log('Высота окна:', window.innerHeight);
+                                
+                                // Проверяем, что позиция не превышает максимальную высоту страницы
+                                const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+                                const safePosition = Math.min(position, maxScroll);
+                                
+                                if (safePosition !== position) {
+                                    console.log(`Позиция скорректирована с ${position} на ${safePosition} (максимум: ${maxScroll})`);
+                                }
+                                
+                                // Проверяем, что страница достаточно загружена
+                                if (document.documentElement.scrollHeight < window.innerHeight + 100) {
+                                    console.log('Страница еще не полностью загружена, откладываем восстановление');
+                                    return false;
+                                }
+                                
+                                window.scrollTo(0, safePosition);
+                                console.log('Позиция скролла восстановлена:', safePosition);
+                                
+                                // Проверяем, что скролл действительно восстановился
+                                setTimeout(() => {
+                                    const currentScroll = window.pageYOffset || document.documentElement.scrollTop;
+                                    console.log('Проверка после восстановления. Текущая позиция:', currentScroll);
+                                    if (Math.abs(currentScroll - safePosition) > 10) {
+                                        console.log('Позиция скролла не восстановилась корректно, повторяем...');
+                                        window.scrollTo(0, safePosition);
+                                        return false;
+                                    } else {
+                                        console.log('Позиция скролла восстановлена успешно!');
+                                        return true;
+                                    }
+                                }, 50);
+                                
+                                return true;
+                            } catch (error) {
+                                console.error('Ошибка при восстановлении позиции скролла:', error);
+                                return false;
+                            }
+                        };
+                        
+                        // Функция для попыток восстановления с проверкой успеха
+                        const attemptRestoreScroll = (position, attempts = 0) => {
+                            if (attempts >= 10) {
+                                console.log('Достигнуто максимальное количество попыток восстановления скролла');
+                                return;
+                            }
+                            
+                            const success = restoreScrollPosition(position);
+                            if (!success) {
+                                console.log(`Попытка ${attempts + 1} не удалась, повторяем через 500мс...`);
+                                setTimeout(() => attemptRestoreScroll(position, attempts + 1), 500);
+                            }
+                        };
+                        
+                        // Используем улучшенную логику восстановления
+                        attemptRestoreScroll(savedState.scrollPosition);
+                    }
                 } else {
                     // Если восстановление не удалось, загружаем с нуля
                     console.log('Восстановление не удалось, загружаем с нуля...');
@@ -1354,6 +1772,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else {
             // Если нет сохранённого состояния, загружаем с нуля
             console.log('Нет сохранённого состояния, загружаем с нуля...');
+            
+            // Увеличиваем счетчик обновлений для первого посещения
+            refreshCounter++;
+            console.log(`Инициализация: Счетчик обновлений увеличен до ${refreshCounter} (первое посещение)`);
+            
             await loadFirstPage();
         }
         
@@ -1373,6 +1796,83 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.addEventListener('scroll', handleScroll);
         console.log('Обработчик прокрутки настроен');
         
+        // Настраиваем обработчики для кнопок меню и настроек
+        console.log('=== НАСТРОЙКА КНОПОК МЕНЮ И НАСТРОЕК ===');
+        const menuBtn = document.querySelector('.menu-btn');
+        console.log('menuBtn найден:', menuBtn);
+        if (menuBtn) {
+            // Удаляем старые обработчики если они есть
+            menuBtn.removeEventListener('click', menuBtn._clickHandler);
+            
+            // Создаем новый обработчик
+            menuBtn._clickHandler = (e) => {
+                console.log('КНОПКА МЕНЮ НАЖАТА! (addEventListener)');
+                e.stopPropagation();
+                e.preventDefault();
+                showMenuPopup();
+            };
+            
+            // Добавляем обработчик
+            menuBtn.addEventListener('click', menuBtn._clickHandler);
+            
+            // Добавляем обработчик onclick для дополнительной надежности
+            menuBtn.onclick = (e) => {
+                console.log('КНОПКА МЕНЮ НАЖАТА! (onclick)');
+                e.stopPropagation();
+                e.preventDefault();
+                showMenuPopup();
+            };
+            
+            console.log('Обработчик кнопки меню настроен');
+        } else {
+            console.error('ОШИБКА: Кнопка меню не найдена!');
+        }
+        
+        const settingsBtn = document.querySelector('.settings-btn');
+        console.log('settingsBtn найден:', settingsBtn);
+        if (settingsBtn) {
+            // Удаляем старые обработчики если они есть
+            settingsBtn.removeEventListener('click', settingsBtn._clickHandler);
+            
+            // Создаем новый обработчик
+            settingsBtn._clickHandler = (e) => {
+                console.log('КНОПКА НАСТРОЕК НАЖАТА! (addEventListener)');
+                e.stopPropagation();
+                e.preventDefault();
+                showSettingsPopup();
+            };
+            
+            // Добавляем обработчик
+            settingsBtn.addEventListener('click', settingsBtn._clickHandler);
+            
+            // Добавляем обработчик onclick для дополнительной надежности
+            settingsBtn.onclick = (e) => {
+                console.log('КНОПКА НАСТРОЕК НАЖАТА! (onclick)');
+                e.stopPropagation();
+                e.preventDefault();
+                showSettingsPopup();
+            };
+            
+            console.log('Обработчик кнопки настроек настроен');
+        } else {
+            console.error('ОШИБКА: Кнопка настроек не найдена!');
+        }
+        console.log('=== КОНЕЦ НАСТРОЙКИ КНОПОК ===');
+        
+        // Настраиваем обработчики для переключения языков
+        console.log('=== НАСТРОЙКА ПЕРЕКЛЮЧЕНИЯ ЯЗЫКОВ ===');
+        setupLanguageSwitchers();
+        console.log('Обработчики переключения языков настроены');
+        
+        // Загружаем фото профиля из Telegram (если доступно)
+        console.log('=== ЗАГРУЗКА ФОТО ПРОФИЛЯ ИЗ TELEGRAM ===');
+        loadTelegramProfilePhoto();
+        console.log('Фото профиля загружено (если доступно)');
+        
+        // Настраиваем закрытие всплывающих окон при клике вне их
+        setupPopupClickOutside();
+        console.log('Обработчики закрытия всплывающих окон настроены');
+        
         // Кнопка "Загрузить все товары" удалена по запросу пользователя
         
         // Настраиваем кнопку поддержки
@@ -1388,6 +1888,144 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Обновляем статус каждые 5 минут
             setInterval(updateSupportButtonStatus, 5 * 60 * 1000);
         }
+        
+        // Настраиваем обработчики для нижней навигации
+        console.log('=== НАСТРОЙКА НИЖНЕЙ НАВИГАЦИИ ===');
+        const navItems = document.querySelectorAll('.nav-item');
+        console.log('navItems найдены:', navItems.length);
+        
+        // Устанавливаем начальную активность для кнопки "Товары"
+        if (navItems.length > 0) {
+            navItems[0].classList.add('active');
+            console.log('Установлена начальная активность для кнопки "Товары"');
+        }
+        
+        navItems.forEach((navItem, index) => {
+            // Удаляем старые обработчики если они есть
+            navItem.removeEventListener('click', navItem._clickHandler);
+            
+            // Создаем новый обработчик
+            navItem._clickHandler = (e) => {
+                console.log(`Кнопка нижней навигации ${index + 1} нажата`);
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Убираем активный класс со всех кнопок
+                navItems.forEach(item => {
+                    item.classList.remove('active');
+                    console.log(`Убран активный класс с кнопки ${item.querySelector('span')?.textContent}`);
+                });
+                
+                // Добавляем активный класс к нажатой кнопке
+                navItem.classList.add('active');
+                console.log(`Добавлен активный класс к кнопке ${navItem.querySelector('span')?.textContent}`);
+                
+                // Здесь можно добавить логику для переключения разделов
+                const navText = navItem.querySelector('span').textContent;
+                console.log(`Переключение на раздел: ${navText}`);
+                
+                // Пока что просто переключаем активный класс без уведомлений
+                // Убираем логику возврата к "Товары" - позволяем кнопкам оставаться активными
+            };
+            
+            // Добавляем обработчик
+            navItem.addEventListener('click', navItem._clickHandler);
+            
+            console.log(`Обработчик для nav-item ${index + 1} настроен`);
+        });
+        console.log('=== КОНЕЦ НАСТРОЙКИ НИЖНЕЙ НАВИГАЦИИ ===');
+        
+        // Настраиваем event delegation для карточек товаров (оптимизация производительности)
+        console.log('=== НАСТРОЙКА EVENT DELEGATION ДЛЯ КАРТОЧЕК ТОВАРОВ ===');
+        const innerContainer = document.querySelector('.inner');
+        if (innerContainer) {
+            innerContainer.addEventListener('click', (e) => {
+                // Обработка кнопок покупки
+                if (e.target.classList.contains('btn') && e.target.id) {
+                    const availability = e.target.getAttribute('data-product-availability');
+                    const productName = e.target.getAttribute('data-product-name');
+                    
+                    console.log(`Кнопка покупки нажата: ${productName}, статус: ${availability}`);
+                    
+                    if (availability === 'Снят с производства') {
+                        showDiscontinuedPopup();
+                    } else if (availability === 'Нет в наличии') {
+                        showOutOfStockPopup();
+                    } else if (availability === 'Ожидается') {
+                        showExpectedPopup();
+                    } else if (availability === 'Под заказ') {
+                        showOnOrderPopup();
+                    } else {
+                        // Обычная покупка
+                        if (window.tg && window.tg.MainButton) {
+                            window.tg.MainButton.text = `Выбрано: ${productName}`;
+                            window.tg.MainButton.show();
+                        }
+                    }
+                }
+                
+                // Обработка кнопок избранного
+                if (e.target.closest('.favorite-btn')) {
+                    e.preventDefault();
+                    const favoriteBtn = e.target.closest('.favorite-btn');
+                    favoriteBtn.classList.toggle('favorited');
+                    const icon = favoriteBtn.querySelector('i');
+                    if (favoriteBtn.classList.contains('favorited')) {
+                        icon.className = 'fas fa-heart';
+                    } else {
+                        icon.className = 'far fa-heart';
+                    }
+                }
+                
+                // Обработка кнопок сравнения
+                if (e.target.closest('.compare-btn')) {
+                    e.preventDefault();
+                    const compareBtn = e.target.closest('.compare-btn');
+                    compareBtn.style.color = compareBtn.style.color === 'var(--primary-color)' ? 'var(--text-light)' : 'var(--primary-color)';
+                }
+            });
+            console.log('Event delegation для карточек товаров настроен');
+        }
+        console.log('=== КОНЕЦ НАСТРОЙКИ EVENT DELEGATION ===');
+        
+        // Настраиваем обработчики для поиска
+        console.log('=== НАСТРОЙКА ПОИСКА ===');
+        const searchInput = document.querySelector('.search-input');
+        if (searchInput) {
+            console.log('searchInput найден:', searchInput);
+            
+            // Обработчик ввода в поисковую строку
+            searchInput.addEventListener('input', async (e) => {
+                const query = e.target.value;
+                console.log(`Поисковый запрос: "${query}"`);
+                await searchProducts(query);
+            });
+            
+            // Обработчик нажатия Enter
+            searchInput.addEventListener('keypress', async (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const query = e.target.value;
+                    console.log(`Поиск по Enter: "${query}"`);
+                    await searchProducts(query);
+                }
+            });
+            
+            // Обработчик клика по иконке поиска
+            const searchIcon = document.querySelector('.search-icon');
+            if (searchIcon) {
+                searchIcon.addEventListener('click', async () => {
+                    const query = searchInput.value;
+                    console.log(`Поиск по клику на иконку: "${query}"`);
+                    await searchProducts(query);
+                });
+            }
+            
+            console.log('Обработчики поиска настроены');
+        } else {
+            console.error('ОШИБКА: Поле поиска не найдено!');
+        }
+        console.log('=== КОНЕЦ НАСТРОЙКИ ПОИСКА ===');
         
         console.log('Инициализация завершена успешно');
     } catch (error) {
@@ -1406,9 +2044,46 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
+// Функция для получения и отображения фото профиля из Telegram
+function loadTelegramProfilePhoto() {
+    if (window.Telegram && window.Telegram.WebApp && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+        const user = tg.initDataUnsafe.user;
+        console.log('Telegram user data:', user);
+        
+        if (user.photo_url) {
+            const profileImage = document.getElementById('profile-image');
+            const profileIcon = document.getElementById('profile-icon');
+            
+            if (profileImage && profileIcon) {
+                profileImage.src = user.photo_url;
+                profileImage.style.display = 'block';
+                profileIcon.style.display = 'none';
+                
+                // Добавляем обработчик ошибок для изображения
+                profileImage.onerror = () => {
+                    console.warn('Не удалось загрузить фото профиля из Telegram, показываем иконку');
+                    profileImage.style.display = 'none';
+                    profileIcon.style.display = 'block';
+                };
+                
+                profileImage.onload = () => {
+                    console.log('Фото профиля из Telegram успешно загружено');
+                };
+            }
+        } else {
+            console.log('Фото профиля не найдено в данных Telegram пользователя');
+        }
+    } else {
+        console.log('Telegram WebApp недоступен или данные пользователя отсутствуют');
+    }
+}
+
 // Обработчики событий Telegram
 if (window.Telegram && window.Telegram.WebApp) {
     tg.ready();
+    
+    // Загружаем фото профиля после готовности Telegram WebApp
+    loadTelegramProfilePhoto();
     
     tg.MainButton.onClick(() => {
         tg.sendData("test");
@@ -1458,581 +2133,67 @@ function setupImageHandlers() {
     });
 }
 
-// Вызываем настройку обработчиков изображений после загрузки DOM
-document.addEventListener('DOMContentLoaded', () => {
-    setupImageHandlers();
-});
+// Удалено - дублирующий обработчик DOMContentLoaded
 
 // Функция показа сообщения о снятии с производства
 function showDiscontinuedPopup() {
-    const popup = document.createElement('div');
-    popup.className = 'popup-overlay show';
-    popup.innerHTML = `
-        <div class="popup-content">
-            <button class="popup-close" onclick="hideDiscontinuedPopup(this)">&times;</button>
-            <div class="popup-icon">
-                <img src="images/Discontinued.jpg" alt="Извиняющийся котик" title="Sorry!">
-            </div>
-            <p class="popup-message">Товар снят с производства. Не расстраивайтесь.</p>
-        </div>
-    `;
-    document.body.appendChild(popup);
-    
-    // Добавляем класс для body
-    document.body.classList.add('popup-open');
-    
-    // Закрытие по клику вне контента
-    popup.addEventListener('click', (event) => {
-        if (event.target === popup) {
-            hideDiscontinuedPopup(popup.querySelector('.popup-close'));
-        }
-    });
-    
-    // Закрытие по Escape
-    document.addEventListener('keydown', function escapeHandler(e) {
-        if (e.key === 'Escape') {
-            hideDiscontinuedPopup(popup.querySelector('.popup-close'));
-            document.removeEventListener('keydown', escapeHandler);
-        }
-    });
-    
-    console.log('Показано всплывающее окно о снятии с производства');
+    console.log('showDiscontinuedPopup: Показываем popup для товара снятого с производства');
+    openPopup('discontinuedPopup');
 }
 
-// Функция скрытия сообщения о снятии с производства
-function hideDiscontinuedPopup(closeButton) {
-    const popup = closeButton.closest('.popup-overlay');
-    if (popup) {
-        popup.classList.remove('show');
-        setTimeout(() => {
-            popup.remove();
-            document.body.classList.remove('popup-open');
-        }, 300);
-    }
-}
-
-// Функция показа сообщения о товаре не в наличии
 function showOutOfStockPopup() {
-    const popup = document.createElement('div');
-    popup.className = 'popup-overlay show';
-    popup.innerHTML = `
-        <div class="popup-content">
-            <button class="popup-close" onclick="hideOutOfStockPopup(this)">&times;</button>
-            <div class="popup-icon">
-                <span style="font-size: 48px;">📦</span>
-            </div>
-            <p class="popup-message">Товар временно отсутствует на складе. Попробуйте позже.</p>
-        </div>
-    `;
-    document.body.appendChild(popup);
-    
-    // Добавляем класс для body
-    document.body.classList.add('popup-open');
-    
-    // Закрытие по клику вне контента
-    popup.addEventListener('click', (event) => {
-        if (event.target === popup) {
-            hideOutOfStockPopup(popup.querySelector('.popup-close'));
-        }
-    });
-    
-    // Закрытие по Escape
-    document.addEventListener('keydown', function escapeHandler(e) {
-        if (e.key === 'Escape') {
-            hideOutOfStockPopup(popup.querySelector('.popup-close'));
-            document.removeEventListener('keydown', escapeHandler);
-        }
-    });
+    console.log('showOutOfStockPopup: Показываем popup для товара которого нет в наличии');
+    openPopup('outOfStockPopup');
 }
 
-// Функция скрытия сообщения о товаре не в наличии
-function hideOutOfStockPopup(closeButton) {
-    const popup = closeButton.closest('.popup-overlay');
-    if (popup) {
-        popup.classList.remove('show');
-        setTimeout(() => {
-            popup.remove();
-            document.body.classList.remove('popup-open');
-        }, 300);
-    }
-}
-
-// Функция показа сообщения о товаре в ожидании
 function showExpectedPopup() {
-    const popup = document.createElement('div');
-    popup.className = 'popup-overlay show';
-    popup.innerHTML = `
-        <div class="popup-content">
-            <button class="popup-close" onclick="hideExpectedPopup(this)">&times;</button>
-            <div class="popup-icon">
-                <span style="font-size: 48px;">⏳</span>
-            </div>
-            <div class="popup-message">
-                <p><strong>Товар ожидается в ближайшее время. Оставьте заявку на этот товар менеджеру в Telegram.</strong></p>
-                
-                <p><strong>Как оставить заявку:</strong></p>
-                
-                <ol>
-                    <li>Напишите менеджеру в Telegram <a href="https://t.me/GuitarStringsUSA" target="_blank" style="color: #007bff; text-decoration: underline;">@GuitarStringsUSA</a></li>
-                    <li>Укажите какое количество товаров вам необходимо</li>
-                    <li>Укажите наименования товаров</li>
-                    <li>Менеджер забронирует для вас товары из новой поставки</li>
-                    <li>Когда товары прибудут в Одессу, менеджер свяжется с вами</li>
-                </ol>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(popup);
-    
-    // Добавляем класс для body
-    document.body.classList.add('popup-open');
-    
-    // Закрытие по клику вне контента
-    popup.addEventListener('click', (event) => {
-        if (event.target === popup) {
-            hideExpectedPopup(popup.querySelector('.popup-close'));
-        }
-    });
-    
-    // Закрытие по Escape
-    document.addEventListener('keydown', function escapeHandler(e) {
-        if (e.key === 'Escape') {
-            hideExpectedPopup(popup.querySelector('.popup-close'));
-            document.removeEventListener('keydown', escapeHandler);
-        }
-    });
+    console.log('showExpectedPopup: Показываем popup для товара который ожидается');
+    openPopup('expectedPopup');
 }
 
-// Функция скрытия сообщения о товаре в ожидании
-function hideExpectedPopup(closeButton) {
-    const popup = closeButton.closest('.popup-overlay');
-    if (popup) {
-        popup.classList.remove('show');
-        setTimeout(() => {
-            popup.remove();
-            document.body.classList.remove('popup-open');
-        }, 300);
-    }
-}
-
-// Функция показа сообщения о товаре под заказ
 function showOnOrderPopup() {
-    const popup = document.createElement('div');
-    popup.className = 'popup-overlay show';
-    popup.innerHTML = `
-        <div class="popup-content">
-            <button class="popup-close" onclick="hideOnOrderPopup(this)">&times;</button>
-            <div class="popup-icon">
-                <span style="font-size: 48px;">📋</span>
-            </div>
-            <div class="popup-message">
-                <p><strong>Товар доступен под заказ. Срок поставки уточняйте у менеджера.</strong></p>
-                
-                <p><strong>Условия оформления товара под заказ:</strong></p>
-                
-                <ol>
-                    <li>Полная оплата</li>
-                    <li>Срок доставки в Одессу с момента оплаты от 30-45 дней (по договорённости)</li>
-                    <li>Стоимость пересылки по Украине оплачивает покупатель</li>
-                    <li>Можно накапливать и использовать бонусные баллы</li>
-                    <li>Консультация по поводу товаров Под заказ в Telegram с менеджером <a href="https://t.me/GuitarStringsUSA" target="_blank" style="color: #007bff; text-decoration: underline;">@GuitarStringsUSA</a></li>
-                </ol>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(popup);
-    
-    // Добавляем класс для body
-    document.body.classList.add('popup-open');
-    
-    // Закрытие по клику вне контента
-    popup.addEventListener('click', (event) => {
-        if (event.target === popup) {
-            hideOnOrderPopup(popup.querySelector('.popup-close'));
-        }
-    });
-    
-    // Закрытие по Escape
-    document.addEventListener('keydown', function escapeHandler(e) {
-        if (e.key === 'Escape') {
-            hideOnOrderPopup(popup.querySelector('.popup-close'));
-            document.removeEventListener('keydown', escapeHandler);
-        }
-    });
+    console.log('showOnOrderPopup: Показываем popup для товара под заказ');
+    openPopup('onOrderPopup');
 }
 
-// Функция скрытия сообщения о товаре под заказ
-function hideOnOrderPopup(closeButton) {
-    const popup = closeButton.closest('.popup-overlay');
-    if (popup) {
-        popup.classList.remove('show');
-        setTimeout(() => {
-            popup.remove();
-            document.body.classList.remove('popup-open');
-        }, 300);
-    }
-}
-
-// Функциональность для нового интерфейса
-function setupNewInterface() {
-    // Обработчики для нижней навигации
-    const navItems = document.querySelectorAll('.nav-item');
-    navItems.forEach(item => {
-        item.addEventListener('click', () => {
-            // Убираем активный класс у всех элементов
-            navItems.forEach(nav => nav.classList.remove('active'));
-            // Добавляем активный класс к выбранному элементу
-            item.classList.add('active');
-            
-            // Здесь можно добавить логику для переключения между разделами
-            const section = item.querySelector('span').textContent;
-            console.log(`Переключение на раздел: ${section}`);
-        });
-    });
-    
-    // Обработчик для поиска
-    const searchInput = document.querySelector('.search-input');
-    if (searchInput) {
-        searchInput.addEventListener('input', (e) => {
-            const query = e.target.value.toLowerCase();
-            filterProducts(query);
-        });
-    }
-    
-    // Обработчик для кнопки настроек
-    const settingsBtn = document.querySelector('.settings-btn');
-    if (settingsBtn) {
-        settingsBtn.addEventListener('click', () => {
-            showSettingsPopup();
-        });
-    }
-    
-    // Обработчик для кнопки меню
-    const menuBtn = document.querySelector('.menu-btn');
-    if (menuBtn) {
-        menuBtn.addEventListener('click', () => {
-            showMenuPopup();
-        });
-    }
-    
-    // Обработчик для кнопки закрытия
-    const closeBtn = document.querySelector('.close-btn');
-    if (closeBtn) {
-        closeBtn.addEventListener('click', () => {
-            // Здесь можно добавить логику закрытия приложения
-            console.log('Закрытие приложения');
-        });
-    }
-    
-    // Обработчик для онлайн статуса
-    const onlineStatus = document.querySelector('.online-status');
-    if (onlineStatus) {
-        onlineStatus.addEventListener('click', () => {
-            // Открываем чат в Telegram с @GuitarStringsUSA
-            openTelegramChat('GuitarStringsUSA');
-        });
-        
-        // Обновляем статус кнопки поддержки
-        updateSupportButtonStatus();
-        
-        // Обновляем статус каждые 5 минут
-        setInterval(updateSupportButtonStatus, 5 * 60 * 1000);
-    }
-    
-    // Добавляем обработчик прокрутки для бесконечной загрузки
-    window.addEventListener('scroll', handleScroll);
-    console.log('setupNewInterface: Обработчик прокрутки добавлен');
-}
-
-// Функция фильтрации товаров по поиску
-function filterProducts(query) {
-    console.log('filterProducts: Начинаем фильтрацию с запросом:', query);
-    
-    const productCards = document.querySelectorAll('.product-card');
-    console.log(`filterProducts: Найдено ${productCards.length} карточек товаров`);
-    
-    let visibleCount = 0;
-    let hiddenCount = 0;
-    
-    productCards.forEach((card, index) => {
-        const title = card.querySelector('.product-title').textContent.toLowerCase();
-        const shouldShow = title.includes(query);
-        
-        // Проверяем, что карточка содержит все необходимые элементы перед фильтрацией
-        const hasRating = card.querySelector('.product-rating');
-        const hasStatus = card.querySelector('.product-status');
-        
-        if (!hasRating) {
-            console.warn(`filterProducts: Карточка ${index} не содержит рейтинг`);
-        }
-        if (!hasStatus) {
-            console.warn(`filterProducts: Карточка ${index} не содержит статус`);
-        }
-        
-        if (shouldShow) {
-            card.style.display = 'block';
-            visibleCount++;
-            
-            // Проверяем, что контент карточки не изменился после показа
-            setTimeout(() => {
-                const ratingAfter = card.querySelector('.product-rating');
-                const statusAfter = card.querySelector('.product-status');
-                
-                if (ratingAfter && ratingAfter.innerHTML.trim() === '') {
-                    console.warn(`filterProducts: Рейтинг карточки ${index} стал пустым после показа`);
-                }
-                if (statusAfter && statusAfter.textContent.trim() === '') {
-                    console.warn(`filterProducts: Статус карточки ${index} стал пустым после показа`);
-                }
-            }, 100);
-        } else {
-            card.style.display = 'none';
-            hiddenCount++;
-        }
-    });
-    
-    console.log(`filterProducts: Показано ${visibleCount} карточек, скрыто ${hiddenCount} карточек`);
-    
-    // Если поиск пустой, восстанавливаем все карточки
-    if (query === '') {
-        console.log('filterProducts: Поиск пустой, восстанавливаем все карточки');
-        restoreProductCardsAfterSearch();
-    }
-}
-
-// Функция для восстановления карточек товаров после поиска
-function restoreProductCardsAfterSearch() {
-    console.log('restoreProductCardsAfterSearch: Восстанавливаем карточки товаров');
-    
-    const productCards = document.querySelectorAll('.product-card');
-    productCards.forEach((card, index) => {
-        // Проверяем, что карточка содержит все необходимые элементы
-        const ratingElement = card.querySelector('.product-rating');
-        const statusElement = card.querySelector('.product-status');
-        
-        // Восстанавливаем рейтинг, если он отсутствует
-        if (ratingElement && ratingElement.innerHTML.trim() === '') {
-            const originalRating = card.getAttribute('data-original-rating');
-            if (originalRating) {
-                ratingElement.innerHTML = generateRatingStars(originalRating);
-                console.log(`restoreProductCardsAfterSearch: Восстановлен рейтинг для карточки ${index}`);
-            }
-        }
-        
-        // Восстанавливаем статус, если он отсутствует
-        if (statusElement && statusElement.textContent.trim() === '') {
-            const originalAvailability = card.getAttribute('data-original-availability');
-            if (originalAvailability) {
-                statusElement.textContent = getStatusText(originalAvailability);
-                console.log(`restoreProductCardsAfterSearch: Восстановлен статус для карточки ${index}`);
-            }
-        }
-    });
-}
-
-// Показ попапа настроек
-function showSettingsPopup() {
-    const popup = document.createElement('div');
-    popup.className = 'popup-overlay show';
-    popup.innerHTML = `
-        <div class="popup-content">
-            <button class="popup-close" onclick="hideSettingsPopup(this)">&times;</button>
-            <h3>Настройки</h3>
-            <div class="settings-options">
-                <div class="setting-item">
-                    <label>Уведомления</label>
-                    <input type="checkbox" checked>
-                </div>
-                <div class="setting-item">
-                    <label>Темная тема</label>
-                    <input type="checkbox">
-                </div>
-                <div class="setting-item">
-                    <label>Автообновление цен</label>
-                    <input type="checkbox" checked>
-                </div>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(popup);
-    
-    document.body.classList.add('popup-open');
-    
-    popup.addEventListener('click', (event) => {
-        if (event.target === popup) {
-            hideSettingsPopup(popup.querySelector('.popup-close'));
-        }
-    });
-}
-
-// Скрытие попапа настроек
-function hideSettingsPopup(closeButton) {
-    const popup = closeButton.closest('.popup-overlay');
-    if (popup) {
-        popup.classList.remove('show');
-        setTimeout(() => {
-            popup.remove();
-            document.body.classList.remove('popup-open');
-        }, 300);
-    }
-}
-
-// Показ попапа меню
+// Функции для показа всплывающих окон меню и настроек
 function showMenuPopup() {
-    const popup = document.createElement('div');
-    popup.className = 'popup-overlay show';
-    popup.innerHTML = `
-        <div class="popup-content">
-            <button class="popup-close" onclick="hideMenuPopup(this)">&times;</button>
-            <h3>Меню</h3>
-            <div class="menu-options">
-                <div class="menu-item">
-                    <i class="fas fa-user"></i>
-                    <span>Профиль</span>
-                </div>
-                <div class="menu-item">
-                    <i class="fas fa-cog"></i>
-                    <span>Настройки</span>
-                </div>
-                <div class="menu-item">
-                    <i class="fas fa-question-circle"></i>
-                    <span>Помощь</span>
-                </div>
-                <div class="menu-item">
-                    <i class="fas fa-info-circle"></i>
-                    <span>О приложении</span>
-                </div>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(popup);
-    
-    document.body.classList.add('popup-open');
-    
-    popup.addEventListener('click', (event) => {
-        if (event.target === popup) {
-            hideMenuPopup(popup.querySelector('.popup-close'));
+    console.log('=== showMenuPopup: Показываем popup меню ===');
+    const popup = document.getElementById('menuPopup');
+    console.log('menuPopup найден:', popup);
+    openPopup('menuPopup');
+}
+
+function showSettingsPopup() {
+    console.log('=== showSettingsPopup: Показываем popup настроек ===');
+    const popup = document.getElementById('settingsPopup');
+    console.log('settingsPopup найден:', popup);
+    openPopup('settingsPopup');
+}
+
+// Функция для закрытия всех всплывающих окон при клике вне их
+function setupPopupClickOutside() {
+    document.addEventListener('click', (e) => {
+        const menuPopup = document.getElementById('menuPopup');
+        const settingsPopup = document.getElementById('settingsPopup');
+        
+        // Закрываем меню если клик не по кнопке меню и не по содержимому меню
+        if (menuPopup && menuPopup.classList.contains('show')) {
+            const menuBtn = document.querySelector('.menu-btn');
+            if (!menuBtn.contains(e.target) && !menuPopup.contains(e.target)) {
+                closePopup('menuPopup');
+            }
+        }
+        
+        // Закрываем настройки если клик не по кнопке настроек и не по содержимому настроек
+        if (settingsPopup && settingsPopup.classList.contains('show')) {
+            const settingsBtn = document.querySelector('.settings-btn');
+            if (!settingsBtn.contains(e.target) && !settingsPopup.contains(e.target)) {
+                closePopup('settingsPopup');
+            }
         }
     });
 }
-
-// Скрытие попапа меню
-function hideMenuPopup(closeButton) {
-    const popup = closeButton.closest('.popup-overlay');
-    if (popup) {
-        popup.classList.remove('show');
-        setTimeout(() => {
-            popup.remove();
-            document.body.classList.remove('popup-open');
-        }, 300);
-    }
-}
-
-// Показ попапа контактов
-function showContactPopup() {
-    const popup = document.createElement('div');
-    popup.className = 'popup-overlay show';
-    popup.innerHTML = `
-        <div class="popup-content">
-            <button class="popup-close" onclick="hideContactPopup(this)">&times;</button>
-            <h3>Свяжитесь с нами</h3>
-            <div class="contact-info">
-                <div class="contact-item">
-                    <i class="fas fa-phone"></i>
-                    <span>+380 (99) 123-45-67</span>
-                </div>
-                <div class="contact-item">
-                    <i class="fab fa-telegram"></i>
-                    <span>@guitarstrings_ua</span>
-                </div>
-                <div class="contact-item">
-                    <i class="fas fa-envelope"></i>
-                    <span>info@guitarstrings.com.ua</span>
-                </div>
-            </div>
-            <p>Мы онлайн и готовы помочь!</p>
-        </div>
-    `;
-    document.body.appendChild(popup);
-    
-    document.body.classList.add('popup-open');
-    
-    popup.addEventListener('click', (event) => {
-        if (event.target === popup) {
-            hideContactPopup(popup.querySelector('.popup-close'));
-        }
-    });
-}
-
-// Скрытие попапа контактов
-function hideContactPopup(closeButton) {
-    const popup = closeButton.closest('.popup-overlay');
-    if (popup) {
-        popup.classList.remove('show');
-        setTimeout(() => {
-            popup.remove();
-            document.body.classList.remove('popup-open');
-        }, 300);
-    }
-}
-
-// Инициализация нового интерфейса при загрузке страницы
-document.addEventListener('DOMContentLoaded', () => {
-    setupNewInterface();
-    // Убираем дублирующий вызов loadFirstPage() - он уже вызывается в setupNewInterface
-});
-
-// Добавляем стили для новых попапов
-const newStyles = `
-<style>
-.settings-options, .menu-options, .contact-info {
-    margin: 20px 0;
-}
-
-.setting-item, .menu-item, .contact-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 0;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.setting-item:last-child, .menu-item:last-child, .contact-item:last-child {
-    border-bottom: none;
-}
-
-.menu-item, .contact-item {
-    cursor: pointer;
-    transition: background 0.2s ease;
-    padding: 12px;
-    border-radius: var(--border-radius-small);
-}
-
-.menu-item:hover, .contact-item:hover {
-    background: var(--bg-secondary);
-}
-
-.menu-item i, .contact-item i {
-    margin-right: 12px;
-    color: var(--primary-color);
-    width: 20px;
-    text-align: center;
-}
-
-.popup-content h3 {
-    margin-bottom: 20px;
-    color: var(--text-primary);
-}
-
-.popup-content p {
-    margin-top: 20px;
-    color: var(--text-secondary);
-    font-style: italic;
-}
-</style>
-`;
-
-document.head.insertAdjacentHTML('beforeend', newStyles);
 
 // Функция проверки онлайн статуса пользователя в Telegram
 async function checkTelegramUserStatus(username) {
@@ -2234,6 +2395,20 @@ function closePopup(popupId) {
 // Функция для открытия всплывающих окон
 function openPopup(popupId) {
     console.log(`openPopup: Открываем popup с ID: ${popupId}`);
+    
+    // Сначала закрываем все другие popup'ы
+    const allPopups = ['menuPopup', 'settingsPopup'];
+    allPopups.forEach(id => {
+        if (id !== popupId) {
+            const popup = document.getElementById(id);
+            if (popup && popup.classList.contains('show')) {
+                popup.classList.remove('show');
+                console.log(`openPopup: Закрыт popup ${id} перед открытием ${popupId}`);
+            }
+        }
+    });
+    
+    // Теперь открываем нужный popup
     const popup = document.getElementById(popupId);
     if (popup) {
         popup.classList.add('show');
@@ -2243,25 +2418,78 @@ function openPopup(popupId) {
     }
 }
 
-// Функции для показа конкретных всплывающих окон
-function showDiscontinuedPopup() {
-    console.log('showDiscontinuedPopup: Показываем popup для товара снятого с производства');
-    openPopup('discontinuedPopup');
+// Функция для обновления переводов кнопок товаров при смене языка
+function updateProductButtonTranslations(language) {
+    const buttons = document.querySelectorAll('.product-card .btn');
+    
+    buttons.forEach(button => {
+        const availability = button.getAttribute('data-product-availability');
+        let newText = '';
+        
+        if (availability === 'Нет в наличии') {
+            newText = 'Нет в наличии';
+        } else if (availability === 'Ожидается') {
+            newText = window.translations ? window.translations.getTranslation('expectedButton', language) : 'Ожидается';
+        } else if (availability === 'Под заказ') {
+            newText = window.translations ? window.translations.getTranslation('orderButton', language) : 'Под заказ';
+        } else if (availability === 'Снят с производства') {
+            newText = window.translations ? window.translations.getTranslation('discontinuedButton', language) : 'Снят с производства';
+        } else {
+            // По умолчанию "В наличии"
+            newText = window.translations ? window.translations.getTranslation('buyButton', language) : 'Купить';
+        }
+        
+        button.textContent = newText;
+    });
 }
 
-function showOutOfStockPopup() {
-    console.log('showOutOfStockPopup: Показываем popup для товара которого нет в наличии');
-    openPopup('outOfStockPopup');
-}
-
-function showExpectedPopup() {
-    console.log('showExpectedPopup: Показываем popup для товара который ожидается');
-    openPopup('expectedPopup');
-}
-
-function showOnOrderPopup() {
-    console.log('showOnOrderPopup: Показываем popup для товара под заказ');
-    openPopup('onOrderPopup');
+// Функция для настройки переключателей языков
+function setupLanguageSwitchers() {
+    console.log('setupLanguageSwitchers: Настраиваем переключатели языков');
+    
+    const languageButtons = document.querySelectorAll('.language-btn');
+    console.log(`setupLanguageSwitchers: Найдено ${languageButtons.length} кнопок языков`);
+    
+    // Получаем текущий язык
+    const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
+    console.log(`setupLanguageSwitchers: Текущий язык: ${currentLanguage}`);
+    
+    // Устанавливаем активный класс для текущего языка
+    languageButtons.forEach(button => {
+        const lang = button.getAttribute('data-lang');
+        if (lang === currentLanguage) {
+            button.classList.add('active');
+            console.log(`setupLanguageSwitchers: Установлен активный класс для языка ${lang}`);
+        } else {
+            button.classList.remove('active');
+        }
+        
+        // Добавляем обработчик клика
+        button.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const selectedLang = button.getAttribute('data-lang');
+            console.log(`setupLanguageSwitchers: Выбран язык: ${selectedLang}`);
+            
+            // Убираем активный класс со всех кнопок
+            languageButtons.forEach(btn => btn.classList.remove('active'));
+            
+            // Добавляем активный класс к нажатой кнопке
+            button.classList.add('active');
+            
+            // Переключаем язык
+            if (typeof window.translations !== 'undefined') {
+                window.translations.setLanguage(selectedLang);
+                console.log(`setupLanguageSwitchers: Язык переключен на ${selectedLang}`);
+                
+                // Обновляем переводы кнопок товаров
+                updateProductButtonTranslations(selectedLang);
+            } else {
+                console.error('setupLanguageSwitchers: Система переводов не найдена');
+            }
+        });
+        
+        console.log(`setupLanguageSwitchers: Обработчик для языка ${lang} настроен`);
+    });
 }
 
 
