@@ -17,11 +17,11 @@ def scrape_all_pages():
     """Scrape all pages from guitarstrings.com.ua/electro and return combined product list"""
     global ALL_PRODUCTS_CACHE, CACHE_TIMESTAMP
     
-    # Check if we have recent cache (less than 5 minutes old)
+    # Check if we have recent cache (less than 30 minutes old)
     import time
     current_time = time.time()
     if ALL_PRODUCTS_CACHE is not None and CACHE_TIMESTAMP is not None:
-        if current_time - CACHE_TIMESTAMP < 300:  # 5 minutes cache
+        if current_time - CACHE_TIMESTAMP < 1800:  # 30 minutes cache
             print(f"Using cached products: {len(ALL_PRODUCTS_CACHE)} items")
             return ALL_PRODUCTS_CACHE
     
@@ -49,7 +49,7 @@ def scrape_all_pages():
     
     for i, url in enumerate(page_urls, 1):
         try:
-            print(f"Scraping page {i}: {url}")
+            print(f"Scraping page {i}/7...")
             response = requests.get(url, headers=headers, timeout=15)
             response.raise_for_status()
             
@@ -57,22 +57,18 @@ def scrape_all_pages():
             
             # Find product items using the correct selector for this site
             product_items = soup.find_all('div', class_='spacer')
-            print(f"Page {i}: Found {len(product_items)} items with class 'spacer'")
             
             if not product_items:
                 # Fallback selectors
                 product_items = soup.find_all('div', class_='product-item')
-                print(f"Page {i}: Found {len(product_items)} items with class 'product-item'")
             
             if not product_items:
                 product_items = soup.find_all('div', class_='item')
-                print(f"Page {i}: Found {len(product_items)} items with class 'item'")
             
-            print(f"Page {i}: Total product items found: {len(product_items)}")
             all_product_items.extend(product_items)
             
             # Add a small delay between requests to be respectful
-            time.sleep(1)
+            time.sleep(0.5)
             
         except Exception as e:
             print(f"Error scraping page {i} ({url}): {e}")
@@ -460,4 +456,14 @@ def api_products():
         })
 
 if __name__ == '__main__':
+    print("Starting server...")
+    print("Pre-loading product cache...")
+    try:
+        # Pre-load cache on startup
+        scrape_all_pages()
+        print("Cache pre-loaded successfully!")
+    except Exception as e:
+        print(f"Warning: Could not pre-load cache: {e}")
+    
+    print("Starting Flask server on port 8000...")
     app.run(host='0.0.0.0', port=8000, debug=True) 

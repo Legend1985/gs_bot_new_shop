@@ -82,7 +82,24 @@ const translations = {
         english: "English",
         ukr: "UKR",
         rus: "RUS",
-        eng: "ENG"
+        eng: "ENG",
+        
+        // Категории товаров
+        categories: "Категорії",
+        electricGuitarStrings: "Струни для Електрогітари",
+        acousticGuitarStrings: "Струни для акустичних гітар",
+        classicalGuitarStrings: "Струни для класичної гітари",
+        bassStrings: "Струни для Бас гітари",
+        singleStrings: "Струни поштучно",
+        ukuleleStrings: "Струни для Укулеле",
+        stringsWholesale: "Струни оптом",
+        guitarPicks: "Медіатори",
+        accessories: "Аксесуари",
+        percussion: "Перкусія",
+        ukulele: "Укулеле",
+        drumsticksVicFirth: "Барабанні палички Vic Firth",
+        jellyBellyBeanBoozled: "Jelly Belly, BeanBoozled",
+        preOrder: "Під замовлення"
     },
     
     ru: {
@@ -165,7 +182,24 @@ const translations = {
         english: "English",
         ukr: "UKR",
         rus: "RUS",
-        eng: "ENG"
+        eng: "ENG",
+        
+        // Категории товаров
+        categories: "Категории",
+        electricGuitarStrings: "Струны для Электрогитары",
+        acousticGuitarStrings: "Струны для Акустической гитары",
+        classicalGuitarStrings: "Струны для Классической гитары",
+        bassStrings: "Струны для Бас гитары",
+        singleStrings: "Струны поштучно",
+        ukuleleStrings: "Струны для Укулеле",
+        stringsWholesale: "Струны оптом",
+        guitarPicks: "Медиаторы",
+        accessories: "Аксессуары",
+        percussion: "Перкуссия",
+        ukulele: "Укулеле",
+        drumsticksVicFirth: "Барабанные палочки Vic Firth",
+        jellyBellyBeanBoozled: "Jelly Belly, BeanBoozled",
+        preOrder: "Под Заказ"
     },
     
     en: {
@@ -248,7 +282,24 @@ const translations = {
         english: "English",
         ukr: "UKR",
         rus: "RUS",
-        eng: "ENG"
+        eng: "ENG",
+        
+        // Product categories
+        categories: "Categories",
+        electricGuitarStrings: "Electric Guitar Strings",
+        acousticGuitarStrings: "Acoustic Guitar Strings",
+        classicalGuitarStrings: "Classical Guitar Strings",
+        bassStrings: "Bass Strings",
+        singleStrings: "Single Strings",
+        ukuleleStrings: "Ukulele strings",
+        stringsWholesale: "Strings wholesale",
+        guitarPicks: "Guitar Picks",
+        accessories: "Accessories",
+        percussion: "Percussion",
+        ukulele: "Ukulele",
+        drumsticksVicFirth: "Drumsticks Vic Firth",
+        jellyBellyBeanBoozled: "Jelly Belly, BeanBoozled",
+        preOrder: "Pre Order"
     }
 };
 

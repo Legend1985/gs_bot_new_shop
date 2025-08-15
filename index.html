@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GuitarStrings.com.ua</title>
-                                <link rel="stylesheet" href="style.css?v=10.49">
+                                <link rel="stylesheet" href="style.css?v=10.55">
         <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-        <script src="translations.js?v=10.49"></script>
-        <script src="app.js?v=10.49" defer></script>
+        <script src="translations.js?v=10.55"></script>
+        <script src="app.js?v=10.60" defer></script>
 </head>
 <body>
     <!-- Верхний хедер -->
@@ -47,14 +47,14 @@
 
     <!-- Поисковая строка -->
     <div class="search-section">
-        <button class="menu-btn">
+        <button class="menu-btn" onclick="showMenuPopup()">
             <i class="fas fa-bars"></i>
         </button>
         <div class="search-bar">
             <i class="fas fa-search search-icon"></i>
             <input type="text" placeholder="Поиск" class="search-input" data-translate="searchPlaceholder">
         </div>
-        <button class="settings-btn">
+        <button class="settings-btn" onclick="showSettingsPopup()">
             <i class="fas fa-cog"></i>
         </button>
         
@@ -68,21 +68,61 @@
                     <h3 data-translate="menu">Меню</h3>
                 </div>
                 <div class="popup-menu-body">
-                    <div class="menu-item">
-                        <i class="fas fa-home"></i>
-                        <span data-translate="home">Главная</span>
+                    <div class="menu-item category-item" data-category="electricGuitarStrings">
+                        <img src="images/Menu_images/electric_guitar_strings_category_0x170.png" alt="Струны для Электрогитары" class="category-image">
+                        <span data-translate="electricGuitarStrings">Струны для Электрогитары</span>
                     </div>
-                    <div class="menu-item">
-                        <i class="fas fa-guitar"></i>
-                        <span data-translate="catalog">Каталог</span>
+                    <div class="menu-item category-item" data-category="acousticGuitarStrings">
+                        <img src="images/Menu_images/acoustic_guitar_strings_category_0x170.png" alt="Струны для Акустической гитары" class="category-image">
+                        <span data-translate="acousticGuitarStrings">Струны для Акустической гитары</span>
                     </div>
-                    <div class="menu-item">
-                        <i class="fas fa-info-circle"></i>
-                        <span data-translate="about">О нас</span>
+                    <div class="menu-item category-item" data-category="classicalGuitarStrings">
+                        <img src="images/Menu_images/classical_guitar_strings_category_0x170.png" alt="Струны для Классической гитары" class="category-image">
+                        <span data-translate="classicalGuitarStrings">Струны для Классической гитары</span>
                     </div>
-                    <div class="menu-item">
-                        <i class="fas fa-phone"></i>
-                        <span data-translate="contacts">Контакты</span>
+                    <div class="menu-item category-item" data-category="bassStrings">
+                        <img src="images/Menu_images/bass_strings_category_0x170.png" alt="Струны для Бас гитары" class="category-image">
+                        <span data-translate="bassStrings">Струны для Бас гитары</span>
+                    </div>
+                    <div class="menu-item category-item" data-category="singleStrings">
+                        <img src="images/Menu_images/ernie_ball_1010-350_0x170.png" alt="Струны поштучно" class="category-image">
+                        <span data-translate="singleStrings">Струны поштучно</span>
+                    </div>
+                    <div class="menu-item category-item" data-category="ukuleleStrings">
+                        <img src="images/Menu_images/aquila_106u_0x170.png" alt="Струны для Укулеле" class="category-image">
+                        <span data-translate="ukuleleStrings">Струны для Укулеле</span>
+                    </div>
+                    <div class="menu-item category-item" data-category="stringsWholesale">
+                        <img src="images/Menu_images/elixir_12052_box_open_0x170.png" alt="Струны оптом" class="category-image">
+                        <span data-translate="stringsWholesale">Струны оптом</span>
+                    </div>
+                    <div class="menu-item category-item" data-category="guitarPicks">
+                        <img src="images/Menu_images/picks_0x90_0x170.png" alt="Медиаторы" class="category-image">
+                        <span data-translate="guitarPicks">Медиаторы</span>
+                    </div>
+                    <div class="menu-item category-item" data-category="accessories">
+                        <img src="images/Menu_images/acs_0x90_0x170.png" alt="Аксессуары" class="category-image">
+                        <span data-translate="accessories">Аксессуары</span>
+                    </div>
+                    <div class="menu-item category-item" data-category="percussion">
+                        <img src="images/Menu_images/hend_tambourine_0x170.png" alt="Перкуссия" class="category-image">
+                        <span data-translate="percussion">Перкуссия</span>
+                    </div>
+                    <div class="menu-item category-item" data-category="ukulele">
+                        <img src="images/Menu_images/mitchell_mu40c_350_0x170.png" alt="Укулеле" class="category-image">
+                        <span data-translate="ukulele">Укулеле</span>
+                    </div>
+                    <div class="menu-item category-item" data-category="drumsticksVicFirth">
+                        <img src="images/Menu_images/drumstricks_category_0x170.png" alt="Барабанные палочки Vic Firth" class="category-image">
+                        <span data-translate="drumsticksVicFirth">Барабанные палочки Vic Firth</span>
+                    </div>
+                    <div class="menu-item category-item" data-category="jellyBellyBeanBoozled">
+                        <img src="images/Menu_images/bazooka_0x170.png" alt="Jelly Belly, BeanBoozled" class="category-image">
+                        <span data-translate="jellyBellyBeanBoozled">Jelly Belly, BeanBoozled</span>
+                    </div>
+                    <div class="menu-item category-item" data-category="preOrder">
+                        <img src="images/Menu_images/strings_preorder_0x170.png" alt="Под Заказ" class="category-image">
+                        <span data-translate="preOrder">Под Заказ</span>
                     </div>
                 </div>
             </div>
