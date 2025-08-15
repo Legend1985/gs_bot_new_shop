@@ -433,15 +433,15 @@ function applyTranslations(language = 'uk') {
         }
     });
     
-    // УБИРАЕМ ВЫЗОВ updateProductButtonTranslations для предотвращения рекурсии
-    // if (typeof updateProductButtonTranslations === 'function') {
-    //     // Добавляем проверку инициализации переменных
-    //     if (typeof window.loadedProductNames === 'undefined') {
-    //         console.warn('applyTranslations: loadedProductNames не инициализирована, пропускаем обновление кнопок');
-    //         return;
-    //     }
-    //     updateProductButtonTranslations(language);
-    // }
+    // Обновляем кнопки товаров при смене языка
+    if (typeof updateProductButtonTranslations === 'function') {
+        // Добавляем проверку инициализации переменных
+        if (typeof window.loadedProductNames === 'undefined') {
+            console.warn('applyTranslations: loadedProductNames не инициализирована, пропускаем обновление кнопок');
+            return;
+        }
+        updateProductButtonTranslations(language);
+    }
 }
 
 // Функция для инициализации системы переводов

@@ -62,10 +62,102 @@ window.maxProducts = maxProducts;
 let allProducts = []; // Массив всех загруженных товаров
 let searchTerm = ''; // Текущий поисковый запрос
 let isSearchActive = false; // Флаг активного поиска
+let searchTimeout = null; // Для debouncing поиска
 
 // Счетчик обновлений страницы (F5)
 let refreshCounter = 0;
 const MAX_REFRESHES_BEFORE_CLEAR = 5; // После 5-го F5 (т.е. при 6-м F5) очищаем кеш
+
+// Функция для получения правильного текста кнопки в зависимости от языка
+function getButtonText(availability, language) {
+    // Определяем язык
+    const currentLanguage = language || localStorage.getItem('selectedLanguage') || 'uk';
+    console.log(`getButtonText: availability="${availability}", language="${language}", currentLanguage="${currentLanguage}"`);
+    
+    // Для товаров в наличии
+    if (availability === 'В наличии' || availability === 'В наявності' || availability === 'In stock' || 
+        availability === 'В наличии в Одессе' || availability === 'В наявності в Одесі') {
+        switch (currentLanguage) {
+            case 'uk':
+                return 'КУПИТИ';
+            case 'ru':
+                return 'КУПИТЬ';
+            case 'en':
+                return 'BUY';
+            default:
+                return 'КУПИТИ';
+        }
+    }
+    
+    // Для товаров не в наличии
+    if (availability === 'Нет в наличии' || availability === 'Немає в наявності' || availability === 'Out of stock') {
+        switch (currentLanguage) {
+            case 'uk':
+                return 'Немає в наявності';
+            case 'ru':
+                return 'Нет в наличии';
+            case 'en':
+                return 'Out of stock';
+            default:
+                return 'Немає в наявності';
+        }
+    }
+    
+    // Для ожидаемых товаров
+    if (availability === 'Ожидается' || availability === 'Очікується' || availability === 'Expected' || 
+        availability === 'Ожидается поставка' || availability === 'Очікується поставка') {
+        switch (currentLanguage) {
+            case 'uk':
+                return 'Очікується';
+            case 'ru':
+                return 'Ожидается';
+            case 'en':
+                return 'Expected';
+            default:
+                return 'Очікується';
+        }
+    }
+    
+    // Для товаров под заказ
+    if (availability === 'Под заказ' || availability === 'Під замовлення' || availability === 'On order') {
+        switch (currentLanguage) {
+            case 'uk':
+                return 'Під замовлення';
+            case 'ru':
+                return 'Под заказ';
+            case 'en':
+                return 'On order';
+            default:
+                return 'Під замовлення';
+        }
+    }
+    
+    // Для снятых с производства
+    if (availability === 'Снят с производства' || availability === 'Знято з виробництва' || availability === 'Discontinued') {
+        switch (currentLanguage) {
+            case 'uk':
+                return 'Знято з виробництва';
+            case 'ru':
+                return 'Снят с производства';
+            case 'en':
+                return 'Discontinued';
+            default:
+                return 'Знято з виробництва';
+        }
+    }
+    
+    // По умолчанию - кнопка покупки
+    switch (currentLanguage) {
+        case 'uk':
+            return 'КУПИТИ';
+        case 'ru':
+            return 'КУПИТЬ';
+        case 'en':
+            return 'BUY';
+        default:
+            return 'КУПИТИ';
+    }
+}
 
 // Функция для получения текста статуса товара
 function getStatusText(availability) {
@@ -178,6 +270,9 @@ async function searchProducts(query) {
     const currentSearchTerm = query.toLowerCase().trim();
     isSearchActive = currentSearchTerm.length > 0;
     
+    // Устанавливаем глобальный поисковый запрос для проверки в других функциях
+    window.currentSearchTerm = currentSearchTerm;
+    
     console.log(`Поисковый запрос: "${currentSearchTerm}"`);
     console.log(`Активный поиск: ${isSearchActive}`);
     console.log(`Всего товаров для поиска: ${allProducts.length}`);
@@ -206,11 +301,8 @@ async function searchProducts(query) {
         
         console.log(`Найдено товаров в загруженных: ${filteredProducts.length}`);
         
-        // ИСПРАВЛЕНИЕ БАГА: Проверяем, не изменился ли поисковый запрос
-        if (searchTerm !== currentSearchTerm) {
-            console.log('Поисковый запрос изменился, прерываем поиск');
-            return;
-        }
+        // Обновляем searchTerm сразу после фильтрации
+        searchTerm = currentSearchTerm;
         
         // Если найдены товары в загруженных, показываем их
         if (filteredProducts.length > 0) {
@@ -218,6 +310,14 @@ async function searchProducts(query) {
         } else {
             // Если товары не найдены в загруженных, делаем поиск на сервере
             console.log('Товары не найдены в загруженных, ищем на сервере...');
+            await searchProductsFromServer(currentSearchTerm);
+        }
+        
+        // ДОПОЛНИТЕЛЬНО: Если поисковый запрос короткий (менее 3 символов), 
+        // но мы нашли товары в загруженных, все равно проверяем сервер
+        // для получения полных результатов
+        if (filteredProducts.length > 0 && currentSearchTerm.length >= 3) {
+            console.log('Найдены товары в загруженных, но проверяем сервер для полных результатов...');
             await searchProductsFromServer(currentSearchTerm);
         }
     } catch (error) {
@@ -228,8 +328,7 @@ async function searchProducts(query) {
         hideLoadingIndicator();
     }
     
-    // Обновляем searchTerm только после завершения поиска
-    searchTerm = currentSearchTerm;
+    // searchTerm уже обновлен в начале функции
 }
 
 
@@ -239,8 +338,8 @@ async function searchProductsFromServer(searchTerm) {
     try {
         console.log(`searchProductsFromServer: Ищем "${searchTerm}" на сервере...`);
         
-        // ИСПРАВЛЕНИЕ БАГА: Проверяем, не изменился ли поисковый запрос
-        if (searchTerm !== searchTerm) {
+        // Проверяем, не изменился ли поисковый запрос
+        if (window.currentSearchTerm && searchTerm !== window.currentSearchTerm) {
             console.log('searchProductsFromServer: Поисковый запрос изменился, прерываем поиск');
             return;
         }
@@ -255,8 +354,8 @@ async function searchProductsFromServer(searchTerm) {
         let data = await response.json();
         console.log(`searchProductsFromServer: Первый запрос, товаров: ${data.products ? data.products.length : 0}`);
         
-        // ИСПРАВЛЕНИЕ БАГА: Проверяем, не изменился ли поисковый запрос после первого запроса
-        if (searchTerm !== searchTerm) {
+        // Проверяем, не изменился ли поисковый запрос после первого запроса
+        if (window.currentSearchTerm && searchTerm !== window.currentSearchTerm) {
             console.log('searchProductsFromServer: Поисковый запрос изменился после первого запроса, прерываем поиск');
             return;
         }
@@ -288,8 +387,8 @@ async function searchProductsFromServer(searchTerm) {
             }
         }
         
-        // ИСПРАВЛЕНИЕ БАГА: Финальная проверка поискового запроса перед отображением
-        if (searchTerm !== searchTerm) {
+        // Финальная проверка поискового запроса перед отображением
+        if (window.currentSearchTerm && searchTerm !== window.currentSearchTerm) {
             console.log('searchProductsFromServer: Поисковый запрос изменился перед отображением, прерываем поиск');
             return;
         }
@@ -438,6 +537,15 @@ function showLoadingIndicator() {
     }
     
     indicator.style.display = 'block';
+    
+    // Автоматически скрываем индикатор через 2 секунды, если загрузка происходит быстро
+    setTimeout(() => {
+        if (indicator && !isLoading) {
+            indicator.style.display = 'none';
+            console.log('Индикатор загрузки автоматически скрыт (быстрая загрузка)');
+        }
+    }, 2000);
+    
     console.log('Показан индикатор загрузки для бесконечной прокрутки');
 }
 
@@ -738,22 +846,25 @@ function createProductCardFromSavedData(productData, btnId) {
         console.log(`Full productData:`, productData);
     }
     
-    if (productData.availability === 'Нет в наличии') {
+    // НОВАЯ ЛОГИКА: Используем индивидуальные кнопки для каждого языка
+    const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
+    
+    if (productData.availability === 'Нет в наличии' || productData.availability === 'Немає в наявності' || productData.availability === 'Out of stock') {
         statusClass = 'out-of-stock';
-        buttonText = 'Нет в наличии';
-    } else if (productData.availability === 'Ожидается') {
+        buttonText = getButtonText(productData.availability, currentLanguage);
+    } else if (productData.availability === 'Ожидается' || productData.availability === 'Очікується' || productData.availability === 'Expected') {
         statusClass = 'expected';
-        buttonText = 'Ожидается';
-    } else if (productData.availability === 'Под заказ') {
+        buttonText = getButtonText(productData.availability, currentLanguage);
+    } else if (productData.availability === 'Под заказ' || productData.availability === 'Під замовлення' || productData.availability === 'On order') {
         statusClass = 'on-order';
-        buttonText = 'Под заказ';
-    } else if (productData.availability === 'Снят с производства') {
+        buttonText = getButtonText(productData.availability, currentLanguage);
+    } else if (productData.availability === 'Снят с производства' || productData.availability === 'Знято з виробництва' || productData.availability === 'Discontinued') {
         statusClass = 'discontinued';
-        buttonText = 'Снят с производства';
+        buttonText = getButtonText(productData.availability, currentLanguage);
     } else {
         // По умолчанию "В наличии"
         statusClass = 'in-stock';
-        buttonText = 'Купить';
+        buttonText = getButtonText(productData.availability, currentLanguage);
     }
     
     // Определяем CSS класс для цены
@@ -878,24 +989,23 @@ function createProductCardFromSiteData(product, btnId) {
         console.log(`Full product data:`, product);
     }
     
-    // ИСПРАВЛЕНИЕ: Переводим кнопки на выбранный язык
+    // НОВАЯ ЛОГИКА: Используем индивидуальные кнопки для каждого языка
     if (product.availability === 'Нет в наличии' || product.availability === 'Немає в наявності' || product.availability === 'Out of stock') {
         statusClass = 'out-of-stock';
-        buttonText = window.translations ? window.translations.getTranslation('outOfStockButton', currentLanguage) : 'Нет в наличии';
+        buttonText = getButtonText(product.availability, currentLanguage);
     } else if (product.availability === 'Ожидается' || product.availability === 'Очікується' || product.availability === 'Expected') {
         statusClass = 'expected';
-        buttonText = window.translations ? window.translations.getTranslation('expectedButton', currentLanguage) : 'Ожидается';
+        buttonText = getButtonText(product.availability, currentLanguage);
     } else if (product.availability === 'Под заказ' || product.availability === 'Під замовлення' || product.availability === 'On order') {
         statusClass = 'on-order';
-        buttonText = window.translations ? window.translations.getTranslation('orderButton', currentLanguage) : 'Под заказ';
+        buttonText = getButtonText(product.availability, currentLanguage);
     } else if (product.availability === 'Снят с производства' || product.availability === 'Знято з виробництва' || product.availability === 'Discontinued') {
         statusClass = 'discontinued';
-        buttonText = window.translations ? window.translations.getTranslation('discontinuedButton', currentLanguage) : 'Снят с производства';
+        buttonText = getButtonText(product.availability, currentLanguage);
     } else {
         // По умолчанию "В наличии"
         statusClass = 'in-stock';
-        // ИСПРАВЛЕНИЕ: Используем русский fallback для корректного отображения
-        buttonText = window.translations ? window.translations.getTranslation('buyButton', currentLanguage) : 'Купить';
+        buttonText = getButtonText(product.availability, currentLanguage);
     }
     
     // Определяем CSS класс для цены
@@ -2005,8 +2115,56 @@ function resetState() {
 
 // Основная функция инициализации
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('=== Инициализация приложения v10.97 ===');
+    console.log('=== Инициализация приложения v11.03 ===');
     console.log('DOM загружен, начинаем инициализацию...');
+    
+    // НАСТРОЙКА ПОИСКА - перенесена в начало для быстрого доступа
+    console.log('=== НАСТРОЙКА ПОИСКА ===');
+    const searchInput = document.querySelector('.search-input');
+    if (searchInput) {
+        console.log('searchInput найден:', searchInput);
+        
+                    // Обработчик ввода в поисковую строку с debouncing
+            searchInput.addEventListener('input', async (e) => {
+                const query = e.target.value;
+                console.log(`Поисковый запрос: "${query}"`);
+                
+                // Очищаем предыдущий таймаут
+                if (searchTimeout) {
+                    clearTimeout(searchTimeout);
+                }
+                
+                // Устанавливаем новый таймаут (500ms задержка)
+                searchTimeout = setTimeout(async () => {
+                    await searchProducts(query);
+                }, 500);
+            });
+        
+        // Обработчик нажатия Enter
+        searchInput.addEventListener('keypress', async (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const query = e.target.value;
+                console.log(`Поиск по Enter: "${query}"`);
+                await searchProducts(query);
+            }
+        });
+        
+        // Обработчик клика по иконке поиска
+        const searchIcon = document.querySelector('.search-icon');
+        if (searchIcon) {
+            searchIcon.addEventListener('click', async () => {
+                const query = searchInput.value;
+                console.log(`Поиск по клику на иконку: "${query}"`);
+                await searchProducts(query);
+            });
+        }
+        
+        console.log('Обработчики поиска настроены');
+    } else {
+        console.error('ОШИБКА: Поле поиска не найдено!');
+    }
+    console.log('=== КОНЕЦ НАСТРОЙКИ ПОИСКА ===');
     
     try {
         // Проверяем, есть ли сохранённое состояние
@@ -2314,44 +2472,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         console.log('=== КОНЕЦ НАСТРОЙКИ EVENT DELEGATION ===');
         
-        // Настраиваем обработчики для поиска
-        console.log('=== НАСТРОЙКА ПОИСКА ===');
-        const searchInput = document.querySelector('.search-input');
-        if (searchInput) {
-            console.log('searchInput найден:', searchInput);
-            
-            // Обработчик ввода в поисковую строку
-            searchInput.addEventListener('input', async (e) => {
-                const query = e.target.value;
-                console.log(`Поисковый запрос: "${query}"`);
-                await searchProducts(query);
-            });
-            
-            // Обработчик нажатия Enter
-            searchInput.addEventListener('keypress', async (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    const query = e.target.value;
-                    console.log(`Поиск по Enter: "${query}"`);
-                    await searchProducts(query);
-                }
-            });
-            
-            // Обработчик клика по иконке поиска
-            const searchIcon = document.querySelector('.search-icon');
-            if (searchIcon) {
-                searchIcon.addEventListener('click', async () => {
-                    const query = searchInput.value;
-                    console.log(`Поиск по клику на иконку: "${query}"`);
-                    await searchProducts(query);
-                });
-            }
-            
-            console.log('Обработчики поиска настроены');
-        } else {
-            console.error('ОШИБКА: Поле поиска не найдено!');
-        }
-        console.log('=== КОНЕЦ НАСТРОЙКИ ПОИСКА ===');
+        // Настройка поиска перенесена в начало инициализации
         
         // ИСПРАВЛЕНИЕ БАГА: Принудительно обновляем переводы кнопок после полной инициализации
         console.log('=== ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ ПЕРЕВОДОВ КНОПОК ===');
@@ -3158,6 +3279,8 @@ function openPopup(popupId) {
 
 // Функция для обновления переводов кнопок товаров при смене языка
 function updateProductButtonTranslations(language) {
+    console.log(`updateProductButtonTranslations: Обновляем кнопки для языка ${language}`);
+    
     // Проверяем инициализацию переменных
     if (typeof window.loadedProductNames === 'undefined') {
         console.warn('updateProductButtonTranslations: loadedProductNames не инициализирована, инициализируем...');
@@ -3166,27 +3289,25 @@ function updateProductButtonTranslations(language) {
     }
     
     const buttons = document.querySelectorAll('.product-card .btn');
+    console.log(`updateProductButtonTranslations: Найдено ${buttons.length} кнопок для обновления`);
     
+    let updatedCount = 0;
     buttons.forEach(button => {
         const availability = button.getAttribute('data-product-availability');
+        const oldText = button.textContent;
         let newText = '';
         
-        // ИСПРАВЛЕНИЕ: Переводим все кнопки на выбранный язык
-        if (availability === 'Нет в наличии' || availability === 'Немає в наявності' || availability === 'Out of stock') {
-            newText = window.translations ? window.translations.getTranslation('outOfStockButton', language) : 'Нет в наличии';
-        } else if (availability === 'Ожидается' || availability === 'Очікується' || availability === 'Expected') {
-            newText = window.translations ? window.translations.getTranslation('expectedButton', language) : 'Ожидается';
-        } else if (availability === 'Под заказ' || availability === 'Під замовлення' || availability === 'On order') {
-            newText = window.translations ? window.translations.getTranslation('orderButton', language) : 'Под заказ';
-        } else if (availability === 'Снят с производства' || availability === 'Знято з виробництва' || availability === 'Discontinued') {
-            newText = window.translations ? window.translations.getTranslation('discontinuedButton', language) : 'Снят с производства';
-        } else {
-            // По умолчанию "В наличии"
-            newText = window.translations ? window.translations.getTranslation('buyButton', language) : 'Купить';
-        }
+        // НОВАЯ ЛОГИКА: Используем индивидуальные кнопки для каждого языка
+        newText = getButtonText(availability, language);
         
-        button.textContent = newText;
+        if (oldText !== newText) {
+            button.textContent = newText;
+            updatedCount++;
+            console.log(`updateProductButtonTranslations: Обновлена кнопка "${oldText}" → "${newText}" (${availability})`);
+        }
     });
+    
+    console.log(`updateProductButtonTranslations: Обновлено ${updatedCount} кнопок из ${buttons.length}`);
     
     // УБИРАЕМ ВЫЗОВ applyTranslations для предотвращения рекурсии
     // if (typeof window.translations !== 'undefined') {
@@ -3279,8 +3400,10 @@ function setupLanguageSwitchers() {
                     }
                 }
                 
-                // Обновляем переводы кнопок товаров (убираем вызов для улучшения производительности)
-                // updateProductButtonTranslations(selectedLang);
+                // Обновляем переводы кнопок товаров
+                if (typeof updateProductButtonTranslations === 'function') {
+                    updateProductButtonTranslations(selectedLang);
+                }
                 
                 console.log('setupLanguageSwitchers: Переводы обновлены, состояние восстановлено');
             } else {
