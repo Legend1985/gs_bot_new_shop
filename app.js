@@ -79,17 +79,17 @@ function getStatusText(availability) {
     
     // ИСПРАВЛЕНИЕ: Переводим статусы на выбранный язык
     if (availability === 'В наличии в Одессе' || availability === 'В наличии' || availability === 'В наявності' || availability === 'In stock') {
-        return window.translations ? window.translations.getTranslation('inStock', currentLanguage) : 'В наявності';
+        return window.translations ? window.translations.getTranslation('inStock', currentLanguage) : 'В наличии';
     } else if (availability === 'Нет в наличии' || availability === 'Немає в наявності' || availability === 'Out of stock') {
-        return window.translations ? window.translations.getTranslation('outOfStock', currentLanguage) : 'Немає в наявності';
+        return window.translations ? window.translations.getTranslation('outOfStock', currentLanguage) : 'Нет в наличии';
     } else if (availability === 'Снят с производства' || availability === 'Знято з виробництва' || availability === 'Discontinued') {
-        return window.translations ? window.translations.getTranslation('discontinued', currentLanguage) : 'Знято з виробництва';
+        return window.translations ? window.translations.getTranslation('discontinued', currentLanguage) : 'Снят с производства';
     } else if (availability === 'Ожидается' || availability === 'Ожидается поставка' || availability === 'Очікується' || availability === 'Expected') {
-        return window.translations ? window.translations.getTranslation('expected', currentLanguage) : 'Очікується';
+        return window.translations ? window.translations.getTranslation('expected', currentLanguage) : 'Ожидается';
     } else if (availability === 'Под заказ' || availability === 'Під замовлення' || availability === 'On order') {
-        return window.translations ? window.translations.getTranslation('onOrder', currentLanguage) : 'Під замовлення';
+        return window.translations ? window.translations.getTranslation('onOrder', currentLanguage) : 'Под заказ';
     } else {
-        return window.translations ? window.translations.getTranslation('inStock', currentLanguage) : 'В наявності';
+        return window.translations ? window.translations.getTranslation('inStock', currentLanguage) : 'В наличии';
     }
 }
 
@@ -881,21 +881,21 @@ function createProductCardFromSiteData(product, btnId) {
     // ИСПРАВЛЕНИЕ: Переводим кнопки на выбранный язык
     if (product.availability === 'Нет в наличии' || product.availability === 'Немає в наявності' || product.availability === 'Out of stock') {
         statusClass = 'out-of-stock';
-        buttonText = window.translations ? window.translations.getTranslation('outOfStockButton', currentLanguage) : 'Немає в наявності';
+        buttonText = window.translations ? window.translations.getTranslation('outOfStockButton', currentLanguage) : 'Нет в наличии';
     } else if (product.availability === 'Ожидается' || product.availability === 'Очікується' || product.availability === 'Expected') {
         statusClass = 'expected';
-        buttonText = window.translations ? window.translations.getTranslation('expectedButton', currentLanguage) : 'Очікується';
+        buttonText = window.translations ? window.translations.getTranslation('expectedButton', currentLanguage) : 'Ожидается';
     } else if (product.availability === 'Под заказ' || product.availability === 'Під замовлення' || product.availability === 'On order') {
         statusClass = 'on-order';
-        buttonText = window.translations ? window.translations.getTranslation('orderButton', currentLanguage) : 'Під замовлення';
+        buttonText = window.translations ? window.translations.getTranslation('orderButton', currentLanguage) : 'Под заказ';
     } else if (product.availability === 'Снят с производства' || product.availability === 'Знято з виробництва' || product.availability === 'Discontinued') {
         statusClass = 'discontinued';
-        buttonText = window.translations ? window.translations.getTranslation('discontinuedButton', currentLanguage) : 'Знято з виробництва';
+        buttonText = window.translations ? window.translations.getTranslation('discontinuedButton', currentLanguage) : 'Снят с производства';
     } else {
         // По умолчанию "В наличии"
         statusClass = 'in-stock';
-        // ИСПРАВЛЕНИЕ: Убираем русский fallback, используем только переводы
-        buttonText = window.translations ? window.translations.getTranslation('buyButton', currentLanguage) : 'Купити';
+        // ИСПРАВЛЕНИЕ: Используем русский fallback для корректного отображения
+        buttonText = window.translations ? window.translations.getTranslation('buyButton', currentLanguage) : 'Купить';
     }
     
     // Определяем CSS класс для цены
@@ -1883,11 +1883,7 @@ async function loadFirstPage() {
             }
             
             // Скрываем индикатор загрузки после загрузки первых товаров
-            // Он будет показан только при прокрутке вниз для бесконечной загрузки
-            const loadingIndicator = document.getElementById('loading-indicator');
-            if (loadingIndicator) {
-                loadingIndicator.style.display = 'none';
-            }
+            hideLoadingIndicator();
             
             // Если товаров больше нет, показываем сообщение о конце
             if (!hasMoreProducts) {
@@ -1901,8 +1897,9 @@ async function loadFirstPage() {
         } else {
             console.error('loadFirstPage: Не удалось загрузить товары - нет данных');
             
-            // Скрываем индикатор загрузки
+            // Скрываем индикаторы загрузки
             hideLoadingScreen();
+            hideLoadingIndicator();
             
             // Показываем сообщение об ошибке
             const container = document.querySelector('.inner');
@@ -1925,8 +1922,9 @@ async function loadFirstPage() {
     } catch (error) {
         console.error('loadFirstPage: Ошибка загрузки товаров:', error);
         
-        // Скрываем индикатор загрузки
+        // Скрываем индикаторы загрузки
         hideLoadingScreen();
+        hideLoadingIndicator();
         
         // Показываем сообщение об ошибке
         const container = document.querySelector('.inner');
@@ -2007,7 +2005,7 @@ function resetState() {
 
 // Основная функция инициализации
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('=== Инициализация приложения v10.92 ===');
+    console.log('=== Инициализация приложения v10.97 ===');
     console.log('DOM загружен, начинаем инициализацию...');
     
     try {
@@ -3175,16 +3173,16 @@ function updateProductButtonTranslations(language) {
         
         // ИСПРАВЛЕНИЕ: Переводим все кнопки на выбранный язык
         if (availability === 'Нет в наличии' || availability === 'Немає в наявності' || availability === 'Out of stock') {
-            newText = window.translations ? window.translations.getTranslation('outOfStockButton', language) : 'Немає в наявності';
+            newText = window.translations ? window.translations.getTranslation('outOfStockButton', language) : 'Нет в наличии';
         } else if (availability === 'Ожидается' || availability === 'Очікується' || availability === 'Expected') {
-            newText = window.translations ? window.translations.getTranslation('expectedButton', language) : 'Очікується';
+            newText = window.translations ? window.translations.getTranslation('expectedButton', language) : 'Ожидается';
         } else if (availability === 'Под заказ' || availability === 'Під замовлення' || availability === 'On order') {
-            newText = window.translations ? window.translations.getTranslation('orderButton', language) : 'Під замовлення';
+            newText = window.translations ? window.translations.getTranslation('orderButton', language) : 'Под заказ';
         } else if (availability === 'Снят с производства' || availability === 'Знято з виробництва' || availability === 'Discontinued') {
-            newText = window.translations ? window.translations.getTranslation('discontinuedButton', language) : 'Знято з виробництва';
+            newText = window.translations ? window.translations.getTranslation('discontinuedButton', language) : 'Снят с производства';
         } else {
             // По умолчанию "В наличии"
-            newText = window.translations ? window.translations.getTranslation('buyButton', language) : 'Купити';
+            newText = window.translations ? window.translations.getTranslation('buyButton', language) : 'Купить';
         }
         
         button.textContent = newText;

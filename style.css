@@ -1036,7 +1036,7 @@ body {
 
 .popup-menu-content,
 .popup-settings-content {
-    padding: 20px;
+    padding: 20px 20px 25px 20px;
     position: relative;
 }
 
@@ -1195,8 +1195,9 @@ body {
 /* Стили для пункта контактов в меню */
 .contacts-item {
     border-top: 1px solid var(--border-color);
-    margin-top: 10px;
-    padding-top: 15px;
+    margin-top: 8px;
+    padding-top: 12px;
+    padding-bottom: 5px;
 }
 
 .contacts-item i {
@@ -1260,7 +1261,7 @@ body {
 
 .contacts-popup {
     background: var(--bg-primary);
-    background-image: url('../images/Contacts_image/background.jpg');
+    background-image: url('./images/Contacts_image/background.jpg');
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
