@@ -6,8 +6,8 @@
     <title>GuitarStrings.com.ua</title>
                                 <link rel="stylesheet" href="style.css?v=10.55">
         <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+        <script src="app.js?v=10.92"></script>
         <script src="translations.js?v=10.55"></script>
-        <script src="app.js?v=10.60" defer></script>
 </head>
 <body>
     <!-- Верхний хедер -->
@@ -124,6 +124,10 @@
                         <img src="images/Menu_images/strings_preorder_0x170.png" alt="Под Заказ" class="category-image">
                         <span data-translate="preOrder">Под Заказ</span>
                     </div>
+                    <div class="menu-item contacts-item" onclick="showContactsPopup()">
+                        <i class="fas fa-phone"></i>
+                        <span data-translate="contacts">Контакты</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -158,6 +162,112 @@
                     <div class="settings-item">
                         <i class="fas fa-cog"></i>
                         <span data-translate="additional">Дополнительно</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Popup для контактов -->
+    <div class="popup-overlay" id="contactsPopup">
+        <div class="popup-content contacts-popup">
+            <button class="close-btn" onclick="closeContactsPopup()">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="popup-header">
+                <h3 data-translate="contacts">Контакты</h3>
+            </div>
+            <div class="popup-body">
+                <div class="contacts-info">
+                    <div class="working-hours">
+                        <h4 data-translate="workingHours">Режим работы с 9:00 до 19:00 Пн.-Вс.</h4>
+                        <div class="pickup-time">
+                            <p><strong data-translate="pickupTime">Время выдачи товара в Одессе:</strong></p>
+                            <p class="note" data-translate="pickupTimeNote">(предварительно согласовывайте время)</p>
+                            <ul>
+                                <li data-translate="mondayFriday">Пн.-Пт. 12:00 ровно и 13:30 ровно</li>
+                                <li data-translate="saturday">Сб. 12:00 ровно и 12:30 ровно</li>
+                                <li data-translate="sunday">Вс.</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="contact-methods">
+                        <div class="contact-item phone-item">
+                            <div class="contact-details">
+                                <span data-translate="phone">телефон:</span>
+                                <div class="phone-numbers">
+                                    <div class="phone-number">
+                                        <img src="images/Contacts_image/life.png" alt="Life" class="operator-logo">
+                                        <a href="tel:+380633344408">+38 (063) 33-444-08</a>
+                                    </div>
+                                    <div class="phone-number">
+                                        <img src="images/Contacts_image/kievstar_logo.png" alt="Киевстар" class="operator-logo">
+                                        <a href="tel:+380966078382">+38 (096) 607-83-82</a>
+                                    </div>
+                                    <div class="phone-number">
+                                        <img src="images/Contacts_image/Vodafone.png" alt="Vodafone" class="operator-logo">
+                                        <a href="tel:+380955175666">+38 (095) 517-56-66</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="social-contacts">
+                            <div class="social-item">
+                                <img src="images/Contacts_image/viber_logo_small_.png" alt="Viber" class="social-icon">
+                                <span data-translate="viber">Viber:</span>
+                                <a href="viber://chat?number=+380633344408">+38 (063) 33-444-08</a>
+                            </div>
+                            
+                            <div class="social-item">
+                                <img src="images/Contacts_image/Telegram_32x32.png" alt="Telegram" class="social-icon">
+                                <span data-translate="telegram">Telegram:</span>
+                                <a href="https://t.me/GuitarStringsUSA" target="_blank">@GuitarStringsUSA</a>
+                            </div>
+                            
+                            <div class="social-item">
+                                <img src="images/Contacts_image/mail.png" alt="Email" class="social-icon">
+                                <span data-translate="email">Email:</span>
+                                <a href="mailto:sales@guitarstrings.com.ua">sales@guitarstrings.com.ua</a>
+                            </div>
+                            
+                            <div class="social-item">
+                                <img src="images/Contacts_image/instagram_logo.png" alt="Instagram" class="social-icon">
+                                <span data-translate="instagram">Instagram:</span>
+                                <a href="https://instagram.com/GuitarStrings.com.ua" target="_blank">GuitarStrings.com.ua</a>
+                            </div>
+                            
+                            <div class="social-item">
+                                <img src="images/Contacts_image/Facebook_logo_small.png" alt="Facebook" class="social-icon">
+                                <span data-translate="facebook">Группа Facebook:</span>
+                                <a href="https://facebook.com/GuitarStringsUSA" target="_blank">GuitarStringsUSA</a>
+                            </div>
+                            
+                            <div class="social-item">
+                                <img src="images/Contacts_image/Telegram_channel_32x32.png" alt="Telegram канал" class="social-icon">
+                                <span data-translate="telegramChannel">Telegram канал:</span>
+                                <a href="https://t.me/GuitarStringsOdessa" target="_blank">@GuitarStringsOdessa</a>
+                            </div>
+                            
+                            <div class="social-item">
+                                <img src="images/Contacts_image/tiktok_logo_small.jpg" alt="TikTok" class="social-icon">
+                                <span data-translate="tiktok">TikTok:</span>
+                                <a href="https://tiktok.com/@guitarstrings.com.ua" target="_blank">@guitarstrings.com.ua</a>
+                            </div>
+                            
+                            <div class="social-item">
+                                <img src="images/Contacts_image/Youtube_logo.png" alt="YouTube" class="social-icon">
+                                <span data-translate="youtube">YouTube:</span>
+                                <a href="https://youtube.com/@GuitarStringsUsa" target="_blank">@GuitarStringsUsa</a>
+                            </div>
+                            
+                            <div class="social-item">
+                                <img src="images/Contacts_image/logo-drive.png" alt="Google Drive" class="social-icon">
+                                <span data-translate="onlinePrice">Google Drive: Онлайн прайс</span>
+                                <a href="https://goo.gl/oxSAO8" target="_blank">Открыть прайс</a>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

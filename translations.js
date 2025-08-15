@@ -72,6 +72,7 @@ const translations = {
         // Кнопки
         understand: "Зрозуміло",
         buyButton: "Купити",
+        outOfStockButton: "Немає в наявності",
         expectedButton: "Очікується",
         orderButton: "Під замовлення",
         discontinuedButton: "Знят з виробництва",
@@ -99,7 +100,26 @@ const translations = {
         ukulele: "Укулеле",
         drumsticksVicFirth: "Барабанні палички Vic Firth",
         jellyBellyBeanBoozled: "Jelly Belly, BeanBoozled",
-        preOrder: "Під замовлення"
+        preOrder: "Під замовлення",
+        
+        // Контакты
+        contacts: "Контакти",
+        workingHours: "Режим роботи з 9:00 до 19:00 Пн.-Нд.",
+        pickupTime: "Час видачі товару в Одесі:",
+        pickupTimeNote: "(попередньо узгоджуйте час)",
+        mondayFriday: "Пн.-Пт. 12:00 рівно і 13:30 рівно",
+        saturday: "Сб. 12:00 рівно і 12:30 рівно",
+        sunday: "Нд.",
+        phone: "телефон:",
+        viber: "Viber:",
+        telegram: "Telegram:",
+        email: "Email:",
+        instagram: "Instagram:",
+        facebook: "Група Facebook:",
+        telegramChannel: "Telegram канал:",
+        tiktok: "TikTok:",
+        youtube: "YouTube:",
+        onlinePrice: "Google Drive: Онлайн прайс"
     },
     
     ru: {
@@ -172,6 +192,7 @@ const translations = {
         // Кнопки
         understand: "Понятно",
         buyButton: "Купить",
+        outOfStockButton: "Нет в наличии",
         expectedButton: "Ожидается",
         orderButton: "Под заказ",
         discontinuedButton: "Снят с производства",
@@ -199,7 +220,26 @@ const translations = {
         ukulele: "Укулеле",
         drumsticksVicFirth: "Барабанные палочки Vic Firth",
         jellyBellyBeanBoozled: "Jelly Belly, BeanBoozled",
-        preOrder: "Под Заказ"
+        preOrder: "Под Заказ",
+        
+        // Контакты
+        contacts: "Контакты",
+        workingHours: "Режим работы с 9:00 до 19:00 Пн.-Вс.",
+        pickupTime: "Время выдачи товара в Одессе:",
+        pickupTimeNote: "(предварительно согласовывайте время)",
+        mondayFriday: "Пн.-Пт. 12:00 ровно и 13:30 ровно",
+        saturday: "Сб. 12:00 ровно и 12:30 ровно",
+        sunday: "Вс.",
+        phone: "телефон:",
+        viber: "Viber:",
+        telegram: "Telegram:",
+        email: "Email:",
+        instagram: "Instagram:",
+        facebook: "Группа Facebook:",
+        telegramChannel: "Telegram канал:",
+        tiktok: "TikTok:",
+        youtube: "YouTube:",
+        onlinePrice: "Google Drive: Онлайн прайс"
     },
     
     en: {
@@ -272,6 +312,7 @@ const translations = {
         // Buttons
         understand: "Got it",
         buyButton: "Buy it",
+        outOfStockButton: "Out of stock",
         expectedButton: "Expected",
         orderButton: "Order it",
         discontinuedButton: "Discontinued",
@@ -299,7 +340,26 @@ const translations = {
         ukulele: "Ukulele",
         drumsticksVicFirth: "Drumsticks Vic Firth",
         jellyBellyBeanBoozled: "Jelly Belly, BeanBoozled",
-        preOrder: "Pre Order"
+        preOrder: "Pre Order",
+        
+        // Contacts
+        contacts: "Contacts",
+        workingHours: "Working hours from 9:00 to 19:00 Mon.-Sun.",
+        pickupTime: "Product pickup time in Odessa:",
+        pickupTimeNote: "(please coordinate time in advance)",
+        mondayFriday: "Mon.-Fri. 12:00 sharp and 13:30 sharp",
+        saturday: "Sat. 12:00 sharp and 12:30 sharp",
+        sunday: "Sun.",
+        phone: "phone:",
+        viber: "Viber:",
+        telegram: "Telegram:",
+        email: "Email:",
+        instagram: "Instagram:",
+        facebook: "Facebook Group:",
+        telegramChannel: "Telegram channel:",
+        tiktok: "TikTok:",
+        youtube: "YouTube:",
+        onlinePrice: "Google Drive: Online price"
     }
 };
 
@@ -372,6 +432,16 @@ function applyTranslations(language = 'uk') {
             element.textContent = getStatusText(originalAvailability);
         }
     });
+    
+    // УБИРАЕМ ВЫЗОВ updateProductButtonTranslations для предотвращения рекурсии
+    // if (typeof updateProductButtonTranslations === 'function') {
+    //     // Добавляем проверку инициализации переменных
+    //     if (typeof window.loadedProductNames === 'undefined') {
+    //         console.warn('applyTranslations: loadedProductNames не инициализирована, пропускаем обновление кнопок');
+    //         return;
+    //     }
+    //     updateProductButtonTranslations(language);
+    // }
 }
 
 // Функция для инициализации системы переводов
