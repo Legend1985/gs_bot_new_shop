@@ -39,6 +39,17 @@ body {
     max-width: 100vw; /* Ограничиваем ширину */
 }
 
+/* Предварительная загрузка фоновых изображений */
+body::before {
+    content: '';
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+    z-index: -1;
+    background-image: url('./images/Contacts_image/background.jpg');
+}
+
 /* Стили для основного ползунка прокрутки */
 ::-webkit-scrollbar {
     width: 6px;
@@ -757,6 +768,17 @@ body {
     color: var(--text-primary);
 }
 
+/* Специальные стили для иконки корзины */
+.nav-item .cart-icon-container i {
+    font-size: 20px;
+    color: var(--text-light);
+    transition: color 0.2s ease;
+}
+
+.nav-item:hover .cart-icon-container i {
+    color: var(--text-primary);
+}
+
 /* Футер */
 .app-footer {
     text-align: center;
@@ -1031,13 +1053,13 @@ body {
 .popup-settings {
     position: absolute;
     display: none;
-    z-index: 2000;
+    z-index: 9999;
     background: var(--bg-primary);
     border-radius: var(--border-radius);
     box-shadow: var(--shadow-medium);
     border: 1px solid var(--border-color);
     min-width: 200px;
-    animation: popupSlideIn 0.3s ease-out;
+    /* animation: popupSlideIn 0.3s ease-out; */
 }
 
 .popup-menu.show,
@@ -1120,13 +1142,15 @@ body {
     gap: 6px;
     max-height: 95vh;
     overflow-y: auto;
+    position: relative;
+    z-index: 1;
 }
 
 .category-item {
     display: flex;
     align-items: center;
     gap: 5px;
-    padding: 5px 16px;
+    padding: 0px 11px;
     border-radius: 12px;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -1134,6 +1158,7 @@ body {
     border: 1px solid var(--border-color);
     position: relative;
     overflow: hidden;
+    z-index: 1;
 }
 
 .category-item:hover {
@@ -1141,13 +1166,14 @@ body {
     transform: translateY(-2px);
     box-shadow: var(--shadow-small);
     border-color: var(--accent-color);
+    z-index: 100;
 }
 
 .category-item .category-image {
-    width: 30px;
-    height: 30px;
+    width: 50px;
+    height: 50px;
     object-fit: cover;
-    border-radius: 8px;
+    border-radius: 10px;
     flex-shrink: 0;
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
@@ -1166,6 +1192,9 @@ body {
     font-weight: 500;
     line-height: 1.2;
     flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* Анимация для категорий */
@@ -1248,6 +1277,172 @@ body {
     border-color: var(--accent-color);
 }
 
+/* Стили для пункта оферты в меню */
+.offer-item {
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    margin-bottom: 6px;
+    background: var(--bg-primary);
+    transition: all 0.2s ease;
+}
+
+.offer-item i {
+    color: var(--accent-color);
+    font-size: 14px;
+    width: 16px;
+    text-align: center;
+}
+
+.offer-item span {
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
+.offer-item:hover {
+    background: var(--bg-secondary);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-small);
+    border-color: var(--accent-color);
+}
+
+/* Стили для popup окна оферты */
+.offer-popup {
+    background: var(--bg-primary);
+    border-radius: 16px;
+    box-shadow: var(--shadow-large);
+    max-width: 800px;
+    width: 90%;
+    max-height: 80vh;
+    overflow: hidden;
+    position: relative;
+}
+
+/* Специальные стили для кнопки закрытия в окне оферты */
+#offerPopup .popup-content .close-btn,
+#offerPopup .offer-popup .close-btn {
+    position: absolute !important;
+    top: -20px !important;
+    right: -20px !important;
+    z-index: 10001 !important;
+    background: var(--bg-primary) !important;
+    border: 2px solid var(--border-color) !important;
+    font-size: 28px !important;
+    font-weight: 300 !important;
+    cursor: pointer !important;
+    color: var(--text-secondary) !important;
+    width: 45px !important;
+    height: 45px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 50% !important;
+    box-shadow: var(--shadow-medium) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    transform: scale(1) !important;
+}
+
+#offerPopup .popup-content .close-btn:hover,
+#offerPopup .offer-popup .close-btn:hover {
+    background: var(--accent-color) !important;
+    color: white !important;
+    border-color: var(--accent-color) !important;
+    transform: scale(1.1) !important;
+    box-shadow: var(--shadow-large) !important;
+}
+
+#offerPopup .popup-content .close-btn:active,
+#offerPopup .offer-popup .close-btn:active {
+    transform: scale(0.95) !important;
+    transition: all 0.1s ease !important;
+}
+
+.offer-popup .popup-header {
+    background: var(--accent-color);
+    color: white;
+    padding: 20px;
+    text-align: center;
+    border-radius: 16px 16px 0 0;
+    border: 1px solid white;
+}
+
+.offer-popup .popup-header h3 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: black;
+}
+
+.offer-popup .popup-body {
+    padding: 20px;
+    max-height: 60vh;
+    overflow-y: auto;
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+    position: relative;
+}
+
+/* Фоновый рисунок под серым блоком */
+.offer-popup .popup-body::before {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    bottom: -100vh;
+    background-image: 
+        url('./images/Contacts_image/background.jpg'),
+        url('./images/Contacts_image/background.jpg');
+    background-size: 100% auto, 100% auto;
+    background-position: top center, bottom center;
+    background-repeat: repeat-y;
+    background-attachment: local;
+    z-index: -1;
+}
+
+/* Текст должен быть поверх серого фона */
+.offer-popup .popup-body .offer-text {
+    position: relative;
+    z-index: 1;
+}
+
+.offer-popup .offer-content {
+    line-height: 1.6;
+}
+
+.offer-popup .offer-text h4 {
+    color: var(--accent-color);
+    margin: 20px 0 10px 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.offer-popup .offer-text h4:first-child {
+    margin-top: 0;
+}
+
+.offer-popup .offer-text p {
+    margin: 10px 0;
+    color: var(--text-primary);
+}
+
+.offer-popup .offer-text ul {
+    margin: 10px 0;
+    padding-left: 20px;
+}
+
+.offer-popup .offer-text li {
+    margin: 5px 0;
+    color: var(--text-primary);
+}
+
+.offer-popup .offer-text strong {
+    color: var(--accent-color);
+    font-weight: 600;
+}
+
 /* Анимации для уведомлений */
 @keyframes slideInDown {
     from {
@@ -1308,6 +1503,17 @@ body {
     overflow: visible;
     position: relative;
     animation: slideInUp 0.3s ease-out;
+    /* Предварительная загрузка фона */
+    will-change: background-image;
+}
+
+/* Убираем полупрозрачный слой, чтобы фоновое изображение было видно */
+
+/* Контент теперь напрямую поверх фонового изображения */
+.contacts-popup .popup-header,
+.contacts-popup .popup-body {
+    position: relative;
+    z-index: 1;
 }
 
 .popup-header {
@@ -1318,7 +1524,7 @@ body {
 
 .popup-header h3 {
     margin: 0;
-    color: var(--text-primary);
+    color: black;
     font-size: 18px;
     font-weight: 600;
     text-align: center;
@@ -1340,7 +1546,7 @@ body {
 }
 
 .working-hours {
-    background: var(--bg-secondary);
+    background: rgba(255, 255, 255, 0.9);
     padding: 8px;
     border-radius: var(--border-radius);
     border: 1px solid var(--border-color);
@@ -1910,6 +2116,157 @@ body {
     
     .pickup-time li {
         margin: 1px 0;
+    }
+}
+
+/* Стили для popup корзины */
+.cart-product-image {
+    width: 150px;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.15);
+}
+
+.product-info {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+}
+
+.product-image-container {
+    flex-shrink: 0;
+}
+
+.product-details {
+    flex: 1;
+}
+
+.product-details h3 {
+    margin: 0 0 12px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.3;
+}
+
+.product-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.product-meta p {
+    margin: 0;
+    font-size: 15px;
+    color: var(--text-secondary);
+}
+
+.product-meta span:first-child {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.cart-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px 0;
+    border-top: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+    margin: 18px 0;
+}
+
+.cart-count,
+.cart-total {
+    font-size: 15px;
+    color: var(--text-secondary);
+}
+
+.cart-total {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* Счетчик товаров в корзине */
+.cart-icon-container {
+    position: relative !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    width: auto !important;
+    height: auto !important;
+}
+
+.cart-badge {
+    position: absolute !important;
+    top: -8px !important;
+    right: -8px !important;
+    background: #fd4b49 !important;
+    color: #ffffff !important;
+    border: 0.5px solid #ffffff !important;
+    border-radius: 50% !important;
+    width: 20px !important;
+    height: 20px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 8px !important;
+    font-weight: normal !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    min-width: 20px !important;
+    max-width: 20px !important;
+    z-index: 10 !important;
+    animation: badgeAppear 0.3s ease-out !important;
+    /* Белый фон вокруг красного кружка */
+    box-shadow: 
+        0 0 0 0.5px #ffffff,
+        0 2px 8px rgba(0, 0, 0, 0.2) !important;
+    /* Принудительно убираем любые трансформации */
+    transform: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+@keyframes badgeAppear {
+    from {
+        opacity: 0;
+        transform: scale(0.5);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Адаптивность для popup корзины */
+@media (max-width: 480px) {
+    .product-info {
+        flex-direction: column;
+        gap: 10px;
+        align-items: center;
+        text-align: center;
+    }
+    
+    .cart-product-image {
+        width: 60px;
+        height: 60px;
+    }
+    
+    .product-details h3 {
+        font-size: 14px;
+    }
+    
+    .product-meta p {
+        font-size: 12px;
+    }
+    
+    .cart-summary {
+        flex-direction: column;
+        gap: 10px;
+        text-align: center;
     }
 }
 

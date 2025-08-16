@@ -120,7 +120,21 @@ const translations = {
         tiktok: "TikTok:",
         youtube: "YouTube:",
         onlinePrice: "Google Drive: Онлайн прайс",
-        openPrice: "Відкрити прайс"
+        openPrice: "Відкрити прайс",
+        
+        // Корзина
+        productName: "Назва товару",
+        article: "Артикул:",
+        price: "Ціна:",
+        quantity: "Кол-во:",
+        total: "Всього:",
+        cartQuantity: "Кол-во в кошику:",
+        cartTotal: "Разом:",
+        continueShopping: "Продовжити покупки",
+        
+        // Оферта
+        offer: "Оферта",
+        offerTitle: "Договір публічної оферти"
     },
     
     ru: {
@@ -241,7 +255,21 @@ const translations = {
         tiktok: "TikTok:",
         youtube: "YouTube:",
         onlinePrice: "Google Drive: Онлайн прайс",
-        openPrice: "Открыть прайс"
+        openPrice: "Открыть прайс",
+        
+        // Корзина
+        productName: "Название товара",
+        article: "Артикул:",
+        price: "Цена:",
+        quantity: "Кол-во:",
+        total: "Всего:",
+        cartQuantity: "Кол-во в корзине:",
+        cartTotal: "Итого:",
+        continueShopping: "Продолжить покупки",
+        
+        // Оферта
+        offer: "Оферта",
+        offerTitle: "Договор публичной оферты"
     },
     
     en: {
@@ -362,7 +390,21 @@ const translations = {
         tiktok: "TikTok:",
         youtube: "YouTube:",
         onlinePrice: "Google Drive: Online price",
-        openPrice: "Open price"
+        openPrice: "Open price",
+        
+        // Cart
+        productName: "Product name",
+        article: "Article:",
+        price: "Price:",
+        quantity: "Quantity:",
+        total: "Total:",
+        cartQuantity: "Items in cart:",
+        cartTotal: "Total:",
+        continueShopping: "Continue shopping",
+        
+        // Оферта
+        offer: "Offer",
+        offerTitle: "Public Offer Agreement"
     }
 };
 

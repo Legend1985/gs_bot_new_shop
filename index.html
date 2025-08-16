@@ -4,10 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GuitarStrings.com.ua</title>
-                                <link rel="stylesheet" href="style.css?v=11.06">
+                                <link rel="stylesheet" href="style.css?v=11.08">
         <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
         <script src="app.js?v=11.03"></script>
         <script src="translations.js?v=10.55"></script>
+    <!-- Предварительная загрузка фоновых изображений -->
+    <link rel="preload" href="images/Contacts_image/background.jpg" as="image" type="image/jpeg">
 </head>
 <body>
     <!-- Верхний хедер -->
@@ -129,6 +131,10 @@
                     <div class="menu-item contacts-item" onclick="showContactsPopup()">
                         <i class="fas fa-phone"></i>
                         <span data-translate="contacts">Контакты</span>
+                    </div>
+                    <div class="menu-item offer-item" onclick="showOfferPopup()">
+                        <i class="fas fa-file-contract"></i>
+                        <span data-translate="offer">Оферта</span>
                     </div>
                 </div>
             </div>
@@ -329,7 +335,10 @@
             <span data-translate="orders">Заказы</span>
         </div>
         <div class="nav-item">
-            <i class="fas fa-shopping-cart"></i>
+            <div class="cart-icon-container">
+                <i class="fas fa-shopping-cart"></i>
+                <span class="cart-badge" id="cartBadge" style="display: none;">0</span>
+            </div>
             <span data-translate="cart">Корзина</span>
         </div>
     </nav>
@@ -415,6 +424,60 @@
             </div>
             <div class="popup-footer">
                 <button class="btn btn-secondary" onclick="closePopup('onOrderPopup')" data-translate="understand">Понятно</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Popup для добавления товара в корзину -->
+    <div class="popup" id="addToCartPopup">
+        <div class="popup-content">
+            <button class="close-btn" onclick="closePopup('addToCartPopup')">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="popup-header">
+                <div class="product-info">
+                    <div class="product-image-container">
+                        <img id="cartProductImage" src="" alt="Product" class="cart-product-image">
+                    </div>
+                    <div class="product-details">
+                        <h3 id="cartProductName" data-translate="productName">Название товара</h3>
+                        <div class="product-meta">
+                            <p><span data-translate="article">Артикул:</span> <span id="cartProductArticle"></span></p>
+                            <p><span data-translate="price">Цена:</span> <span id="cartProductPrice"></span> грн</p>
+                            <p><span data-translate="quantity">Кол-во:</span> <span id="cartProductQuantity">1</span> шт</p>
+                            <p><span data-translate="total">Всего:</span> <span id="cartProductTotal"></span> грн</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="cart-summary">
+                <div class="cart-count">
+                    <span data-translate="cartQuantity">Кол-во в корзине:</span> <span id="cartTotalQuantity">1</span>
+                </div>
+                <div class="cart-total">
+                    <span data-translate="cartTotal">Итого:</span> <span id="cartTotalAmount"></span> грн
+                </div>
+            </div>
+            <div class="popup-footer">
+                <button class="btn btn-secondary" onclick="closePopup('addToCartPopup')" data-translate="continueShopping">Продолжить покупки</button>
+                <button class="btn btn-primary" onclick="goToCart()" data-translate="cart">Корзина</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Popup для оферты -->
+    <div class="popup-overlay" id="offerPopup">
+        <div class="popup-content offer-popup">
+            <button class="close-btn" onclick="closeOfferPopup()">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="popup-header">
+                <h3 data-translate="offerTitle">Договір публічної оферти</h3>
+            </div>
+            <div class="popup-body offer-content">
+                <div class="offer-text" id="offerText">
+                    <!-- Текст оферты будет загружен динамически -->
+                </div>
             </div>
         </div>
     </div>

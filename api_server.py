@@ -439,12 +439,12 @@ def api_products():
         
         # Determine if there are more products available
         # Check if we've reached the end of the total product list
-        has_more = (start + len(products)) < len(product_items)
+        has_more = (start + limit) < len(product_items)
         
         print(f"Debug: total products available: {len(product_items)}")
         print(f"Debug: start: {start}, limit: {limit}")
         print(f"Debug: products returned: {len(products)}")
-        print(f"Debug: hasMore calculation: start+products={start+len(products)}, total_items={len(product_items)}, hasMore={has_more}")
+        print(f"Debug: hasMore calculation: start+limit={start+limit}, total_items={len(product_items)}, hasMore={has_more}")
         print(f"Debug: start + products = {start + len(products)}")
         
         return jsonify({

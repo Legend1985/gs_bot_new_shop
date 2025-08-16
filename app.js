@@ -13,7 +13,7 @@ if (typeof window.translations !== 'undefined') {
         console.log('Система переводов инициализирована');
     }, 100);
 } else {
-    console.warn('Система переводов не найдена');
+    console.log('Система переводов загружается...');
 }
 
 // Проверяем, находимся ли мы в Telegram Web App
@@ -98,6 +98,54 @@ window.maxProducts = maxProducts;
 
 // Переменные для поиска
 let allProducts = []; // Массив всех загруженных товаров
+
+// Переменные для корзины
+let cart = []; // Массив товаров в корзине
+let cartTotal = 0; // Общая сумма корзины
+let cartItemCount = 0; // Общее количество товаров в корзине
+
+// Инициализация корзины из localStorage
+function initializeCart() {
+    const savedCart = localStorage.getItem('gs_cart');
+    if (savedCart) {
+        try {
+            const cartData = JSON.parse(savedCart);
+            cart = cartData.items || [];
+            cartTotal = cartData.total || 0;
+            cartItemCount = cartData.itemCount || 0;
+            updateCartBadge();
+            console.log('Корзина загружена из localStorage:', cart);
+        } catch (error) {
+            console.error('Ошибка при загрузке корзины:', error);
+            cart = [];
+            cartTotal = 0;
+            cartItemCount = 0;
+        }
+    }
+}
+
+// Сохранение корзины в localStorage
+function saveCart() {
+    const cartData = {
+        items: cart,
+        total: cartTotal,
+        itemCount: cartItemCount
+    };
+    localStorage.setItem('gs_cart', JSON.stringify(cartData));
+}
+
+// Обновление счетчика корзины
+function updateCartBadge() {
+    const cartBadge = document.getElementById('cartBadge');
+    if (cartBadge) {
+        if (cartItemCount > 0) {
+            cartBadge.textContent = cartItemCount;
+            cartBadge.style.display = 'flex';
+        } else {
+            cartBadge.style.display = 'none';
+        }
+    }
+}
 let searchTerm = ''; // Текущий поисковый запрос
 let isSearchActive = false; // Флаг активного поиска
 let searchTimeout = null; // Для debouncing поиска
@@ -1108,6 +1156,25 @@ function createProductCardFromSiteData(product, btnId) {
         </button>
     `;
     
+    // Добавляем обработчик для кнопки покупки
+    const button = card.querySelector(`#${btnId}`);
+    if (button) {
+        button.addEventListener('click', () => {
+            if (product.availability === 'Снят с производства' || product.availability === 'Знято з виробництва' || product.availability === 'Discontinued') {
+                showDiscontinuedPopup();
+            } else if (product.availability === 'Нет в наличии' || product.availability === 'Немає в наявності' || product.availability === 'Out of stock') {
+                showOutOfStockPopup();
+            } else if (product.availability === 'Ожидается' || product.availability === 'Очікується' || product.availability === 'Expected') {
+                showExpectedPopup();
+            } else if (product.availability === 'Под заказ' || product.availability === 'Під замовлення' || product.availability === 'On order') {
+                showOnOrderPopup();
+            } else {
+                // Товар в наличии - добавляем в корзину
+                addToCart(product);
+            }
+        });
+    }
+    
     return card;
 }
 
@@ -1203,29 +1270,19 @@ async function loadMoreProducts() {
         const nextPage = currentPage + 1;
         const start = nextPage * productsPerPage;
         
-        // ОПТИМИЗАЦИЯ: Проверяем, есть ли предзагруженные товары
-        let data;
-        let newProducts;
+        // Загружаем товары с сервера
+        const response = await fetch(`http://localhost:8000/api/products?start=${start}&limit=${productsPerPage}`);
         
-        if (window.preloadedProducts && window.preloadedProducts.length > 0) {
-            data = { success: true, products: window.preloadedProducts, hasMore: true };
-            newProducts = window.preloadedProducts;
-            // Очищаем предзагруженные товары
-            window.preloadedProducts = null;
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            newProducts = data.products;
         } else {
-            const response = await fetch(`http://localhost:8000/api/products?start=${start}&limit=${productsPerPage}`);
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            data = await response.json();
-            
-            if (data.success) {
-                newProducts = data.products;
-            } else {
-                throw new Error('API вернул ошибку');
-            }
+            throw new Error('API вернул ошибку');
         }
         
         if (data.success) {
@@ -1275,7 +1332,46 @@ async function loadMoreProducts() {
                         // Обновляем флаг наличия товаров
                         hasMoreProducts = data.hasMore;
                         
-                        console.log(`loadMoreProducts: Обновлено - currentPage=${currentPage}, hasMoreProducts=${hasMoreProducts}`);
+                        // ИСПРАВЛЕНИЕ БАГА: Проверяем, есть ли еще товары для загрузки
+                        if (hasMoreProducts && loadedProductNames.size < 377) {
+                            // Рассчитываем следующую страницу
+                            const nextStart = (currentPage + 1) * productsPerPage;
+                            if (nextStart >= 377) {
+                                console.log(`loadMoreProducts: Следующая страница ${nextStart} выходит за пределы 377, исправляем hasMoreProducts`);
+                                hasMoreProducts = false;
+                            }
+                        }
+                        
+                        // Дополнительная проверка: если загружено больше или равно общему количеству товаров
+                        if (loadedProductNames.size >= 377) {
+                            console.log(`loadMoreProducts: Загружено ${loadedProductNames.size} товаров, исправляем hasMoreProducts`);
+                            hasMoreProducts = false;
+                        }
+                        
+                        // ИСПРАВЛЕНИЕ БАГА: Проверяем, есть ли еще товары для загрузки
+                        // Если получили меньше товаров чем limit, это НЕ обязательно означает конец
+                        // Нужно проверить, есть ли еще товары в базе данных
+                        if (newProducts.length < productsPerPage) {
+                            console.log(`loadMoreProducts: Получено ${newProducts.length} товаров < ${productsPerPage}, проверяем есть ли еще товары...`);
+                            
+                            // Проверяем, есть ли еще товары для загрузки
+                            if (loadedProductNames.size < 377) {
+                                // Рассчитываем следующую страницу
+                                const nextStart = (currentPage + 1) * productsPerPage;
+                                if (nextStart < 377) {
+                                    console.log(`loadMoreProducts: Есть еще товары на странице ${nextStart}, оставляем hasMoreProducts=true`);
+                                    hasMoreProducts = true;
+                                } else {
+                                    console.log(`loadMoreProducts: Следующая страница ${nextStart} выходит за пределы 377, исправляем hasMoreProducts`);
+                                    hasMoreProducts = false;
+                                }
+                            } else {
+                                console.log(`loadMoreProducts: Загружено ${loadedProductNames.size} товаров, исправляем hasMoreProducts`);
+                                hasMoreProducts = false;
+                            }
+                        }
+                        
+                        console.log(`loadMoreProducts: Обновлено - currentPage=${currentPage}, hasMoreProducts=${hasMoreProducts}, newProducts.length=${newProducts.length}, productsPerPage=${productsPerPage}`);
                         
                         if (!hasMoreProducts) {
                             console.log('loadMoreProducts: Больше товаров нет');
@@ -1419,6 +1515,29 @@ function handleScroll() {
     if (loadedProductNames.size >= 377) {
         console.log('handleScroll: Все товары загружены (377), исправляем hasMoreProducts');
         hasMoreProducts = false;
+        return;
+    }
+    
+    // ИСПРАВЛЕНИЕ БАГА: Проверяем, есть ли еще товары для загрузки
+    if (hasMoreProducts && loadedProductNames.size < 377) {
+        // Рассчитываем следующую страницу
+        const nextStart = (currentPage + 1) * productsPerPage;
+        if (nextStart >= 377) {
+            console.log(`handleScroll: Следующая страница ${nextStart} выходит за пределы 377, исправляем hasMoreProducts`);
+            hasMoreProducts = false;
+            return;
+        }
+        
+        // Дополнительная проверка: если загружено больше или равно общему количеству товаров
+        if (loadedProductNames.size >= 377) {
+            console.log(`handleScroll: Загружено ${loadedProductNames.size} товаров, исправляем hasMoreProducts`);
+            hasMoreProducts = false;
+            return;
+        }
+        
+        // ИСПРАВЛЕНИЕ БАГА: Проверяем, есть ли еще товары на текущей странице
+        // Если на текущей странице получили меньше товаров чем limit, это НЕ означает конец
+        console.log(`handleScroll: Проверяем возможность загрузки страницы ${nextStart}, загружено ${loadedProductNames.size} из 377`);
     }
     
     if (isLoading || !hasMoreProducts) {
@@ -2130,6 +2249,11 @@ function resetState() {
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('=== Инициализация приложения v11.03 ===');
     console.log('DOM загружен, начинаем инициализацию...');
+    
+    // ИНИЦИАЛИЗАЦИЯ КОРЗИНЫ
+    console.log('=== ИНИЦИАЛИЗАЦИЯ КОРЗИНЫ ===');
+    initializeCart();
+    console.log('Корзина инициализирована');
     
     // НАСТРОЙКА ПОИСКА - перенесена в начало для быстрого доступа
     console.log('=== НАСТРОЙКА ПОИСКА ===');
@@ -3102,6 +3226,431 @@ function closeContactsPopup() {
     }
 }
 
+// Функция для показа popup оферты
+window.showOfferPopup = function() {
+    const popup = document.getElementById('offerPopup');
+    const offerText = document.getElementById('offerText');
+    
+    if (popup && offerText) {
+        const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
+        
+        // Загружаем текст оферты в зависимости от языка
+        const offerContent = getOfferContent(currentLanguage);
+        offerText.innerHTML = offerContent;
+        
+        popup.classList.add('show');
+        
+        // Принудительно применяем стили
+        popup.style.display = 'flex';
+        popup.style.opacity = '1';
+        popup.style.visibility = 'visible';
+        popup.style.zIndex = '9999';
+        
+        // Принудительно применяем стили для кнопки закрытия
+        const closeBtn = popup.querySelector('.close-btn');
+        if (closeBtn) {
+            closeBtn.style.position = 'absolute';
+            closeBtn.style.top = '-20px';
+            closeBtn.style.right = '-20px';
+            closeBtn.style.zIndex = '10001';
+        }
+        
+        // Добавляем обработчики для закрытия окна
+        addOfferPopupEventListeners();
+        
+        console.log('showOfferPopup: Popup оферты успешно открыт');
+    } else {
+        console.error('showOfferPopup: Popup оферты или элемент текста не найден');
+    }
+}
+
+// Функция для добавления обработчиков событий для окна оферты
+function addOfferPopupEventListeners() {
+    const popup = document.getElementById('offerPopup');
+    
+    if (!popup) return;
+    
+    // Обработчик клавиши ESC
+    const handleEscKey = (e) => {
+        if (e.key === 'Escape') {
+            closeOfferPopup();
+        }
+    };
+    
+    // Обработчик клика вне окна
+    const handleOutsideClick = (e) => {
+        if (e.target === popup) {
+            closeOfferPopup();
+        }
+    };
+    
+    // Добавляем обработчики
+    document.addEventListener('keydown', handleEscKey);
+    popup.addEventListener('click', handleOutsideClick);
+    
+    // Сохраняем ссылки на обработчики для последующего удаления
+    popup._escHandler = handleEscKey;
+    popup._outsideClickHandler = handleOutsideClick;
+}
+
+// Функция для закрытия окна оферты
+window.closeOfferPopup = function() {
+    const popup = document.getElementById('offerPopup');
+    
+    if (popup) {
+        // Удаляем обработчики событий
+        if (popup._escHandler) {
+            document.removeEventListener('keydown', popup._escHandler);
+            delete popup._escHandler;
+        }
+        
+        if (popup._outsideClickHandler) {
+            popup.removeEventListener('click', popup._outsideClickHandler);
+            delete popup._outsideClickHandler;
+        }
+        
+        // Закрываем popup
+        popup.classList.remove('show');
+        popup.style.display = 'none';
+        popup.style.opacity = '0';
+        popup.style.visibility = 'hidden';
+        
+        console.log('closeOfferPopup: Popup оферты закрыт');
+    }
+}
+
+// Функция для получения текста оферты на разных языках
+function getOfferContent(language) {
+    const offers = {
+        uk: `
+            <h4>Загальні положення</h4>
+            <p><strong>1.1.</strong> Справжня оферта є офіційною пропозицією «Guitar Strings», далі за текстом — «Продавець», укласти Договір купівлі-продажу товарів дистанційним способом, тобто через Інтернет-магазин, далі за текстом — «Договір», та розміщує Публічну оферту (пропозиція) на офіційному інтернет-сайті Продавця https://guitarstrings.com.ua (далі - Інтернет-сайт).</p>
+            
+            <p><strong>1.2.</strong> Моментом повного та безумовного прийняття Покупцем пропозиції Продавця (акцептом) укласти електронний договір купівлі-продажу товарів, вважається факт оплати Покупцем замовлення на умовах цього Договору, у строки та за цінами, вказаними на Інтернет-сайті Продавця.</p>
+            
+            <h4>Поняття та визначення</h4>
+            <p><strong>2.1.</strong> У цій оферті, якщо контекст не вимагає іншого, наведені нижче терміни мають такі значення:</p>
+            <ul>
+                <li><strong>«товар»</strong> - моделі, аксесуари, комплектуючі та супровідні предмети;</li>
+                <li><strong>«Інтернет-магазин»</strong> - відповідно до Закону України «про електронну комерцію», засіб для подання або реалізації товару, роботи чи послуги шляхом вчинення електронної угоди.</li>
+                <li><strong>«Продавець»</strong> - компанія, що реалізує товари, які представлені на Інтернет-сайті.</li>
+                <li><strong>«Покупець»</strong> - фізична особа, яка уклала з Продавцем Договір на умовах, викладених нижче.</li>
+                <li><strong>«Замовлення»</strong> - вибір окремих позицій із переліку товарів, зазначених Покупцем під час розміщення замовлення та проведення оплати.</li>
+            </ul>
+            
+            <h4>Предмет Договору</h4>
+            <p><strong>3.1.</strong> Продавець зобов'язується передати у власність Покупця Товар, а Покупець зобов'язується сплатити та прийняти Товар на умовах цього Договору.</p>
+            
+            <p>Цей Договір регулює купівлю-продаж товарів в Інтернет-магазині, зокрема:</p>
+            <ul>
+                <li>Добровільний вибір Покупцем товарів в Інтернет-магазині;</li>
+                <li>Самостійне оформлення Покупцем замовлення в Інтернет-магазині;</li>
+                <li>оплата Покупцем замовлення, оформленого в Інтернет-магазині;</li>
+                <li>обробка та доставка замовлення Покупцю у власність на умовах цього Договору.</li>
+            </ul>
+            
+            <h4>Порядок оформлення замовлення</h4>
+            <p><strong>4.1.</strong> Покупець має право оформити замовлення на будь-який товар, представлений на Сайті Інтернет-магазину та наявний.</p>
+            <p><strong>4.2.</strong> Кожна позиція може бути представлена ​​в замовлення у будь-якій кількості.</p>
+            <p><strong>4.3.</strong> За відсутності товару на складі, Менеджер компанії зобов'язаний повідомити Покупця (по телефону або через електронну пошту).</p>
+            <p><strong>4.4.</strong> За відсутності товару Покупець має право замінити його товаром аналогічної моделі, відмовитися від цього товару, анулювати замовлення.</p>
+            
+            <h4>Порядок оплати замовлення</h4>
+            <p><strong>Післяплатою</strong></p>
+            <p><strong>5.1.</strong> Оплата здійснюється за фактом отримання товару у відділенні транспортної компанії за готівку в гривнях.</p>
+            <p><strong>5.2.</strong> При ненадходженні коштів Інтернет-магазин залишає за собою право анулювати замовлення.</p>
+            
+            <h4>Умови доставки замовлення</h4>
+            <p><strong>6.1.</strong> Доставка товарів, придбаних в Інтернет-магазині, здійснюється до складів транспортних компаній, де й провадиться видача замовлень.</p>
+            <p><strong>6.2.</strong> Разом із замовленням Покупцю надаються документи згідно із законодавством України.</p>
+            
+            <h4>Права та обов'язки сторін:</h4>
+            <p><strong>7.1.</strong> Продавець має право:</p>
+            <ul>
+                <li>в односторонньому порядку призупинити надання послуг за цим договором у разі порушення Покупцем умов цього договору.</li>
+            </ul>
+            
+            <p><strong>7.2.</strong> Покупець зобов'язаний:</p>
+            <ul>
+                <li>своєчасно сплатити та отримати замовлення на умовах цього договору.</li>
+            </ul>
+            
+            <p><strong>7.3.</strong> Покупець має право:</p>
+            <ul>
+                <li>Оформити замовлення в Інтернет-магазині;</li>
+                <li>оформити електронний договір;</li>
+                <li>вимагати від Продавця виконання умов цього Договору.</li>
+            </ul>
+            
+            <h4>Відповідальність сторін</h4>
+            <p><strong>8.1.</strong> Сторони несуть відповідальність за невиконання або неналежне виконання умов цього договору у порядку, передбаченому цим договором та чинним законодавством України.</p>
+            
+            <p><strong>8.2.</strong> Продавець не несе відповідальності за:</p>
+            <ul>
+                <li>Змінений виробником зовнішній вигляд Товару;</li>
+                <li>за незначну невідповідність кольорової гами товару, що може відрізнятися від оригіналу товару виключно через різну колірну передачу моніторів персональних комп'ютерів окремих моделей;</li>
+                <li>за зміст та правдивість інформації, що надається Покупцем під час оформлення замовлення;</li>
+                <li>за затримку та перебої у наданні Послуг (обробки замовлення та доставки товару), що відбуваються з причин, що знаходяться поза сферою його контролю;</li>
+                <li>за протиправні незаконні дії, здійснені Покупцем за допомогою цього доступу до мережі Інтернет;</li>
+                <li>за передачу Покупцем своїх мережевих ідентифікаторів - IP, MAC-адреси, логіну та паролю третім особам;</li>
+            </ul>
+            
+            <p><strong>8.3.</strong> Покупець, використовуючи наданий йому доступ до мережі Інтернет, самостійно несе відповідальність за шкоду, заподіяну його діями (особисто, навіть якщо під її логіном перебувала інша особа) особам або їхньому майну, юридичним особам, державі чи моральним принципам моральності.</p>
+            
+            <p><strong>8.4.</strong> У разі настання обставин непереборної сили сторони звільняються від виконання умов цього договору. Під обставинами непереборної сили для цілей цього договору розуміються події, що мають надзвичайний, непередбачуваний характер, які виключають або об'єктивно заважають виконанню цього договору, настання яких Сторони не могли передбачити та запобігти розумним способам.</p>
+            
+            <p><strong>8.5.</strong> Сторони докладають максимум зусиль для вирішення будь-яких суперечностей виключно шляхом переговорів.</p>
+            
+            <h4>Інші умови</h4>
+            <p><strong>9.1.</strong> Інтернет-магазин залишає за собою право в односторонньому порядку вносити зміни до цього договору за умови його попередньої публікації на сайті https://guitarstrings.com.ua</p>
+            
+            <p><strong>9.2.</strong> Інтернет-магазин створінь для організації дистанційного способу продажу товарів через Інтернет.</p>
+            
+            <p><strong>9.3.</strong> Покупець несе відповідальність за достовірність зазначеної під час оформлення замовлення інформації. При цьому, при здійсненні акцепту (оформлення замовлення та подальшої оплати товару) Покупець надає Продавцю свою беззастережну згоду на збирання, обробку, зберігання, використання своїх персональних даних у розумінні ЗУ «Про захист персональних даних».</p>
+            
+            <p><strong>9.4.</strong> Оплата Покупцем оформленого в Інтернет магазині замовлення означає повну згоду Покупця з умовами договору купівлі-продажу (публічної оферти)</p>
+            
+            <p><strong>9.5.</strong> Фактичною датою електронної угоди між сторонами є дата прийняття умов відповідно до ст. 11 Закону України "Про електронну комерцію"</p>
+            
+            <p><strong>9.6.</strong> Використання ресурсу Інтернет-магазину для попереднього перегляду товару, а також оформлення замовлення для Покупця є безкоштовним.</p>
+            
+            <p><strong>9.7.</strong> Інформація, що надається Покупцем, є конфіденційною. Інтернет-магазин використовує інформацію про Покупця виключно з метою обробки замовлення, відправлення повідомлень Покупцю, доставки товару, здійснення взаєморозрахунків та ін.</p>
+            
+            <h4>Порядок повернення товару належної якості</h4>
+            <p><strong>10.1.</strong> Повернення товару до Інтернет-магазину здійснюється відповідно до чинного законодавства України.</p>
+            <p><strong>10.2.</strong> Повернення товару до Інтернет-магазину здійснюється за рахунок Покупця.</p>
+            <p><strong>10.3.</strong> При поверненні Покупцем товару належної якості Інтернет-магазин повертає йому сплачену за товар грошову суму за фактом повернення товару за вирахуванням компенсації витрат Інтернет-магазину, пов'язаних з доставкою товару Покупцю.</p>
+            
+            <h4>Строк дії договору</h4>
+            <p><strong>11.1.</strong> Електронний договір вважається укладеним з моменту отримання особою, яка направила пропозицію укласти такий договір, відповіді про прийняття цього пропозиції в порядку, визначеному частиною шостою статті 11 Закону України "Про електронну комерцію".</p>
+            
+            <p><strong>11.2.</strong> До закінчення строку дії цей Договір може бути розірваний за взаємною згодою сторін до моменту фактичної доставки товару шляхом повернення коштів</p>
+            
+            <p><strong>11.3.</strong> Сторони мають право розірвати цей договір в односторонньому порядку, в разі невиконання однієї із сторін умов цього Договору та у випадках, передбачених чинним законодавством України.</p>
+            
+            <p>Звертаємо ваше увагу, що інтернет-магазин «GuitarStrings.com.ua» на офіційному інтернет-сайті https://guitarstrings.com.ua має право, відповідно до законодавства України, надавати право користування інтернет платформою ФОП та юридичним особам для реалізації товару.</p>
+        `,
+        ru: `
+            <h4>Общие положения</h4>
+            <p><strong>1.1.</strong> Настоящая оферта является официальным предложением «Guitar Strings», далее по тексту — «Продавець», заключить Договор купли-продажи товаров дистанционным способом, то есть через Интернет-магазин, далее по тексту — «Договор» и размещает Публичную оферту (предложение) на официальном интернет-сайте Продавца https://guitarstrings.com.ua (далее - Интернет-сайт).</p>
+            
+            <p><strong>1.2.</strong> Моментом полного и безусловного принятия Покупателем предложения Продавца (акцептом) заключить электронный договор купли-продажи товаров считается факт оплаты Покупателем заказа на условиях настоящего Договора, в сроки и по ценам, указанным на Интернет-сайте Продавца.</p>
+            
+            <h4>Понятие и определение</h4>
+            <p><strong>2.1.</strong> В этой оферте, если контекст не требует другого, следующие термины имеют следующие значения:</p>
+            <ul>
+                <li><strong>«товар»</strong> – модели, аксессуары, комплектующие и сопроводительные предметы;</li>
+                <li><strong>«Интернет-магазин»</strong> - в соответствии с Законом Украины «об электронной коммерции», средством предоставления или реализации товара, работы или услугами путем совершения электронного соглашения.</li>
+                <li><strong>«Продавець»</strong> – компания, реализующая товары, представленные на Интернет-сайте.</li>
+                <li><strong>«Покупатель»</strong> - физическое лицо, заключившее с Продавцом Договор на условиях, изложенных ниже.</li>
+                <li><strong>«Заказ»</strong> - выбор отдельных позиций по перечню товаров, указанных Покупателем при размещении заказа и оплате.</li>
+            </ul>
+            
+            <h4>Предмет Договора</h4>
+            <p><strong>3.1.</strong> Продавец обязуется передать в собственность Покупателя Товар, а Покупатель обязуется уплатить и принять Товар на условиях настоящего Договора.</p>
+            
+            <p>Настоящий Договор регулирует куплю-продажу товаров в Интернет-магазине, в частности:</p>
+            <ul>
+                <li>добровольный выбор Покупателем товаров в Интернет-магазине;</li>
+                <li>самостоятельное оформление Покупателем заказа в Интернет-магазине;</li>
+                <li>оплата Покупателем заказа, оформленного в Интернет-магазине;</li>
+                <li>обработка и доставка заказа Покупателю в собственность на условиях настоящего Договора.</li>
+            </ul>
+            
+            <h4>Порядок оформления заказа</h4>
+            <p><strong>4.1.</strong> Покупатель имеет право оформить заказ на любой товар, представленный на Сайте Интернет-магазина и имеющийся.</p>
+            <p><strong>4.2.</strong> Каждая позиция может быть представлена в заказ в любом количестве.</p>
+            <p><strong>4.3.</strong> При отсутствии товара на складе, Менеджер компании обязан сообщить Покупателю (по телефону или по электронной почте).</p>
+            <p><strong>4.4.</strong> При отсутствии товара Покупатель имеет право заменить товар аналогичной модели, отказаться от этого товара, аннулировать заказ.</p>
+            
+            <h4>Порядок оплаты заказа</h4>
+            <p><strong>Наложенным платежом</strong></p>
+            <p><strong>5.1.</strong> Оплата производится по факту получения товара в отделении транспортной компании за наличные в гривнах.</p>
+            <p><strong>5.2.</strong> При неприходе средств Интернет-магазин оставляет за собой право аннулировать заказ.</p>
+            
+            <h4>Условия доставки заказа</h4>
+            <p><strong>6.1.</strong> Доставка товаров, приобретенных в Интернет-магазине, осуществляется в склады транспортных компаний, где и производится выдача заказов.</p>
+            <p><strong>6.2.</strong> Вместе с заказом Покупателю предоставляются документы согласно законодательству Украины.</p>
+            
+            <h4>Права и обязанности сторон:</h4>
+            <p><strong>7.1.</strong> Продавец имеет право:</p>
+            <ul>
+                <li>в одностороннем порядке приостановить предоставление услуг по настоящему договору в случае нарушения Покупателем условий настоящего договора.</li>
+            </ul>
+            
+            <p><strong>7.2.</strong> Покупатель обязан:</p>
+            <ul>
+                <li>своевременно оплатить и получить заказы на условиях настоящего договора.</li>
+            </ul>
+            
+            <p><strong>7.3.</strong> Покупатель имеет право:</p>
+            <ul>
+                <li>оформить заказ в Интернет-магазине;</li>
+                <li>оформить электронный договор;</li>
+                <li>требовать от Продавца выполнения условий настоящего Договора.</li>
+            </ul>
+            
+            <h4>Ответственность сторон</h4>
+            <p><strong>8.1.</strong> Стороны несут ответственность за неисполнение или ненадлежащее исполнение условий настоящего договора в порядке, предусмотренном настоящим договором и действующим законодательством Украины.</p>
+            
+            <p><strong>8.2.</strong> Продавец не несет ответственности за:</p>
+            <ul>
+                <li>измененный производителем внешний вид Товара;</li>
+                <li>за незначительное несоответствие цветовой гаммы товара, что может отличаться от оригинала товара исключительно из-за разной цветовой передачи мониторов персональных компьютеров отдельных моделей;</li>
+                <li>за содержание и правдивость информации, предоставляемой Покупателем при оформлении заказа;</li>
+                <li>за задержку и перебои в предоставлении Услуг (обработки заказа и доставки товара), происходящие по причинам, находящимся вне его контроля;</li>
+                <li>за противоправные незаконные действия, совершенные Покупателем посредством этого доступа в Интернет;</li>
+                <li>за передачу Покупателем своих сетевых идентификаторов - IP, MAC-адреса, логина и пароля третьим лицам;</li>
+            </ul>
+            
+            <p><strong>8.3.</strong> Покупатель, используя предоставленный ему доступ к сети Интернет, самостоятельно несет ответственность за ущерб, причиненный его действиями (лично, даже если под его логином находилось другое лицо) лицам или их имуществу, юридическим лицам, государству или моральным принципам нравственности.</p>
+            
+            <p><strong>8.4.</strong> При наступлении обстоятельств непреодолимой силы стороны освобождаются от выполнения условий настоящего договора. Под обстоятельствами непреодолимой силы для целей настоящего договора понимаются события, имеющие чрезвычайный, непредсказуемый характер, исключающие или объективно мешающие выполнению настоящего договора, наступление которых Стороны не могли предусмотреть и предотвратить разумным способам.</p>
+            
+            <p><strong>8.5.</strong> Стороны прилагают максимум усилий для разрешения любых противоречий исключительно путем переговоров.</p>
+            
+            <h4>Другие условия</h4>
+            <p><strong>9.1.</strong> Интернет-магазин оставляет за собой права в одностороннем порядке вносить изменения в этот договор при условии его предварительной публикации на сайте https://guitarstrings.com.ua</p>
+            
+            <p><strong>9.2.</strong> Интернет-магазин созданий для организации дистанционного способа продаж товаров через Интернет.</p>
+            
+            <p><strong>9.3.</strong> Покупатель несет ответственность за достоверность указанной при оформлении заказа информации. При этом при осуществлении акцепта (оформления заказа и последующей оплаты товара) Покупатель предоставляет Продавцу свое безоговорочное согласие на сбор, обработку, хранение, использование своих персональных данных в понимании ЗУ «О защите персональных данных».</p>
+            
+            <p><strong>9.4.</strong> Оплата Покупателем оформленного в Интернет магазине заказа означает полное согласие Покупателя с условиями договора купли-продажи (публичной оферты)</p>
+            
+            <p><strong>9.5.</strong> Фактической датой электронного соглашения между сторонами дата принятия условий в соответствии со ст. 11 Закона Украины "Об электронной коммерции"</p>
+            
+            <p><strong>9.6.</strong> Использование ресурса Интернет-магазина для предварительного просмотра товара, а также оформление заказа для Покупателя бесплатно.</p>
+            
+            <p><strong>9.7.</strong> Информация, предоставляемая Покупателем, является конфиденциальной. Интернет-магазин использует информацию о Покупателе исключительно для обработки заказа, отправки сообщений Покупателю, доставки товара, осуществления взаиморасчетов и т.д.</p>
+            
+            <h4>Порядок возврата товара надлежащего качества</h4>
+            <p><strong>10.1.</strong> Возврат товара в Интернет-магазин осуществляется в соответствии с действующим законодательством Украины.</p>
+            <p><strong>10.2.</strong> Возврат товара в Интернет-магазин осуществляется за счет Покупателя.</p>
+            <p><strong>10.3.</strong> При возврате Покупателем товара надлежащего качества Интернет-магазин возвращает ему уплаченную за товар денежную сумму по факту возврата товара за вычетом компенсации расходов Интернет-магазина, связанных с доставкой товара Покупателю.</p>
+            
+            <h4>Срок действия договора</h4>
+            <p><strong>11.1.</strong> Электронный договор считается заключенным с момента получения лицом, направившим предложение заключить такой договор, ответы о принятии этого предложения в порядке, определенном частью шестой статьи 11 Закона Украины "Об электронной коммерции".</p>
+            
+            <p><strong>11.2.</strong> До истечения срока действия настоящий Договор может быть расторгнут по взаимному согласию сторон к моменту фактической доставки товара путем возврата средств</p>
+            
+            <p><strong>11.3.</strong> Стороны имеют право расторгнуть настоящий договор в одностороннем порядке, в случае невыполнения одной из сторон условий настоящего Договора и случаях, предусмотренных действующим законодательством Украины.</p>
+            
+            <p>Обращаем ваше внимание, что интернет-магазин «GuitarStrings.com.ua» на официальном интернет-сайте https://guitarstrings.com.ua имеет право в соответствии с законодательством Украины предоставлять право пользования интернет платформой ФЛП и юридическим лицам для реализации товара.</p>
+        `,
+        en: `
+            <h4>General provisions</h4>
+            <p><strong>1.1.</strong> This offer is an official offer of "Guitar Strings", hereinafter referred to as the "Seller", to conclude a Contract for the sale and purchase of goods remotely, i.e. through the Online Store, hereinafter referred to as the "Agreement", and places a Public Offer (Offer) on the Seller's official website https://guitarstrings.com.ua (hereinafter referred to as the Website).</p>
+            
+            <p><strong>1.2.</strong> The moment of full and unconditional acceptance by the Buyer of the Seller's offer (acceptance) to conclude an electronic contract for the sale and purchase of goods is considered the fact of payment by the Buyer for the order under the terms of this Agreement, within the terms and at the prices specified on the Seller's Website.</p>
+            
+            <h4>Concepts and definitions</h4>
+            <p><strong>2.1.</strong> In this offer, unless the context requires otherwise, the terms below have the following meanings:</p>
+            <ul>
+                <li><strong>"goods"</strong> - models, accessories, components and accompanying items;</li>
+                <li><strong>"Online store"</strong> - in accordance with the Law of Ukraine "On Electronic Commerce", a means for presenting or selling goods, work or services by concluding an electronic transaction.</li>
+                <li><strong>"Seller"</strong> - a company that sells goods presented on the Internet site.</li>
+                <li><strong>"Buyer"</strong> - an individual who has concluded an Agreement with the Seller on the terms set out below.</li>
+                <li><strong>"Order"</strong> - a selection of individual items from the list of goods specified by the Buyer when placing an order and making payment.</li>
+            </ul>
+            
+            <h4>Subject of the Agreement</h4>
+            <p><strong>3.1.</strong> The Seller undertakes to transfer the ownership of the Goods to the Buyer, and the Buyer undertakes to pay for and accept the Goods under the terms of this Agreement.</p>
+            
+            <p>This Agreement regulates the purchase and sale of goods in the Online Store, in particular:</p>
+            <ul>
+                <li>Voluntary selection by the Buyer of goods in the Online Store;</li>
+                <li>Independent registration by the Buyer of an order in the Online Store;</li>
+                <li>payment by the Buyer of an order placed in the Online Store;</li>
+                <li>processing and delivery of the order to the Buyer in the ownership under the terms of this Agreement.</li>
+            </ul>
+            
+            <h4>Order processing procedure</h4>
+            <p><strong>4.1.</strong> The Buyer has the right to place an order for any product presented on the Online Store Website and available.</p>
+            <p><strong>4.2.</strong> Each item can be presented in the order in any quantity.</p>
+            <p><strong>4.3.</strong> In the absence of the product in stock, the Company Manager is obliged to notify the Buyer (by phone or e-mail).</p>
+            <p><strong>4.4.</strong> In the absence of the product, the Buyer has the right to replace it with a product of a similar model, refuse this product, cancel the order.</p>
+            
+            <h4>Order payment procedure</h4>
+            <p><strong>Postpaid</strong></p>
+            <p><strong>5.1.</strong> Payment is made upon receipt of the product at the transport company's branch for cash in hryvnias.</p>
+            <p><strong>5.2.</strong> In the event of non-receipt of funds, the Online Store reserves the right to cancel the order.</p>
+            
+            <h4>Order delivery terms</h4>
+            <p><strong>6.1.</strong> Delivery of goods purchased in the Online Store is carried out to the warehouses of transport companies, where orders are issued.</p>
+            <p><strong>6.2.</strong> Together with the order, the Buyer is provided with documents in accordance with the legislation of Ukraine.</p>
+            
+            <h4>Rights and obligations of the parties:</h4>
+            <p><strong>7.1.</strong> The Seller has the right:</p>
+            <ul>
+                <li>unilaterally suspend the provision of services under this Agreement in the event of the Buyer's violation of the terms of this Agreement.</li>
+            </ul>
+            
+            <p><strong>7.2.</strong> The Buyer is obliged to:</p>
+            <ul>
+                <li>timely pay and receive the order under the terms of this Agreement.</li>
+            </ul>
+            
+            <p><strong>7.3.</strong> The Buyer has the right:</p>
+            <ul>
+                <li>Place an order in the Online Store;</li>
+                <li>draw up an electronic agreement;</li>
+                <li>demand that the Seller fulfill the terms of this Agreement.</li>
+            </ul>
+            
+            <h4>Liability of the Parties</h4>
+            <p><strong>8.1.</strong> The Parties are liable for failure to fulfill or improper fulfillment of the terms of this Agreement in the manner prescribed by this Agreement and the current legislation of Ukraine.</p>
+            
+            <p><strong>8.2.</strong> The Seller is not responsible for:</p>
+            <ul>
+                <li>The appearance of the Goods changed by the manufacturer;</li>
+                <li>for a minor discrepancy in the color scheme of the Goods, which may differ from the original Goods solely due to different color rendering of personal computer monitors of individual models;</li>
+                <li>for the content and veracity of the information provided by the Buyer when placing an order;</li>
+                <li>for delays and interruptions in the provision of Services (order processing and delivery of goods) occurring for reasons beyond its control;</li>
+                <li>for unlawful illegal actions committed by the Buyer using this access to the Internet;</li>
+                <li>for the transfer by the Buyer of his network identifiers - IP, MAC address, login and password to third parties;</li>
+            </ul>
+            
+            <p><strong>8.3.</strong> The Buyer, using the access to the Internet provided to him, is independently responsible for the damage caused by his actions (personally, even if another person was under his login) to persons or their property, legal entities, the state or moral principles of morality.</p>
+            
+            <p><strong>8.4.</strong> In the event of force majeure circumstances, the parties are released from the fulfillment of the terms of this agreement. For the purposes of this agreement, force majeure circumstances are understood to mean events of an extraordinary, unforeseeable nature that exclude or objectively impede the fulfillment of this agreement, the occurrence of which the Parties could not foresee and prevent by reasonable means.</p>
+            
+            <p><strong>8.5.</strong> The Parties shall make every effort to resolve any disputes exclusively through negotiations.</p>
+            
+            <h4>Other conditions</h4>
+            <p><strong>9.1.</strong> The online store reserves the right to unilaterally make changes to this agreement subject to its prior publication on the website https://guitarstrings.com.ua</p>
+            
+            <p><strong>9.2.</strong> Online store of creations for organizing a remote method of selling goods via the Internet.</p>
+            
+            <p><strong>9.3.</strong> The Buyer is responsible for the accuracy of the information specified when placing an order. At the same time, when accepting (placing an order and subsequent payment for the goods), the Buyer gives the Seller his unconditional consent to the collection, processing, storage, and use of his personal data within the meaning of the Law of Ukraine "On the Protection of Personal Data".</p>
+            
+            <p><strong>9.4.</strong> Payment by the Buyer of an order placed in the Online Store means the Buyer's full consent to the terms of the purchase and sale agreement (public offer)</p>
+            
+            <p><strong>9.5.</strong> The actual date of the electronic agreement between the parties is the date of acceptance of the terms in accordance with Art. 11 of the Law of Ukraine "On Electronic Commerce"</p>
+            
+            <p><strong>9.6.</strong> The use of the Online Store resource for previewing the product, as well as placing an order for the Buyer is free of charge.</p>
+            
+            <p><strong>9.7.</strong> The information provided by the Buyer is confidential. The Online Store uses information about the Buyer solely for the purpose of processing the order, sending messages to the Buyer, delivering the product, making mutual settlements, etc.</p>
+            
+            <h4>Procedure for returning goods of proper quality</h4>
+            <p><strong>10.1.</strong> The return of goods to the Online Store is carried out in accordance with the current legislation of Ukraine.</p>
+            <p><strong>10.2.</strong> The return of goods to the Online Store is carried out at the expense of the Buyer.</p>
+            <p><strong>10.3.</strong> When the Buyer returns goods of proper quality, the Online Store returns the amount paid for the goods upon the fact of returning the goods, minus compensation for the expenses of the Online Store associated with delivering the goods to the Buyer.</p>
+            
+            <h4>Term of the Agreement</h4>
+            <p><strong>11.1.</strong> An electronic agreement is considered concluded from the moment the person who sent the offer to conclude such an agreement receives a response on acceptance of this offer in the manner specified in Part Six of Article 11 of the Law of Ukraine "On Electronic Commerce".</p>
+            
+            <p><strong>11.2.</strong> Before the expiration of the term of validity, this Agreement may be terminated by mutual consent of the parties until the actual delivery of the goods by refunding the funds</p>
+            
+            <p><strong>11.3.</strong> The parties have the right to terminate this agreement unilaterally, in the event of non-fulfillment of the terms of this Agreement by one of the parties and in cases provided for by the current legislation of Ukraine.</p>
+            
+            <p>Please note that the online store "GuitarStrings.com.ua" on the official website https://guitarstrings.com.ua has the right, in accordance with the legislation of Ukraine, to grant the right to use the Internet platform to individual entrepreneurs and legal entities for the sale of goods.</p>
+        `
+    };
+    
+    return offers[language] || offers.uk;
+}
+
 // Функция для показа уведомления о выборе категории
 function showCategorySelectedNotification(categoryName) {
     console.log(`showCategorySelectedNotification: Показываем уведомление для категории: ${categoryName}`);
@@ -3468,9 +4017,9 @@ function closePopup(popupId) {
 function openPopup(popupId) {
     console.log(`openPopup: Открываем popup с ID: ${popupId}`);
     
-    // Сначала закрываем все другие popup'ы
-    const allPopups = ['menuPopup', 'settingsPopup'];
-    allPopups.forEach(id => {
+    // Закрываем только настройки, но НЕ закрываем меню
+    const popupsToClose = ['settingsPopup'];
+    popupsToClose.forEach(id => {
         if (id !== popupId) {
             const popup = document.getElementById(id);
             if (popup && popup.classList.contains('show')) {
@@ -3620,7 +4169,7 @@ function setupLanguageSwitchers() {
                 
                 console.log('setupLanguageSwitchers: Переводы обновлены, состояние восстановлено');
             } else {
-                console.error('setupLanguageSwitchers: Система переводов не найдена');
+                console.log('setupLanguageSwitchers: Система переводов еще не готова, пропускаем...');
             }
         });
         
@@ -3664,10 +4213,109 @@ function restoreInfiniteScrollState() {
     }
 }
 
+// ===== ФУНКЦИИ КОРЗИНЫ =====
 
+// Добавление товара в корзину
+function addToCart(product) {
+    console.log('addToCart: Добавляем товар в корзину:', product);
+    
+    // Проверяем, есть ли уже такой товар в корзине
+    const existingItemIndex = cart.findIndex(item => item.name === product.name);
+    
+    if (existingItemIndex !== -1) {
+        // Если товар уже есть, увеличиваем количество
+        cart[existingItemIndex].quantity += 1;
+        cart[existingItemIndex].total = cart[existingItemIndex].quantity * cart[existingItemIndex].price;
+        console.log('addToCart: Количество товара увеличено:', cart[existingItemIndex]);
+    } else {
+        // Если товара нет, добавляем новый
+        const cartItem = {
+            name: product.name,
+            image: product.image,
+            price: parseInt(product.newPrice),
+            quantity: 1,
+            total: parseInt(product.newPrice),
+            article: product.name.split(' ')[0] || 'N/A' // Простое извлечение артикула
+        };
+        cart.push(cartItem);
+        console.log('addToCart: Новый товар добавлен в корзину:', cartItem);
+    }
+    
+    // Обновляем общие показатели корзины
+    updateCartTotals();
+    
+    // Сохраняем корзину
+    saveCart();
+    
+    // Обновляем счетчик
+    updateCartBadge();
+    
+    // Показываем popup подтверждения
+    showAddToCartPopup(product);
+    
+    console.log('addToCart: Товар успешно добавлен в корзину');
+}
 
+// Обновление общих показателей корзины
+function updateCartTotals() {
+    cartTotal = cart.reduce((sum, item) => sum + item.total, 0);
+    cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+    console.log('updateCartTotals: Обновлены показатели корзины:', { cartTotal, cartItemCount });
+}
 
+// Показ popup подтверждения добавления в корзину
+function showAddToCartPopup(product) {
+    console.log('showAddToCartPopup: Показываем popup для товара:', product);
+    
+    // Заполняем данные в popup
+    const cartProductImage = document.getElementById('cartProductImage');
+    const cartProductName = document.getElementById('cartProductName');
+    const cartProductArticle = document.getElementById('cartProductArticle');
+    const cartProductPrice = document.getElementById('cartProductPrice');
+    const cartProductQuantity = document.getElementById('cartProductQuantity');
+    const cartProductTotal = document.getElementById('cartProductTotal');
+    const cartTotalQuantity = document.getElementById('cartTotalQuantity');
+    const cartTotalAmount = document.getElementById('cartTotalAmount');
+    
+    if (cartProductImage) cartProductImage.src = product.image;
+    if (cartProductName) cartProductName.textContent = product.name;
+    if (cartProductArticle) cartProductArticle.textContent = product.name.split(' ')[0] || 'N/A';
+    if (cartProductPrice) cartProductPrice.textContent = product.newPrice;
+    if (cartProductQuantity) cartProductQuantity.textContent = '1';
+    if (cartProductTotal) cartProductTotal.textContent = product.newPrice;
+    if (cartTotalQuantity) cartTotalQuantity.textContent = cartItemCount;
+    if (cartTotalAmount) cartTotalAmount.textContent = cartTotal;
+    
+    // Показываем popup
+    const popup = document.getElementById('addToCartPopup');
+    if (popup) {
+        popup.classList.add('show');
+        console.log('showAddToCartPopup: Popup показан');
+    }
+}
 
+// Переход в корзину
+function goToCart() {
+    console.log('goToCart: Переход в корзину');
+    // Здесь можно добавить логику перехода в корзину
+    // Пока просто закрываем popup
+    closePopup('addToCartPopup');
+}
 
+// Предварительная загрузка фоновых изображений
+function preloadBackgroundImages() {
+    const backgroundImages = [
+        './images/Contacts_image/background.jpg'
+    ];
+    
+    backgroundImages.forEach(src => {
+        const img = new Image();
+        img.src = src;
+        console.log(`Предварительная загрузка изображения: ${src}`);
+    });
+}
+
+// Вызываем предварительную загрузку при загрузке страницы
+document.addEventListener('DOMContentLoaded', preloadBackgroundImages);
 
 
