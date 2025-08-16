@@ -126,6 +126,17 @@ body {
     transform: scale(1.05);
 }
 
+.profile-svg {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+}
+
+.profile-svg:hover {
+    transform: scale(1.05);
+}
+
 .menu-btn, .close-btn {
     background: none;
     border: none;
@@ -1036,23 +1047,23 @@ body {
 
 .popup-menu-content,
 .popup-settings-content {
-    padding: 20px 20px 25px 20px;
+    padding: 8px 20px 16px 20px;
     position: relative;
 }
 
 .popup-menu-header,
 .popup-settings-header {
-    margin-bottom: 15px;
+    margin-bottom: 8px;
     text-align: center;
     border-bottom: 1px solid var(--border-color);
-    padding-bottom: 10px;
+    padding-bottom: 5px;
 }
 
 .popup-menu-header h3,
 .popup-settings-header h3 {
     margin: 0;
     color: var(--text-primary);
-    font-size: 18px;
+    font-size: 17px;
     font-weight: 600;
 }
 
@@ -1067,8 +1078,8 @@ body {
 .settings-item {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 10px;
+    gap: 4px;
+    padding: 5px;
     border-radius: var(--border-radius);
     cursor: pointer;
     transition: all 0.2s ease;
@@ -1082,8 +1093,8 @@ body {
 .menu-item i,
 .settings-item i {
     color: var(--accent-color);
-    font-size: 16px;
-    width: 20px;
+    font-size: 14px;
+    width: 16px;
     text-align: center;
 }
 
@@ -1106,16 +1117,16 @@ body {
 .popup-menu-body {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 8px;
-    max-height: 85vh;
+    gap: 6px;
+    max-height: 95vh;
     overflow-y: auto;
 }
 
 .category-item {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 12px 16px;
+    gap: 5px;
+    padding: 5px 16px;
     border-radius: 12px;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -1133,8 +1144,8 @@ body {
 }
 
 .category-item .category-image {
-    width: 40px;
-    height: 40px;
+    width: 30px;
+    height: 30px;
     object-fit: cover;
     border-radius: 8px;
     flex-shrink: 0;
@@ -1153,7 +1164,7 @@ body {
     color: var(--text-primary);
     font-size: 14px;
     font-weight: 500;
-    line-height: 1.4;
+    line-height: 1.2;
     flex: 1;
 }
 
@@ -1194,22 +1205,47 @@ body {
 
 /* Стили для пункта контактов в меню */
 .contacts-item {
-    border-top: 1px solid var(--border-color);
-    padding-top: 12px;
-    padding-bottom: 12px;
-    margin-bottom: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    margin-bottom: 6px;
+    background: var(--bg-primary);
+    transition: all 0.2s ease;
 }
 
 .contacts-item i {
     color: var(--accent-color);
-    font-size: 16px;
-    width: 20px;
+    font-size: 14px;
+    width: 16px;
     text-align: center;
 }
 
 .contacts-item span {
     color: var(--text-primary);
     font-size: 14px;
+}
+
+.phone-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.phone-header i {
+    color: var(--accent-color);
+    font-size: 16px;
+    width: 20px;
+    text-align: center;
+}
+
+.contacts-item:hover {
+    background: var(--bg-secondary);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-small);
+    border-color: var(--accent-color);
 }
 
 /* Анимации для уведомлений */
@@ -1268,48 +1304,69 @@ body {
     border-radius: var(--border-radius);
     box-shadow: var(--shadow-large);
     max-width: 500px;
-    width: 90%;
-    max-height: 90vh;
-    overflow: visible;
+    width: 95%;
+    max-height: 85vh;
+    overflow: hidden;
     position: relative;
     animation: slideInUp 0.3s ease-out;
 }
 
 .popup-header {
-    padding: 10px 20px 0 20px;
+    padding: 8px 15px 0 15px;
     border-bottom: 1px solid var(--border-color);
-    margin-bottom: 10px;
+    margin-bottom: 8px;
 }
 
 .popup-header h3 {
     margin: 0;
     color: var(--text-primary);
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 600;
     text-align: center;
 }
 
 .popup-body {
-    padding: 0 20px 10px 20px;
+    padding: 0 15px 8px 15px;
+    max-height: 70vh;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) transparent;
+}
+
+.popup-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.popup-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.popup-body::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+}
+
+.popup-body::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-color);
 }
 
 .contacts-info {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
 }
 
 .working-hours {
     background: var(--bg-secondary);
-    padding: 10px;
+    padding: 8px;
     border-radius: var(--border-radius);
     border: 1px solid var(--border-color);
 }
 
 .working-hours h4 {
-    margin: 0 0 8px 0;
+    margin: 0 0 6px 0;
     color: var(--accent-color);
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 600;
 }
 
@@ -1345,7 +1402,7 @@ body {
 /* Стили для телефонных номеров */
 .phone-item {
     background: rgba(255, 255, 255, 0.9);
-    padding: 10px;
+    padding: 8px;
     border-radius: var(--border-radius);
     border: 1px solid var(--border-color);
 }
@@ -1353,13 +1410,15 @@ body {
 .phone-numbers {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    margin-top: 8px;
+    gap: 5px;
+    margin-top: 6px;
+    align-items: center;
 }
 
 .phone-number {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 10px;
 }
 
@@ -1373,19 +1432,19 @@ body {
 /* Стили для социальных сетей */
 .social-contacts {
     background: rgba(255, 255, 255, 0.9);
-    padding: 10px;
+    padding: 8px;
     border-radius: var(--border-radius);
     border: 1px solid var(--border-color);
     display: grid;
     grid-template-columns: 1fr;
-    gap: 6px;
+    gap: 5px;
 }
 
 .social-item {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 3px 0;
+    gap: 8px;
+    padding: 2px 0;
 }
 
 .social-icon {
@@ -1582,20 +1641,20 @@ body {
     transform: scale(1);
 }
 
-/* Специальные стили для крестика в окне контактов - позиционируем выше рамки */
+/* Специальные стили для крестика в окне контактов - позиционируем внутри рамки */
 .contacts-popup .close-btn {
     position: absolute;
-    top: -25px;
-    right: -25px;
+    top: 10px;
+    right: 10px;
     z-index: 10001;
     background: var(--bg-primary);
     border: 2px solid var(--border-color);
-    font-size: 28px;
+    font-size: 20px;
     font-weight: 300;
     cursor: pointer;
     color: var(--text-secondary);
-    width: 45px;
-    height: 45px;
+    width: 35px;
+    height: 35px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1620,7 +1679,7 @@ body {
 
 /* Стили для иконки крестика в окне контактов */
 .contacts-popup .close-btn i {
-    font-size: 20px;
+    font-size: 16px;
     color: inherit;
     line-height: 1;
 }
@@ -1671,6 +1730,12 @@ body {
 
 /* Адаптивность для мобильных устройств */
 @media (max-width: 768px) {
+    .contacts-popup {
+        width: 98%;
+        max-height: 80vh;
+        margin: 10px;
+    }
+    
     .popup-content {
         width: 95%;
         padding: 20px;
@@ -1682,7 +1747,40 @@ body {
         right: -12px;
         width: 40px;
         height: 40px;
-        font-size: 24px;
+    }
+    
+    .contacts-popup .close-btn {
+        top: 8px;
+        right: 8px;
+        width: 30px;
+        height: 30px;
+    }
+    
+    .contacts-popup .close-btn i {
+        font-size: 14px;
+    }
+    
+    .popup-header h3 {
+        font-size: 16px;
+    }
+    
+    .working-hours h4 {
+        font-size: 14px;
+    }
+    
+    .pickup-time p,
+    .pickup-time li {
+        font-size: 13px;
+    }
+    
+    .social-item {
+        gap: 6px;
+        padding: 1px 0;
+    }
+    
+    .social-icon {
+        width: 18px;
+        height: 18px;
     }
     
     .popup-message {
@@ -1695,6 +1793,75 @@ body {
     
     .popup-message li {
         margin-bottom: 6px;
+    }
+}
+
+/* Специальные стили для очень маленьких экранов (Telegram WebApp) */
+@media (max-width: 480px) {
+    .contacts-popup {
+        width: 99%;
+        max-height: 75vh;
+        margin: 5px;
+        border-radius: 8px;
+    }
+    
+    .contacts-popup .close-btn {
+        top: 6px;
+        right: 6px;
+        width: 28px;
+        height: 28px;
+    }
+    
+    .contacts-popup .close-btn i {
+        font-size: 12px;
+    }
+    
+    .popup-header {
+        padding: 6px 10px 0 10px;
+    }
+    
+    .popup-body {
+        padding: 0 10px 6px 10px;
+        max-height: 65vh;
+    }
+    
+    .contacts-info {
+        gap: 6px;
+    }
+    
+    .working-hours,
+    .phone-item,
+    .social-contacts {
+        padding: 6px;
+    }
+    
+    .working-hours h4 {
+        font-size: 13px;
+        margin: 0 0 4px 0;
+    }
+    
+    .pickup-time p,
+    .pickup-time li {
+        font-size: 12px;
+    }
+    
+    .pickup-time ul {
+        margin: 6px 0 0 0;
+        padding-left: 15px;
+    }
+    
+    .pickup-time li {
+        margin: 2px 0;
+    }
+    
+    .social-item {
+        gap: 5px;
+        padding: 1px 0;
+    }
+    
+    .social-icon {
+        width: 16px;
+        height: 16px;
     }
 }
 

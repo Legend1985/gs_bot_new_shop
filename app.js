@@ -18,11 +18,24 @@ if (typeof window.translations !== 'undefined') {
 
 // Проверяем, находимся ли мы в Telegram Web App
 let tg;
+console.log('=== ИНИЦИАЛИЗАЦИЯ TELEGRAM WEBAPP ===');
+console.log('window.Telegram:', !!window.Telegram);
+console.log('window.Telegram.WebApp:', !!window.Telegram?.WebApp);
+
 if (window.Telegram && window.Telegram.WebApp) {
     tg = window.Telegram.WebApp;
+    console.log('Telegram WebApp найден, инициализируем...');
+    console.log('tg.initDataUnsafe:', !!tg.initDataUnsafe);
+    console.log('tg.initDataUnsafe.user:', !!tg.initDataUnsafe?.user);
+    
+    if (tg.initDataUnsafe?.user) {
+        console.log('Данные пользователя доступны:', tg.initDataUnsafe.user);
+    }
+    
     tg.expand();
     tg.MainButton.textColor = '#FFFFFF';
     tg.MainButton.color = '#2cab37';
+    console.log('Telegram WebApp успешно инициализирован');
 } else {
     // Fallback для обычного браузера
     tg = {
@@ -40,6 +53,35 @@ if (window.Telegram && window.Telegram.WebApp) {
         }
     };
     console.log('Запущено в обычном браузере, Telegram функции недоступны');
+    
+    // Для тестирования в обычном браузере - показываем тестовый аватар
+    setTimeout(() => {
+        console.log('Тестируем аватар в обычном браузере...');
+        const profileImage = document.getElementById('profile-image');
+        const profileIcon = document.getElementById('profile-icon');
+        const profileSvg = document.getElementById('profile-svg');
+        
+        if (profileImage && profileIcon && profileSvg) {
+            // Сначала пробуем загрузить локальное изображение
+            profileImage.src = 'images/Contacts_image/Telegram_32x32.png';
+            profileImage.style.display = 'block';
+            profileIcon.style.display = 'none';
+            profileSvg.style.display = 'none';
+            console.log('Тестовый аватар установлен из локального файла');
+            
+            // Добавляем обработчик ошибок для тестового изображения
+            profileImage.onerror = () => {
+                console.warn('Не удалось загрузить тестовый аватар, показываем SVG аватар');
+                profileImage.style.display = 'none';
+                profileIcon.style.display = 'none';
+                profileSvg.style.display = 'block';
+            };
+            
+            profileImage.onload = () => {
+                console.log('Тестовый аватар успешно загружен');
+            };
+        }
+    }, 2000);
 }
 
 // Переменные для загрузки товаров
@@ -77,6 +119,12 @@ function getButtonText(availability, language) {
     // Для товаров в наличии
     if (availability === 'В наличии' || availability === 'В наявності' || availability === 'In stock' || 
         availability === 'В наличии в Одессе' || availability === 'В наявності в Одесі') {
+        // Используем переводы из translations.js
+        if (window.translations && window.translations.getTranslation) {
+            return window.translations.getTranslation('buyButton', currentLanguage);
+        }
+        
+        // Fallback если translations.js не загружен
         switch (currentLanguage) {
             case 'uk':
                 return 'КУПИТИ';
@@ -147,6 +195,12 @@ function getButtonText(availability, language) {
     }
     
     // По умолчанию - кнопка покупки
+    // Используем переводы из translations.js
+    if (window.translations && window.translations.getTranslation) {
+        return window.translations.getTranslation('buyButton', currentLanguage);
+    }
+    
+    // Fallback если translations.js не загружен
     switch (currentLanguage) {
         case 'uk':
             return 'КУПИТИ';
@@ -208,8 +262,13 @@ document.addEventListener('click', function(event) {
     const profilePic = document.querySelector('.profile-pic');
     
     if (dropdown && profilePic) {
-        if (!profilePic.contains(event.target) && !dropdown.contains(event.target)) {
+        // Проверяем, что клик не по аватару или его элементам
+        const isClickOnAvatar = profilePic.contains(event.target);
+        const isClickOnDropdown = dropdown.contains(event.target);
+        
+        if (!isClickOnAvatar && !isClickOnDropdown) {
             dropdown.classList.remove('show');
+            console.log('toggleAvatarMenu: Меню аватара закрыто (клик вне)');
         }
     }
 });
@@ -816,7 +875,7 @@ function createProductCard(product, btnId) {
             <span class="new-price">${product.newPrice} грн</span>
         </p>
         <p class="availability">${product.availability}</p>
-        <button id="${btnId}" class="buy-btn">Купить</button>
+        <button id="${btnId}" class="buy-btn">${getButtonText(product.availability, localStorage.getItem('selectedLanguage') || 'uk')}</button>
     `;
     
     // Добавляем обработчик для кнопки
@@ -837,7 +896,7 @@ function createProductCardFromSavedData(productData, btnId) {
     
     // Определяем CSS класс для статуса
     let statusClass = '';
-    let buttonText = 'Купить';
+    let buttonText = '';
     
     // Отладка для конкретного товара
     if (productData.name && productData.name.includes('Dean Markley 2558A')) {
@@ -2504,35 +2563,59 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // Функция для получения и отображения фото профиля из Telegram
 function loadTelegramProfilePhoto() {
+    console.log('=== loadTelegramProfilePhoto: Начинаем загрузку аватара ===');
+    console.log('window.Telegram:', !!window.Telegram);
+    console.log('window.Telegram.WebApp:', !!window.Telegram?.WebApp);
+    console.log('tg:', !!tg);
+    console.log('tg.initDataUnsafe:', !!tg?.initDataUnsafe);
+    console.log('tg.initDataUnsafe.user:', !!tg?.initDataUnsafe?.user);
+    
     if (window.Telegram && window.Telegram.WebApp && tg.initDataUnsafe && tg.initDataUnsafe.user) {
         const user = tg.initDataUnsafe.user;
         console.log('Telegram user data:', user);
+        console.log('User photo_url:', user.photo_url);
         
         if (user.photo_url) {
             const profileImage = document.getElementById('profile-image');
             const profileIcon = document.getElementById('profile-icon');
+            const profileSvg = document.getElementById('profile-svg');
             
-            if (profileImage && profileIcon) {
+            console.log('Profile image element:', !!profileImage);
+            console.log('Profile icon element:', !!profileIcon);
+            console.log('Profile SVG element:', !!profileSvg);
+            
+            if (profileImage && profileIcon && profileSvg) {
                 profileImage.src = user.photo_url;
                 profileImage.style.display = 'block';
                 profileIcon.style.display = 'none';
+                profileSvg.style.display = 'none';
+                
+                console.log('Устанавливаем src для аватара:', user.photo_url);
                 
                 // Добавляем обработчик ошибок для изображения
                 profileImage.onerror = () => {
-                    console.warn('Не удалось загрузить фото профиля из Telegram, показываем иконку');
+                    console.warn('Не удалось загрузить фото профиля из Telegram, показываем SVG аватар');
                     profileImage.style.display = 'none';
-                    profileIcon.style.display = 'block';
+                    profileIcon.style.display = 'none';
+                    profileSvg.style.display = 'block';
                 };
                 
                 profileImage.onload = () => {
                     console.log('Фото профиля из Telegram успешно загружено');
                 };
+            } else {
+                console.error('Не найдены элементы аватара в DOM');
             }
         } else {
             console.log('Фото профиля не найдено в данных Telegram пользователя');
+            console.log('Доступные поля пользователя:', Object.keys(user));
         }
     } else {
         console.log('Telegram WebApp недоступен или данные пользователя отсутствуют');
+        console.log('Проверяем tg.initDataUnsafe:', tg?.initDataUnsafe);
+        if (tg?.initDataUnsafe) {
+            console.log('initDataUnsafe keys:', Object.keys(tg.initDataUnsafe));
+        }
     }
 }
 
@@ -3197,7 +3280,7 @@ async function refreshProductData() {
                     const buttonElement = productCard.querySelector('.btn');
                     if (buttonElement) {
                         const newStatus = getStatusText(freshProduct.availability);
-                        let buttonText = 'Купить';
+                        let buttonText = getButtonText(freshProduct.availability, localStorage.getItem('selectedLanguage') || 'uk');
                         let buttonClass = 'btn in-stock';
                         
                         if (freshProduct.availability === 'Снят с производства') {

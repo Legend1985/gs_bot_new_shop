@@ -110,7 +110,7 @@ const translations = {
         mondayFriday: "Пн.-Пт. 12:00 рівно і 13:30 рівно",
         saturday: "Сб. 12:00 рівно і 12:30 рівно",
         sunday: "Нд.",
-        phone: "телефон:",
+        phones: "Телефони:",
         viber: "Viber:",
         telegram: "Telegram:",
         email: "Email:",
@@ -119,7 +119,8 @@ const translations = {
         telegramChannel: "Telegram канал:",
         tiktok: "TikTok:",
         youtube: "YouTube:",
-        onlinePrice: "Google Drive: Онлайн прайс"
+        onlinePrice: "Google Drive: Онлайн прайс",
+        openPrice: "Відкрити прайс"
     },
     
     ru: {
@@ -230,7 +231,7 @@ const translations = {
         mondayFriday: "Пн.-Пт. 12:00 ровно и 13:30 ровно",
         saturday: "Сб. 12:00 ровно и 12:30 ровно",
         sunday: "Вс.",
-        phone: "телефон:",
+        phones: "Телефоны:",
         viber: "Viber:",
         telegram: "Telegram:",
         email: "Email:",
@@ -239,7 +240,8 @@ const translations = {
         telegramChannel: "Telegram канал:",
         tiktok: "TikTok:",
         youtube: "YouTube:",
-        onlinePrice: "Google Drive: Онлайн прайс"
+        onlinePrice: "Google Drive: Онлайн прайс",
+        openPrice: "Открыть прайс"
     },
     
     en: {
@@ -350,7 +352,7 @@ const translations = {
         mondayFriday: "Mon.-Fri. 12:00 sharp and 13:30 sharp",
         saturday: "Sat. 12:00 sharp and 12:30 sharp",
         sunday: "Sun.",
-        phone: "phone:",
+        phones: "Phones:",
         viber: "Viber:",
         telegram: "Telegram:",
         email: "Email:",
@@ -359,7 +361,8 @@ const translations = {
         telegramChannel: "Telegram channel:",
         tiktok: "TikTok:",
         youtube: "YouTube:",
-        onlinePrice: "Google Drive: Online price"
+        onlinePrice: "Google Drive: Online price",
+        openPrice: "Open price"
     }
 };
 
@@ -470,6 +473,24 @@ function getStatusText(availability) {
     }
 }
 
+// Функция для получения текста кнопки товара
+function getButtonText(availability, language = 'uk') {
+    if (availability === 'В наличии' || availability === 'В наявності' || availability === 'In stock' || 
+        availability === 'В наличии в Одессе' || availability === 'В наявності в Одесі') {
+        return getTranslation('buyButton', language);
+    } else if (availability === 'Нет в наличии' || availability === 'Немає в наявності' || availability === 'Out of stock') {
+        return getTranslation('outOfStockButton', language);
+    } else if (availability === 'Ожидается' || availability === 'Очікується' || availability === 'Expected') {
+        return getTranslation('expectedButton', language);
+    } else if (availability === 'Под заказ' || availability === 'Під замовлення' || availability === 'On order') {
+        return getTranslation('orderButton', language);
+    } else if (availability === 'Снят с производства' || availability === 'Знято з виробництва' || availability === 'Discontinued') {
+        return getTranslation('discontinuedButton', language);
+    } else {
+        return getTranslation('buyButton', language);
+    }
+}
+
 // Экспортируем функции для использования в других файлах
 window.translations = {
     getTranslation,
@@ -477,5 +498,6 @@ window.translations = {
     setLanguage,
     applyTranslations,
     initTranslations,
-    getStatusText
+    getStatusText,
+    getButtonText
 }; 

@@ -126,8 +126,18 @@ def api_products():
     print(f"API Products: start={start}, limit={limit}, search='{search}'")
     
     try:
-        # Get all products from all pages
-        product_items = scrape_all_pages()
+        # Get all products from cache (don't re-scrape on every request)
+        global ALL_PRODUCTS_CACHE, CACHE_TIMESTAMP
+        
+        # Check if cache is valid
+        import time
+        current_time = time.time()
+        if ALL_PRODUCTS_CACHE is None or CACHE_TIMESTAMP is None or (current_time - CACHE_TIMESTAMP >= 1800):
+            print("Cache expired or missing, refreshing...")
+            product_items = scrape_all_pages()
+        else:
+            print(f"Using cached products: {len(ALL_PRODUCTS_CACHE)} items")
+            product_items = ALL_PRODUCTS_CACHE
         
         print(f"Debug: Total products available: {len(product_items)}")
         
@@ -162,6 +172,8 @@ def api_products():
             print(f"Debug: After filtering, {len(product_items)} products match search term")
         
         # Apply pagination to the combined product list
+        print(f"Debug: Pagination - start: {start}, limit: {limit}, total products: {len(product_items)}")
+        
         if start >= len(product_items):
             # If start is beyond available products, return empty list
             print(f"Debug: start ({start}) >= total products ({len(product_items)}), returning empty list")
@@ -176,6 +188,7 @@ def api_products():
         
         end_index = min(start + limit, len(product_items))
         paginated_items = product_items[start:end_index]
+        print(f"Debug: Pagination result - start: {start}, end: {end_index}, items to process: {len(paginated_items)}")
         
         products = []
         for item in paginated_items:
