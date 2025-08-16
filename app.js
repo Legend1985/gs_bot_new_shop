@@ -54,34 +54,30 @@ if (window.Telegram && window.Telegram.WebApp) {
     };
     console.log('Запущено в обычном браузере, Telegram функции недоступны');
     
-    // Для тестирования в обычном браузере - показываем тестовый аватар
-    setTimeout(() => {
-        console.log('Тестируем аватар в обычном браузере...');
-        const profileImage = document.getElementById('profile-image');
-        const profileIcon = document.getElementById('profile-icon');
-        const profileSvg = document.getElementById('profile-svg');
-        
-        if (profileImage && profileIcon && profileSvg) {
-            // Сначала пробуем загрузить локальное изображение
-            profileImage.src = 'images/Contacts_image/Telegram_32x32.png';
-            profileImage.style.display = 'block';
-            profileIcon.style.display = 'none';
-            profileSvg.style.display = 'none';
-            console.log('Тестовый аватар установлен из локального файла');
-            
-            // Добавляем обработчик ошибок для тестового изображения
-            profileImage.onerror = () => {
-                console.warn('Не удалось загрузить тестовый аватар, показываем SVG аватар');
-                profileImage.style.display = 'none';
-                profileIcon.style.display = 'none';
-                profileSvg.style.display = 'block';
-            };
-            
-            profileImage.onload = () => {
-                console.log('Тестовый аватар успешно загружен');
-            };
+    // В обычном браузере показываем серого человечка по умолчанию
+    console.log('Запущено в обычном браузере - показываем иконку пользователя по умолчанию');
+    
+    // Проверяем, есть ли данные пользователя Telegram (например, из localStorage)
+    const telegramUserData = localStorage.getItem('telegramUserData');
+    if (telegramUserData) {
+        try {
+            const userData = JSON.parse(telegramUserData);
+            if (userData.photo_url) {
+                console.log('Найдены данные пользователя Telegram, загружаем аватар...');
+                const profileImage = document.getElementById('profile-image');
+                const profileIcon = document.getElementById('profile-icon');
+                
+                if (profileImage && profileIcon) {
+                    profileImage.src = userData.photo_url;
+                    profileImage.style.display = 'block';
+                    profileIcon.style.display = 'none';
+                    console.log('Аватар пользователя Telegram загружен');
+                }
+            }
+        } catch (error) {
+            console.warn('Ошибка при загрузке данных пользователя Telegram:', error);
         }
-    }, 2000);
+    }
 }
 
 // Переменные для загрузки товаров
@@ -280,6 +276,7 @@ function clearLocalStorage() {
     try {
         console.log('clearLocalStorage: Очищаем localStorage...');
         localStorage.removeItem('gs_bot_state');
+        localStorage.removeItem('telegramUserData'); // Очищаем данные пользователя Telegram
         console.log('clearLocalStorage: localStorage очищен');
         
         // Сбрасываем счетчик обновлений
@@ -1040,13 +1037,7 @@ function createProductCardFromSiteData(product, btnId) {
     // Получаем текущий язык
     const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
     
-    // Отладка для конкретного товара
-    if (product.name && product.name.includes('Dean Markley 2558A')) {
-        console.log(`=== FRONTEND DEBUG: Creating card for Dean Markley 2558A ===`);
-        console.log(`Product availability: ${product.availability}`);
-        console.log(`Product status: ${product.status}`);
-        console.log(`Full product data:`, product);
-    }
+
     
     // НОВАЯ ЛОГИКА: Используем индивидуальные кнопки для каждого языка
     if (product.availability === 'Нет в наличии' || product.availability === 'Немає в наявності' || product.availability === 'Out of stock') {
@@ -1120,13 +1111,10 @@ function createProductCardFromSiteData(product, btnId) {
     return card;
 }
 
-// Функция генерации звездочек рейтинга
+// Функция генерации звездочек рейтинга (оптимизированная)
 function generateRatingStars(rating) {
-    console.log('generateRatingStars: Входной рейтинг:', rating);
-    
     // Если рейтинг "Нет рейтинга", показываем пустые звезды
     if (rating === 'Нет рейтинга' || rating === 'null' || rating === null || rating === undefined) {
-        console.log('generateRatingStars: Нет рейтинга, показываем пустые звезды');
         return '<span class="no-rating">Нет рейтинга</span>';
     }
     
@@ -1152,11 +1140,8 @@ function generateRatingStars(rating) {
     
     // Проверяем валидность рейтинга
     if (isNaN(numericRating) || numericRating < 0 || numericRating > 5) {
-        console.log('generateRatingStars: Невалидный рейтинг, показываем "Нет рейтинга"');
         return '<span class="no-rating">Нет рейтинга</span>';
     }
-    
-    console.log('generateRatingStars: Числовой рейтинг:', numericRating);
     
     // Округляем рейтинг до ближайшей половины
     const roundedRating = Math.round(numericRating * 2) / 2;
@@ -1164,8 +1149,6 @@ function generateRatingStars(rating) {
     const fullStars = Math.floor(roundedRating);
     const hasHalfStar = roundedRating % 1 >= 0.5;
     const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
-    
-    console.log(`generateRatingStars: fullStars=${fullStars}, hasHalfStar=${hasHalfStar}, emptyStars=${emptyStars}`);
     
     let stars = '';
     
@@ -1184,7 +1167,6 @@ function generateRatingStars(rating) {
         stars += '<span class="star-empty">☆</span>';
     }
     
-    console.log('generateRatingStars: Сгенерированные звезды:', stars);
     return stars;
 }
 
@@ -1197,32 +1179,21 @@ async function loadMoreProducts() {
         loadedProductNames = window.loadedProductNames;
     }
     
-    console.log(`loadMoreProducts: Проверка условий - isLoading=${isLoading}, hasMoreProducts=${hasMoreProducts}, currentPage=${currentPage}, isSearchActive=${isSearchActive}, loadedProducts=${loadedProductNames.size}`);
-    
     // ИСПРАВЛЕНИЕ БАГА: Дополнительная проверка корректности состояния
     if (loadedProductNames.size >= 377) {
-        console.log('loadMoreProducts: Все товары загружены (377), исправляем hasMoreProducts и выходим');
         hasMoreProducts = false;
         return;
     }
     
     // Не загружаем дополнительные товары во время поиска
     if (isSearchActive) {
-        console.log('loadMoreProducts: Поиск активен, пропускаем загрузку дополнительных товаров...');
         return;
     }
     
     if (isLoading || !hasMoreProducts) {
-        if (isLoading) {
-            console.log('loadMoreProducts: Загрузка уже идет, пропускаем...');
-        } else if (!hasMoreProducts) {
-            console.log('loadMoreProducts: Больше товаров нет, пропускаем...');
-        }
         return;
     }
     
-    console.log('loadMoreProducts: Начинаем загрузку дополнительных товаров...');
-    console.log(`loadMoreProducts: Текущая страница: ${currentPage}, загружено товаров: ${loadedProductNames.size}`);
     isLoading = true;
     
     // Показываем индикатор загрузки
@@ -1232,22 +1203,16 @@ async function loadMoreProducts() {
         const nextPage = currentPage + 1;
         const start = nextPage * productsPerPage;
         
-        console.log(`loadMoreProducts: Загружаем страницу ${nextPage}, начиная с ${start}`);
-        
         // ОПТИМИЗАЦИЯ: Проверяем, есть ли предзагруженные товары
         let data;
         let newProducts;
         
         if (window.preloadedProducts && window.preloadedProducts.length > 0) {
-            console.log(`loadMoreProducts: Используем предзагруженные товары (${window.preloadedProducts.length} шт.)`);
             data = { success: true, products: window.preloadedProducts, hasMore: true };
             newProducts = window.preloadedProducts;
             // Очищаем предзагруженные товары
             window.preloadedProducts = null;
         } else {
-            console.log(`loadMoreProducts: Загружаем товары с сервера...`);
-            console.log(`loadMoreProducts: URL: http://localhost:8000/api/products?start=${start}&limit=${productsPerPage}`);
-            
             const response = await fetch(`http://localhost:8000/api/products?start=${start}&limit=${productsPerPage}`);
             
             if (!response.ok) {
@@ -1255,8 +1220,6 @@ async function loadMoreProducts() {
             }
             
             data = await response.json();
-            console.log(`loadMoreProducts: Получен ответ, товаров: ${data.products ? data.products.length : 0}`);
-            console.log(`loadMoreProducts: Данные API:`, data);
             
             if (data.success) {
                 newProducts = data.products;
@@ -1269,19 +1232,7 @@ async function loadMoreProducts() {
             if (newProducts && newProducts.length > 0) {
                 console.log(`loadMoreProducts: Получено ${newProducts.length} товаров`);
                 
-                // Отладка для конкретного товара
-                data.products.forEach(product => {
-                    if (product.name && product.name.includes('Dean Markley 2558A')) {
-                        console.log(`=== FRONTEND DEBUG: Dean Markley 2558A found in loadMoreProducts API response ===`);
-                        console.log(`Product: ${product.name}`);
-                        console.log(`Availability: ${product.availability}`);
-                        console.log(`Status: ${product.status}`);
-                        console.log(`Full product data:`, product);
-                        console.log(`=== END FRONTEND DEBUG ===`);
-                    }
-                });
-                
-                console.log(`loadMoreProducts: Добавляем ${newProducts.length} новых товаров`);
+                // ОПТИМИЗАЦИЯ: Отображаем новые товары порциями для ускорения
                 
                 // ОПТИМИЗАЦИЯ: Отображаем новые товары порциями для ускорения
                 const container = document.querySelector('.inner');
@@ -1778,12 +1729,16 @@ async function restoreAllProducts() {
             if (previouslyLoadedProducts.length > 0) {
                 console.log('restoreAllProducts: Начинаем восстановление товаров из свежих данных...');
                 
+                // Создаем все карточки сразу для оптимизации
+                const fragment = document.createDocumentFragment();
                 previouslyLoadedProducts.forEach((productData, index) => {
-                    console.log(`restoreAllProducts: Создаем карточку для товара ${index + 1}:`, productData.name);
                     const productCard = createProductCardFromSiteData(productData, `btn${index + 1}`);
-                    container.appendChild(productCard);
-                    console.log(`restoreAllProducts: Карточка ${index + 1} добавлена в контейнер`);
+                    fragment.appendChild(productCard);
                 });
+                
+                // Добавляем все карточки одним разом
+                container.appendChild(fragment);
+                console.log(`restoreAllProducts: Добавлено ${previouslyLoadedProducts.length} карточек товаров`);
                 
                 // ИСПРАВЛЕНИЕ БАГА: Обновляем переводы для восстановленных карточек товаров
                 const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
@@ -1793,7 +1748,6 @@ async function restoreAllProducts() {
                 
                 // ИСПРАВЛЕНИЕ БАГА: Принудительно обновляем переводы кнопок для восстановленных товаров
                 if (typeof updateProductButtonTranslations === 'function') {
-                    console.log('Обновляем переводы кнопок для восстановленных товаров');
                     updateProductButtonTranslations(currentLanguage);
                 }
                 
@@ -2561,6 +2515,47 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
+// Функция для отображения аватара пользователя
+function displayUserAvatar(photoUrl) {
+    console.log('displayUserAvatar: Загружаем аватар:', photoUrl);
+    
+    const profileImage = document.getElementById('profile-image');
+    const profileIcon = document.getElementById('profile-icon');
+    const profileSvg = document.getElementById('profile-svg');
+    
+    if (profileImage && profileIcon && profileSvg) {
+        profileImage.src = photoUrl;
+        profileImage.style.display = 'block';
+        profileIcon.style.display = 'none';
+        profileSvg.style.display = 'none';
+        
+        // Добавляем обработчик ошибок для изображения
+        profileImage.onerror = () => {
+            console.warn('Не удалось загрузить аватар пользователя, показываем иконку по умолчанию');
+            showDefaultProfileIcon();
+        };
+        
+        profileImage.onload = () => {
+            console.log('Аватар пользователя успешно загружен');
+        };
+    }
+}
+
+// Функция для показа иконки профиля по умолчанию
+function showDefaultProfileIcon() {
+    console.log('showDefaultProfileIcon: Показываем иконку профиля по умолчанию');
+    
+    const profileImage = document.getElementById('profile-image');
+    const profileIcon = document.getElementById('profile-icon');
+    const profileSvg = document.getElementById('profile-svg');
+    
+    if (profileImage && profileIcon && profileSvg) {
+        profileImage.style.display = 'none';
+        profileIcon.style.display = 'block';
+        profileSvg.style.display = 'none';
+    }
+}
+
 // Функция для получения и отображения фото профиля из Telegram
 function loadTelegramProfilePhoto() {
     console.log('=== loadTelegramProfilePhoto: Начинаем загрузку аватара ===');
@@ -2569,6 +2564,37 @@ function loadTelegramProfilePhoto() {
     console.log('tg:', !!tg);
     console.log('tg.initDataUnsafe:', !!tg?.initDataUnsafe);
     console.log('tg.initDataUnsafe.user:', !!tg?.initDataUnsafe?.user);
+    
+    // Дополнительная проверка - ждем немного, если данные еще не загрузились
+    if (!tg?.initDataUnsafe?.user) {
+        console.log('Данные пользователя еще не загружены, пробуем альтернативные способы...');
+        
+        // Пробуем получить данные через initData
+        if (tg.initData) {
+            try {
+                const initData = new URLSearchParams(tg.initData);
+                const userData = initData.get('user');
+                if (userData) {
+                    console.log('Найдены данные пользователя в initData:', userData);
+                    const user = JSON.parse(decodeURIComponent(userData));
+                    console.log('Парсированные данные пользователя:', user);
+                    
+                    // Если есть фото, загружаем его
+                    if (user.photo_url) {
+                        displayUserAvatar(user.photo_url);
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.warn('Ошибка при парсинге initData:', error);
+            }
+        }
+        
+        // Если все способы не сработали, показываем иконку по умолчанию
+        console.log('Не удалось получить данные пользователя, показываем иконку по умолчанию');
+        showDefaultProfileIcon();
+        return;
+    }
     
     if (window.Telegram && window.Telegram.WebApp && tg.initDataUnsafe && tg.initDataUnsafe.user) {
         const user = tg.initDataUnsafe.user;
@@ -2585,24 +2611,26 @@ function loadTelegramProfilePhoto() {
             console.log('Profile SVG element:', !!profileSvg);
             
             if (profileImage && profileIcon && profileSvg) {
-                profileImage.src = user.photo_url;
-                profileImage.style.display = 'block';
-                profileIcon.style.display = 'none';
-                profileSvg.style.display = 'none';
-                
                 console.log('Устанавливаем src для аватара:', user.photo_url);
                 
-                // Добавляем обработчик ошибок для изображения
-                profileImage.onerror = () => {
-                    console.warn('Не удалось загрузить фото профиля из Telegram, показываем SVG аватар');
-                    profileImage.style.display = 'none';
-                    profileIcon.style.display = 'none';
-                    profileSvg.style.display = 'block';
-                };
+                // Сохраняем данные пользователя в localStorage для использования в веб-версии
+                try {
+                    const userDataToSave = {
+                        id: user.id,
+                        first_name: user.first_name,
+                        last_name: user.last_name,
+                        username: user.username,
+                        photo_url: user.photo_url,
+                        timestamp: Date.now()
+                    };
+                    localStorage.setItem('telegramUserData', JSON.stringify(userDataToSave));
+                    console.log('Данные пользователя Telegram сохранены в localStorage');
+                } catch (error) {
+                    console.warn('Не удалось сохранить данные пользователя в localStorage:', error);
+                }
                 
-                profileImage.onload = () => {
-                    console.log('Фото профиля из Telegram успешно загружено');
-                };
+                // Отображаем аватар пользователя
+                displayUserAvatar(user.photo_url);
             } else {
                 console.error('Не найдены элементы аватара в DOM');
             }
@@ -2616,19 +2644,121 @@ function loadTelegramProfilePhoto() {
         if (tg?.initDataUnsafe) {
             console.log('initDataUnsafe keys:', Object.keys(tg.initDataUnsafe));
         }
+        
+        // Проверяем, есть ли сохраненные данные пользователя в localStorage
+        checkSavedTelegramUser();
+    }
+}
+
+// Функция для проверки сохраненных данных пользователя Telegram
+function checkSavedTelegramUser() {
+    const telegramUserData = localStorage.getItem('telegramUserData');
+    if (telegramUserData) {
+        try {
+            const userData = JSON.parse(telegramUserData);
+            
+            // Проверяем, не устарели ли данные (старше 24 часов)
+            const dataAge = Date.now() - userData.timestamp;
+            const maxAge = 24 * 60 * 60 * 1000; // 24 часа
+            
+            if (dataAge < maxAge && userData.photo_url) {
+                console.log('Найдены актуальные данные пользователя Telegram, загружаем аватар...');
+                displayUserAvatar(userData.photo_url);
+                console.log('Аватар пользователя Telegram загружен из localStorage');
+            } else {
+                console.log('Данные пользователя Telegram устарели, очищаем localStorage');
+                localStorage.removeItem('telegramUserData');
+            }
+        } catch (error) {
+            console.warn('Ошибка при загрузке данных пользователя Telegram из localStorage:', error);
+            localStorage.removeItem('telegramUserData');
+        }
     }
 }
 
 // Обработчики событий Telegram
 if (window.Telegram && window.Telegram.WebApp) {
+    console.log('=== ИНИЦИАЛИЗАЦИЯ TELEGRAM WEBAPP ===');
+    
+    // Ждем готовности Telegram WebApp
     tg.ready();
+    console.log('Telegram WebApp готов');
+    
+    // Проверяем данные пользователя
+    console.log('tg.initDataUnsafe:', tg.initDataUnsafe);
+    console.log('tg.initDataUnsafe.user:', tg.initDataUnsafe?.user);
+    console.log('tg.initData:', tg.initData);
+    
+    // Пробуем получить данные пользователя разными способами
+    if (tg.initData) {
+        try {
+            const initData = new URLSearchParams(tg.initData);
+            const userData = initData.get('user');
+            if (userData) {
+                console.log('Данные пользователя из initData:', userData);
+                const user = JSON.parse(decodeURIComponent(userData));
+                console.log('Парсированные данные пользователя:', user);
+                
+                // Если есть фото, сразу загружаем его
+                if (user.photo_url) {
+                    console.log('Найдено фото в initData, загружаем аватар...');
+                    displayUserAvatar(user.photo_url);
+                    
+                    // Сохраняем данные пользователя
+                    try {
+                        const userDataToSave = {
+                            id: user.id,
+                            first_name: user.first_name,
+                            last_name: user.last_name,
+                            username: user.username,
+                            photo_url: user.photo_url,
+                            timestamp: Date.now()
+                        };
+                        localStorage.setItem('telegramUserData', JSON.stringify(userDataToSave));
+                        console.log('Данные пользователя из initData сохранены в localStorage');
+                    } catch (error) {
+                        console.warn('Не удалось сохранить данные пользователя в localStorage:', error);
+                    }
+                }
+            }
+        } catch (error) {
+            console.warn('Ошибка при парсинге initData:', error);
+        }
+    }
+    
+    // Пробуем получить данные через tg.MainButton или другие свойства
+    console.log('tg.MainButton:', !!tg.MainButton);
+    console.log('tg.BackButton:', !!tg.BackButton);
+    console.log('tg.HapticFeedback:', !!tg.HapticFeedback);
+    
+    // Проверяем, есть ли данные в других местах
+    if (tg.MainButton) {
+        console.log('MainButton доступен, проверяем данные...');
+    }
+    
+    // Добавляем обработчик событий Telegram WebApp
+    if (tg.onEvent) {
+        tg.onEvent('viewportChanged', () => {
+            console.log('Viewport изменился, проверяем данные пользователя...');
+            if (tg.initDataUnsafe?.user) {
+                console.log('Данные пользователя доступны, загружаем аватар...');
+                loadTelegramProfilePhoto();
+            }
+        });
+    }
     
     // Загружаем фото профиля после готовности Telegram WebApp
-    loadTelegramProfilePhoto();
+    // Добавляем небольшую задержку для гарантии готовности
+    setTimeout(() => {
+        console.log('Вызываем loadTelegramProfilePhoto...');
+        loadTelegramProfilePhoto();
+    }, 100);
     
-    tg.MainButton.onClick(() => {
-        tg.sendData("test");
-    });
+
+    
+    console.log('Telegram WebApp успешно инициализирован');
+    
+
 } else {
     console.log('Telegram WebApp не доступен, пропускаем инициализацию');
 }

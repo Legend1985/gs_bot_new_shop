@@ -1305,8 +1305,7 @@ body {
     box-shadow: var(--shadow-large);
     max-width: 500px;
     width: 95%;
-    max-height: 85vh;
-    overflow: hidden;
+    overflow: visible;
     position: relative;
     animation: slideInUp 0.3s ease-out;
 }
@@ -1327,28 +1326,12 @@ body {
 
 .popup-body {
     padding: 0 15px 8px 15px;
-    max-height: 70vh;
-    overflow-y: auto;
+    overflow-y: visible;
     scrollbar-width: thin;
     scrollbar-color: var(--border-color) transparent;
 }
 
-.popup-body::-webkit-scrollbar {
-    width: 6px;
-}
 
-.popup-body::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.popup-body::-webkit-scrollbar-thumb {
-    background: var(--border-color);
-    border-radius: 3px;
-}
-
-.popup-body::-webkit-scrollbar-thumb:hover {
-    background: var(--accent-color);
-}
 
 .contacts-info {
     display: flex;
@@ -1732,9 +1715,10 @@ body {
 @media (max-width: 768px) {
     .contacts-popup {
         width: 98%;
-        max-height: 80vh;
         margin: 10px;
     }
+    
+
     
     .popup-content {
         width: 95%;
@@ -1799,10 +1783,20 @@ body {
 /* Специальные стили для очень маленьких экранов (Telegram WebApp) */
 @media (max-width: 480px) {
     .contacts-popup {
-        width: 99%;
-        max-height: 75vh;
-        margin: 5px;
-        border-radius: 8px;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        margin: 0;
+        border-radius: 0;
+        max-height: none;
+    }
+    
+    /* В Telegram WebApp делаем контент более компактным, чтобы поместился без скролла */
+    .popup-body {
+        max-height: calc(100vh - 60px); /* Вычитаем высоту заголовка */
+        overflow-y: auto;
     }
     
     .contacts-popup .close-btn {
@@ -1822,7 +1816,8 @@ body {
     
     .popup-body {
         padding: 0 10px 6px 10px;
-        max-height: 65vh;
+        max-height: none;
+        overflow-y: auto;
     }
     
     .contacts-info {
@@ -1863,26 +1858,58 @@ body {
         width: 16px;
         height: 16px;
     }
+    
+    /* Дополнительные стили для Telegram WebApp - делаем все более компактным */
+    .popup-header h3 {
+        font-size: 14px;
+        margin: 0;
+    }
+    
+    .contact-methods {
+        gap: 4px;
+    }
+    
+    .phone-item {
+        padding: 4px 6px;
+    }
+    
+    .phone-item a {
+        font-size: 12px;
+    }
+    
+    .social-contacts {
+        gap: 4px;
+        padding: 4px 6px;
+    }
+    
+    .social-item {
+        gap: 3px;
+        padding: 0;
+    }
+    
+    .social-item a {
+        font-size: 11px;
+    }
+    
+    .working-hours {
+        padding: 4px 6px;
+    }
+    
+    .pickup-time {
+        margin: 4px 0;
+    }
+    
+    .pickup-time p {
+        margin: 3px 0;
+    }
+    
+    .pickup-time ul {
+        margin: 4px 0 0 0;
+        padding-left: 12px;
+    }
+    
+    .pickup-time li {
+        margin: 1px 0;
+    }
 }
 
-/* Кнопки для отладки */
-.debug-buttons {
-    display: flex;
-    gap: 10px;
-    margin-left: 20px;
-}
-
-.debug-btn {
-    background: #ff4757;
-    color: white;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 12px;
-    transition: background 0.3s;
-}
-
-.debug-btn:hover {
-    background: #ff3742;
-}
