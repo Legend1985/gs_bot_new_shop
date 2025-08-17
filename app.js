@@ -384,7 +384,12 @@ async function searchProducts(query) {
     if (!isSearchActive) {
         // Если поиск отменен, показываем все загруженные товары
         console.log('Поиск отменен, показываем все загруженные товары');
-        displayProducts(allProducts);
+        await displayProducts(allProducts);
+        
+        // Восстанавливаем индикатор загрузки для бесконечной прокрутки
+        if (hasMoreProducts) {
+            showLoadingIndicator();
+        }
         return;
     }
     
@@ -742,15 +747,18 @@ async function loadRealProducts() {
         
         if (data && data.products && data.products.length > 0) {
             console.log(`Загружено ${data.products.length} товаров`);
+            console.log(`Сервер вернул total=${data.total}, hasMore=${data.hasMore}`);
             
             // Ограничиваем отображение первыми 60 товарами
             const firstPageProducts = data.products.slice(0, 60);
             
             // Обновляем глобальные переменные
             maxProducts = data.total || data.products.length;
-            hasMoreProducts = data.products.length === 60 && maxProducts > 60;
+            // ИСПРАВЛЕНИЕ: Полагаемся на hasMore с сервера, а не на клиентскую логику
+            hasMoreProducts = data.hasMore !== undefined ? data.hasMore : true;
             
             console.log(`Максимум товаров: ${maxProducts}, есть еще: ${hasMoreProducts}`);
+            console.log(`Сервер вернул hasMore: ${data.hasMore}`);
             
             // Сохраняем названия загруженных товаров
             firstPageProducts.forEach(product => {
@@ -1246,11 +1254,8 @@ async function loadMoreProducts() {
         loadedProductNames = window.loadedProductNames;
     }
     
-    // ИСПРАВЛЕНИЕ БАГА: Дополнительная проверка корректности состояния
-    if (loadedProductNames.size >= 377) {
-        hasMoreProducts = false;
-        return;
-    }
+    // ИСПРАВЛЕНИЕ: Убираем преждевременную проверку loadedProductNames.size >= 377
+    // Полагаемся только на hasMoreProducts, который устанавливается сервером
     
     // Не загружаем дополнительные товары во время поиска
     if (isSearchActive) {
@@ -1270,14 +1275,31 @@ async function loadMoreProducts() {
         const nextPage = currentPage + 1;
         const start = nextPage * productsPerPage;
         
-        // Загружаем товары с сервера
-        const response = await fetch(`http://localhost:8000/api/products?start=${start}&limit=${productsPerPage}`);
+        // ИСПРАВЛЕНИЕ: Добавляем timestamp и заголовки для принудительного обновления кеша
+        const timestamp = Date.now();
+        const cacheBuster = `&_t=${timestamp}&_v=${Math.random()}`;
+        
+        console.log(`loadMoreProducts: Загружаем страницу ${nextPage}, start=${start}, timestamp=${timestamp}`);
+        
+        // Загружаем товары с сервера с принудительным обновлением кеша
+        const response = await fetch(`http://localhost:8000/api/products?start=${start}&limit=${productsPerPage}${cacheBuster}`, {
+            method: 'GET',
+            headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        
+        console.log(`loadMoreProducts: Ответ сервера - status=${response.status}, ok=${response.ok}`);
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
         const data = await response.json();
+        
+        console.log(`loadMoreProducts: Данные получены - success=${data.success}, products.length=${data.products?.length}, total=${data.total}, hasMore=${data.hasMore}`);
         
         if (data.success) {
             newProducts = data.products;
@@ -1288,8 +1310,6 @@ async function loadMoreProducts() {
         if (data.success) {
             if (newProducts && newProducts.length > 0) {
                 console.log(`loadMoreProducts: Получено ${newProducts.length} товаров`);
-                
-                // ОПТИМИЗАЦИЯ: Отображаем новые товары порциями для ускорения
                 
                 // ОПТИМИЗАЦИЯ: Отображаем новые товары порциями для ускорения
                 const container = document.querySelector('.inner');
@@ -1323,53 +1343,14 @@ async function loadMoreProducts() {
                         // Настраиваем обработчики для новых изображений
                         setupImageHandlers();
                         
-                        // ИСПРАВЛЕНИЕ БАГА: Обновляем переводы для новых карточек товаров
+                        // ИСПРАВЛЕНИЕ: Обновляем переводы для новых карточек товаров
                         const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
                         if (typeof window.translations !== 'undefined') {
                             window.translations.applyTranslations(currentLanguage);
                         }
                         
-                        // Обновляем флаг наличия товаров
+                        // ИСПРАВЛЕНИЕ: Полагаемся только на hasMore с сервера
                         hasMoreProducts = data.hasMore;
-                        
-                        // ИСПРАВЛЕНИЕ БАГА: Проверяем, есть ли еще товары для загрузки
-                        if (hasMoreProducts && loadedProductNames.size < 377) {
-                            // Рассчитываем следующую страницу
-                            const nextStart = (currentPage + 1) * productsPerPage;
-                            if (nextStart >= 377) {
-                                console.log(`loadMoreProducts: Следующая страница ${nextStart} выходит за пределы 377, исправляем hasMoreProducts`);
-                                hasMoreProducts = false;
-                            }
-                        }
-                        
-                        // Дополнительная проверка: если загружено больше или равно общему количеству товаров
-                        if (loadedProductNames.size >= 377) {
-                            console.log(`loadMoreProducts: Загружено ${loadedProductNames.size} товаров, исправляем hasMoreProducts`);
-                            hasMoreProducts = false;
-                        }
-                        
-                        // ИСПРАВЛЕНИЕ БАГА: Проверяем, есть ли еще товары для загрузки
-                        // Если получили меньше товаров чем limit, это НЕ обязательно означает конец
-                        // Нужно проверить, есть ли еще товары в базе данных
-                        if (newProducts.length < productsPerPage) {
-                            console.log(`loadMoreProducts: Получено ${newProducts.length} товаров < ${productsPerPage}, проверяем есть ли еще товары...`);
-                            
-                            // Проверяем, есть ли еще товары для загрузки
-                            if (loadedProductNames.size < 377) {
-                                // Рассчитываем следующую страницу
-                                const nextStart = (currentPage + 1) * productsPerPage;
-                                if (nextStart < 377) {
-                                    console.log(`loadMoreProducts: Есть еще товары на странице ${nextStart}, оставляем hasMoreProducts=true`);
-                                    hasMoreProducts = true;
-                                } else {
-                                    console.log(`loadMoreProducts: Следующая страница ${nextStart} выходит за пределы 377, исправляем hasMoreProducts`);
-                                    hasMoreProducts = false;
-                                }
-                            } else {
-                                console.log(`loadMoreProducts: Загружено ${loadedProductNames.size} товаров, исправляем hasMoreProducts`);
-                                hasMoreProducts = false;
-                            }
-                        }
                         
                         console.log(`loadMoreProducts: Обновлено - currentPage=${currentPage}, hasMoreProducts=${hasMoreProducts}, newProducts.length=${newProducts.length}, productsPerPage=${productsPerPage}`);
                         
@@ -1433,7 +1414,7 @@ async function loadAllProducts() {
         console.log('loadAllProducts: Отправляем запрос на загрузку всех товаров...');
         
         // Загружаем все товары через API
-        const response = await fetch('http://localhost:8000/api/products?start=0&limit=377');
+        const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -1442,8 +1423,8 @@ async function loadAllProducts() {
         const data = await response.json();
         console.log('loadAllProducts: Получены данные:', data);
         
-        if (data.products && data.products.length > 0) {
-            console.log(`loadAllProducts: Получено ${data.products.length} товаров`);
+        if (data.success && data.products && data.products.length > 0) {
+            console.log(`loadAllProducts: Загружено ${data.products.length} товаров`);
             
             // Очищаем контейнер
             const container = document.querySelector('.inner');
@@ -1459,8 +1440,8 @@ async function loadAllProducts() {
             
             // Обновляем состояние
             currentPage = 0;
-            hasMoreProducts = false;
-            maxProducts = data.products.length;
+            hasMoreProducts = data.hasMore !== undefined ? data.hasMore : false;
+            maxProducts = data.total || data.products.length;
             
             // Настраиваем обработчики для всех изображений
             setupImageHandlers();
@@ -1493,7 +1474,7 @@ async function loadAllProducts() {
         // Восстанавливаем кнопку "Загрузить все"
         if (loadAllBtn) {
             loadAllBtn.disabled = false;
-            loadAllBtn.innerHTML = '<i class="fas fa-download"></i> Загрузить все 377 товаров категории Струны для электрогитары';
+            loadAllBtn.innerHTML = '<i class="fas fa-download"></i> Загрузить все товары категории Струны для электрогитары';
         }
         
         console.log('loadAllProducts: Загрузка завершена');
@@ -1509,74 +1490,92 @@ function handleScroll() {
         loadedProductNames = window.loadedProductNames;
     }
     
-    console.log(`handleScroll: Проверка - isLoading=${isLoading}, hasMoreProducts=${hasMoreProducts}, currentPage=${currentPage}, loadedProducts=${loadedProductNames.size}`);
-    
-    // ИСПРАВЛЕНИЕ БАГА: Дополнительная проверка корректности состояния
-    if (loadedProductNames.size >= 377) {
-        console.log('handleScroll: Все товары загружены (377), исправляем hasMoreProducts');
-        hasMoreProducts = false;
-        return;
+    // ОПТИМИЗАЦИЯ: Используем requestAnimationFrame для плавного скролла
+    if (window.scrollAnimationFrame) {
+        return; // Пропускаем если анимация уже запланирована
     }
     
-    // ИСПРАВЛЕНИЕ БАГА: Проверяем, есть ли еще товары для загрузки
-    if (hasMoreProducts && loadedProductNames.size < 377) {
-        // Рассчитываем следующую страницу
-        const nextStart = (currentPage + 1) * productsPerPage;
-        if (nextStart >= 377) {
-            console.log(`handleScroll: Следующая страница ${nextStart} выходит за пределы 377, исправляем hasMoreProducts`);
-            hasMoreProducts = false;
+    window.scrollAnimationFrame = requestAnimationFrame(() => {
+        console.log(`handleScroll: Проверка - isLoading=${isLoading}, hasMoreProducts=${hasMoreProducts}, currentPage=${currentPage}, loadedProducts=${loadedProductNames.size}`);
+        
+        // ИСПРАВЛЕНИЕ: Убираем преждевременную проверку loadedProductNames.size >= 377
+        // Полагаемся только на hasMoreProducts, который устанавливается сервером
+        
+        if (isLoading || !hasMoreProducts) {
+            if (isLoading) {
+                console.log('handleScroll: Загрузка уже идет, пропускаем...');
+            } else if (!hasMoreProducts) {
+                console.log('handleScroll: Больше товаров нет, пропускаем...');
+            }
+            window.scrollAnimationFrame = null;
             return;
         }
         
-        // Дополнительная проверка: если загружено больше или равно общему количеству товаров
-        if (loadedProductNames.size >= 377) {
-            console.log(`handleScroll: Загружено ${loadedProductNames.size} товаров, исправляем hasMoreProducts`);
-            hasMoreProducts = false;
-            return;
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const windowHeight = window.innerHeight;
+        const documentHeight = document.documentElement.scrollHeight;
+        
+        console.log(`handleScroll: scrollTop=${scrollTop}, windowHeight=${windowHeight}, documentHeight=${documentHeight}`);
+        console.log(`handleScroll: Порог для загрузки: ${documentHeight - 300}`);
+        
+        // Загружаем новые товары когда пользователь приближается к концу страницы
+        if (scrollTop + windowHeight >= documentHeight - 300) {
+            console.log('handleScroll: Достигнут порог для загрузки новых товаров!');
+            console.log(`handleScroll: currentPage=${currentPage}, hasMoreProducts=${hasMoreProducts}, loadedProducts=${loadedProductNames.size}`);
+            loadMoreProducts();
         }
         
-        // ИСПРАВЛЕНИЕ БАГА: Проверяем, есть ли еще товары на текущей странице
-        // Если на текущей странице получили меньше товаров чем limit, это НЕ означает конец
-        console.log(`handleScroll: Проверяем возможность загрузки страницы ${nextStart}, загружено ${loadedProductNames.size} из 377`);
-    }
-    
-    if (isLoading || !hasMoreProducts) {
-        if (isLoading) {
-            console.log('handleScroll: Загрузка уже идет, пропускаем...');
-        } else if (!hasMoreProducts) {
-            console.log('handleScroll: Больше товаров нет, пропускаем...');
+        window.scrollAnimationFrame = null;
+    });
+}
+
+// Функция загрузки ВСЕХ товаров с сервера
+async function fetchAllProducts(totalProducts) {
+    try {
+        // ИСПРАВЛЕНИЕ: Загружаем все товары одним запросом
+        const timestamp = Date.now();
+        const response = await fetch(`http://localhost:8000/api/products?start=0&limit=${totalProducts}&_t=${timestamp}`, {
+            method: 'GET',
+            headers: {
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
-        return;
+        
+        const data = await response.json();
+        
+        // Проверяем, есть ли товары в ответе
+        if (data.products && data.products.length > 0) {
+            // Добавляем флаг success, если его нет
+            if (data.success === undefined) {
+                data.success = true;
+            }
+            // Добавляем общее количество товаров
+            if (data.total === undefined) {
+                data.total = data.products.length;
+            }
+        } else {
+            data.success = false;
+            data.products = [];
+            data.total = 0;
+        }
+        
+        return data;
+    } catch (error) {
+        console.error('fetchAllProducts: Ошибка получения данных:', error);
+        return {
+            success: false,
+            error: error.message,
+            products: [],
+            total: 0,
+            start: 0,
+            limit: totalProducts
+        };
     }
-    
-    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-    const windowHeight = window.innerHeight;
-    const documentHeight = document.documentElement.scrollHeight;
-    
-    console.log(`handleScroll: scrollTop=${scrollTop}, windowHeight=${windowHeight}, documentHeight=${documentHeight}`);
-    console.log(`handleScroll: Порог для загрузки: ${documentHeight - 300}`);
-    
-    // Загружаем новые товары когда пользователь приближается к концу страницы
-    if (scrollTop + windowHeight >= documentHeight - 300) {
-        console.log('handleScroll: Достигнут порог для загрузки новых товаров!');
-        console.log(`handleScroll: currentPage=${currentPage}, hasMoreProducts=${hasMoreProducts}, loadedProducts=${loadedProductNames.size}`);
-        loadMoreProducts();
-    }
-    
-    // Убираем автоматическое сохранение при прокрутке, чтобы не блокировать ползунок
-    // if (loadedProductNames.size > 0) {
-    //     clearTimeout(window.scrollSaveTimeout);
-    //     window.scrollSaveTimeout = setTimeout(() => {
-    //         const now = Date.now();
-    //         if (!window.lastSaveTime || (now - window.lastSaveTime) > 5000) {
-    //             window.lastSaveTime = now;
-    //             console.log('handleScroll: Сохраняем состояние после прокрутки');
-    //             saveState();
-    //         } else {
-    //             console.log('handleScroll: Пропускаем сохранение, слишком часто');
-    //         }
-    //     }, 500);
-    // }
 }
 
 // Функция получения данных с сайта
@@ -1584,8 +1583,15 @@ async function fetchProductData(page = 0) {
     const start = page * 60;
     
     try {
-        // Используем прокси через наш сервер для обхода CORS
-        const response = await fetch(`http://localhost:8000/api/products?start=${start}&limit=60`);
+        // ИСПРАВЛЕНИЕ: Добавляем timestamp для принудительного обновления кеша
+        const timestamp = Date.now();
+        const response = await fetch(`http://localhost:8000/api/products?start=${start}&limit=60&_t=${timestamp}`, {
+            method: 'GET',
+            headers: {
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache'
+            }
+        });
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -1671,16 +1677,15 @@ function saveState() {
     
     // ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА: Убеждаемся, что hasMoreProducts корректно установлен
     let correctHasMoreProducts = hasMoreProducts;
-    if (loadedProductNames.size > 0) {
-        const totalProducts = 377; // Общее количество товаров
-        correctHasMoreProducts = loadedProductNames.size < totalProducts;
-        console.log(`saveState: Проверка hasMoreProducts: загружено ${loadedProductNames.size}, всего ${totalProducts}, корректное значение: ${correctHasMoreProducts}`);
-        
-        // ИСПРАВЛЕНИЕ БАГА: Принудительно исправляем hasMoreProducts если значение некорректно
-        if (hasMoreProducts !== correctHasMoreProducts) {
-            console.log(`saveState: Исправляем hasMoreProducts с ${hasMoreProducts} на ${correctHasMoreProducts}`);
-            hasMoreProducts = correctHasMoreProducts;
-        }
+    // ИСПРАВЛЕНИЕ: Убираем жестко заданное значение 377, полагаемся на сервер
+    // Если hasMoreProducts уже установлен сервером, используем его
+    if (hasMoreProducts === undefined) {
+        // Только если hasMoreProducts не определен, делаем fallback
+        correctHasMoreProducts = true; // По умолчанию предполагаем, что есть еще товары
+        console.log(`saveState: hasMoreProducts не определен, устанавливаем по умолчанию: ${correctHasMoreProducts}`);
+    } else {
+        correctHasMoreProducts = hasMoreProducts;
+        console.log(`saveState: Используем hasMoreProducts с сервера: ${correctHasMoreProducts}`);
     }
     
     const state = {
@@ -1792,28 +1797,39 @@ async function restoreAllProducts() {
         maxProducts = state.maxProducts || 0;
         
             // Проверяем, есть ли еще товары для загрузки
-    const totalLoaded = state.loadedProductNames ? state.loadedProductNames.length : 0;
-    const totalProducts = 377; // Общее количество товаров
-    
-    // ИСПРАВЛЕНИЕ БАГА: При восстановлении состояния на другом языке сбрасываем "конец списка"
-    const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
-    const savedLanguage = state.selectedLanguage || 'uk';
-    
-    if (currentLanguage !== savedLanguage && totalLoaded >= totalProducts) {
-        console.log(`restoreAllProducts: Восстановление на другом языке (${currentLanguage} вместо ${savedLanguage}), сбрасываем состояние конца списка`);
-        hasMoreProducts = true;
-        currentPage = 0;
-        loadedProductNames.clear();
-        maxProducts = 0;
+        const totalLoaded = state.loadedProductNames ? state.loadedProductNames.length : 0;
+        // ИСПРАВЛЕНИЕ: Убираем жестко заданное значение 377, полагаемся на сервер
+        // Получаем актуальное количество товаров с сервера
+        const serverData = await fetchProductData(0);
+        const totalProducts = serverData.total || 0;
         
-        // Очищаем localStorage для нового языка
-        localStorage.removeItem('gs_bot_state');
+        console.log(`restoreAllProducts: Сервер вернул total=${serverData.total}, hasMore=${serverData.hasMore}`);
         
-        console.log('restoreAllProducts: Состояние сброшено для нового языка');
-        return false;
-    } else {
-        hasMoreProducts = totalLoaded < totalProducts;
-    }
+        // ИСПРАВЛЕНИЕ БАГА: При восстановлении состояния на другом языке сбрасываем "конец списка"
+        const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
+        const savedLanguage = state.selectedLanguage || 'uk';
+        
+        if (currentLanguage !== savedLanguage && totalLoaded >= totalProducts) {
+            console.log(`restoreAllProducts: Восстановление на другом языке (${currentLanguage} вместо ${savedLanguage}), сбрасываем состояние конца списка`);
+            hasMoreProducts = true;
+            currentPage = 0;
+            loadedProductNames.clear();
+            maxProducts = 0;
+            
+            // Очищаем localStorage для нового языка
+            localStorage.removeItem('gs_bot_state');
+            
+            console.log('restoreAllProducts: Состояние сброшено для нового языка');
+            return false;
+        } else {
+            // ИСПРАВЛЕНИЕ: Полагаемся на hasMore с сервера
+            hasMoreProducts = serverData.hasMore !== undefined ? serverData.hasMore : (totalLoaded < totalProducts);
+            console.log(`restoreAllProducts: hasMoreProducts установлен в ${hasMoreProducts} (с сервера: ${serverData.hasMore}, fallback: ${totalLoaded < totalProducts})`);
+        }
+        
+        // ИСПРАВЛЕНИЕ: Устанавливаем maxProducts из серверных данных
+        maxProducts = totalProducts;
+        console.log(`restoreAllProducts: maxProducts установлен в ${maxProducts}`);
         
         // ИСПРАВЛЕНИЕ БАГА: Правильно рассчитываем currentPage на основе количества загруженных товаров
         currentPage = Math.floor(totalLoaded / productsPerPage);
@@ -1821,9 +1837,9 @@ async function restoreAllProducts() {
         
         console.log(`restoreAllProducts: Загружено товаров: ${totalLoaded}, всего товаров: ${totalProducts}, hasMoreProducts: ${hasMoreProducts}`);
         
-        // Загружаем свежие данные с сервера
-        console.log('restoreAllProducts: Загружаем свежие данные с сервера...');
-        const data = await fetchProductData(0);
+        // Загружаем ВСЕ товары с сервера (не только первые 60)
+        console.log('restoreAllProducts: Загружаем ВСЕ товары с сервера...');
+        const data = await fetchAllProducts(totalProducts); // Загружаем все товары
         
         if (data && data.products && data.products.length > 0) {
             console.log(`restoreAllProducts: Загружено ${data.products.length} товаров с сервера`);
@@ -1976,15 +1992,9 @@ async function restoreAllProducts() {
             
             // ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА: Убеждаемся, что hasMoreProducts корректно установлен
             const finalTotalLoaded = loadedProductNames.size;
-            const finalTotalProducts = 377;
-            const finalHasMoreProducts = finalTotalLoaded < finalTotalProducts;
-            
-            if (hasMoreProducts !== finalHasMoreProducts) {
-                console.log(`restoreAllProducts: Исправляем hasMoreProducts: было ${hasMoreProducts}, должно быть ${finalHasMoreProducts}`);
-                hasMoreProducts = finalHasMoreProducts;
-            }
-            
-            console.log(`restoreAllProducts: Финальная проверка - загружено: ${finalTotalLoaded}, всего: ${finalTotalProducts}, hasMoreProducts: ${hasMoreProducts}`);
+            // ИСПРАВЛЕНИЕ: Убираем жестко заданное значение 377, полагаемся на сервер
+            // Полагаемся только на серверные данные, а не на клиентские вычисления
+            console.log(`restoreAllProducts: Финальная проверка - загружено: ${finalTotalLoaded}, hasMoreProducts: ${hasMoreProducts} (с сервера)`);
             
             // Отладка статусов товаров
             state.loadedProductNames.forEach((product, index) => {
@@ -2889,43 +2899,37 @@ if (window.Telegram && window.Telegram.WebApp) {
 
 // Настройка обработчиков изображений
 function setupImageHandlers() {
-    const images = document.querySelectorAll('.product-card .img');
-    images.forEach(img => {
-        // Проверяем, есть ли src у изображения
-        if (!img.src || img.src === '' || img.src.includes('undefined')) {
-            console.warn('Изображение без src:', img);
-            img.style.display = 'none';
-            return;
-        }
-        
-        img.addEventListener('load', () => {
-            img.classList.add('loaded');
-            console.log('Изображение загружено:', img.src);
-        });
-        
-        img.addEventListener('error', () => {
-            console.error('Ошибка загрузки изображения:', img.src);
-            img.style.display = 'none';
-            // Показываем placeholder
-            const container = img.closest('.img-container');
-            if (container) {
-                container.style.display = 'flex';
-                container.style.alignItems = 'center';
-                container.style.justifyContent = 'center';
-                container.style.backgroundColor = '#f5f5f5';
-                container.style.borderRadius = '8px';
-                container.style.minHeight = '150px';
+    // Обработчик ошибок для изображений товаров
+    const productImages = document.querySelectorAll('.product-image img');
+    
+    productImages.forEach(img => {
+        // Предотвращаем 404 ошибки
+        img.addEventListener('error', function() {
+            console.log(`Изображение не загружено: ${this.src}`);
+            
+            // Скрываем сломанное изображение
+            this.style.display = 'none';
+            
+            // Показываем fallback
+            const productImage = this.closest('.product-image');
+            if (productImage) {
+                productImage.classList.add('image-error');
             }
         });
         
-        // Добавляем timeout для изображений, которые долго загружаются
-        setTimeout(() => {
-            if (!img.complete) {
-                console.warn('Изображение не загрузилось за 5 секунд:', img.src);
-                img.style.display = 'none';
+        // Обработчик успешной загрузки
+        img.addEventListener('load', function() {
+            console.log(`Изображение загружено: ${this.src}`);
+            this.style.display = 'block';
+            
+            const productImage = this.closest('.product-image');
+            if (productImage) {
+                productImage.classList.remove('image-error');
             }
-        }, 5000);
+        });
     });
+    
+    console.log('Обработчики изображений настроены');
 }
 
 // Удалено - дублирующий обработчик DOMContentLoaded
@@ -3150,55 +3154,12 @@ function showContactsPopup() {
         window.isShowingContactsPopup = true;
         console.log('=== showContactsPopup: НАЧАЛО ФУНКЦИИ ===');
         
-        // Проверяем инициализацию переменных
-        if (typeof window.loadedProductNames === 'undefined') {
-            console.warn('showContactsPopup: loadedProductNames не инициализирована, инициализируем...');
-            window.loadedProductNames = new Set();
-            loadedProductNames = window.loadedProductNames;
-        }
+        // ИСПРАВЛЕНИЕ: Используем openPopup для корректного открытия
+        // Это гарантирует, что меню останется открытым
+        openPopup('contactsPopup');
         
-        console.log('showContactsPopup: Шаг 1 - поиск элемента...');
-        const popup = document.getElementById('contactsPopup');
-        console.log('showContactsPopup: Элемент popup найден:', popup);
+        console.log('showContactsPopup: Popup контактов успешно открыт через openPopup');
         
-        if (popup) {
-            console.log('showContactsPopup: Шаг 2 - проверка текущих классов...');
-            console.log('showContactsPopup: Текущие классы до добавления:', popup.className);
-            
-            console.log('showContactsPopup: Шаг 3 - добавление класса show...');
-            popup.classList.add('show');
-            console.log('showContactsPopup: Классы после добавления:', popup.className);
-            
-            // Принудительно применяем стили
-            popup.style.display = 'flex';
-            popup.style.opacity = '1';
-            popup.style.visibility = 'visible';
-            popup.style.zIndex = '9999';
-            
-            console.log('showContactsPopup: Шаг 4 - проверка стилей...');
-            // Проверяем стили
-            const styles = window.getComputedStyle(popup);
-            console.log('showContactsPopup: Стили после добавления класса:');
-            console.log('- display:', styles.display);
-            console.log('- visibility:', styles.visibility);
-            console.log('- opacity:', styles.opacity);
-            console.log('- z-index:', styles.zIndex);
-            
-            console.log('showContactsPopup: Шаг 5 - пропускаем обновление переводов для предотвращения рекурсии');
-            // Убираем вызов applyTranslations, чтобы избежать рекурсии
-            console.log('showContactsPopup: Переводы будут обновлены автоматически');
-            
-            console.log('showContactsPopup: Шаг 6 - функция завершена успешно');
-            console.log('showContactsPopup: Popup контактов успешно открыт');
-            
-            // Добавляем небольшую задержку перед активацией обработчика клика вне popup
-            setTimeout(() => {
-                console.log('showContactsPopup: Активируем обработчик клика вне popup');
-            }, 300); // Увеличиваем задержку
-        } else {
-            console.error('showContactsPopup: Popup контактов не найден в DOM');
-            alert('Popup контактов не найден в DOM!'); // Временная отладка
-        }
     } catch (error) {
         console.error('showContactsPopup: ОШИБКА В ФУНКЦИИ:', error);
         alert('ОШИБКА в showContactsPopup: ' + error.message);
@@ -3211,19 +3172,11 @@ function showContactsPopup() {
 function closeContactsPopup() {
     console.log('closeContactsPopup: Закрываем popup контактов');
     
-    const popup = document.getElementById('contactsPopup');
-    if (popup) {
-        popup.classList.remove('show');
-        
-        // Принудительно убираем стили
-        popup.style.display = 'none';
-        popup.style.opacity = '0';
-        popup.style.visibility = 'hidden';
-        
-        console.log('closeContactsPopup: Popup контактов закрыт');
-    } else {
-        console.error('closeContactsPopup: Popup контактов не найден');
-    }
+    // ИСПРАВЛЕНИЕ: Используем closePopup для корректного закрытия
+    // Это гарантирует, что меню останется открытым
+    closePopup('contactsPopup');
+    
+    console.log('closeContactsPopup: Popup контактов закрыт через closePopup');
 }
 
 // Функция для показа popup оферты
@@ -3238,27 +3191,14 @@ window.showOfferPopup = function() {
         const offerContent = getOfferContent(currentLanguage);
         offerText.innerHTML = offerContent;
         
-        popup.classList.add('show');
+        // ИСПРАВЛЕНИЕ: Используем openPopup для корректного открытия
+        // Это гарантирует, что меню останется открытым
+        openPopup('offerPopup');
         
-        // Принудительно применяем стили
-        popup.style.display = 'flex';
-        popup.style.opacity = '1';
-        popup.style.visibility = 'visible';
-        popup.style.zIndex = '9999';
-        
-        // Принудительно применяем стили для кнопки закрытия
-        const closeBtn = popup.querySelector('.close-btn');
-        if (closeBtn) {
-            closeBtn.style.position = 'absolute';
-            closeBtn.style.top = '-20px';
-            closeBtn.style.right = '-20px';
-            closeBtn.style.zIndex = '10001';
-        }
-        
-        // Добавляем обработчики для закрытия окна
+        // Добавляем обработчики событий для закрытия
         addOfferPopupEventListeners();
         
-        console.log('showOfferPopup: Popup оферты успешно открыт');
+        console.log('showOfferPopup: Popup оферты успешно открыт через openPopup');
     } else {
         console.error('showOfferPopup: Popup оферты или элемент текста не найден');
     }
@@ -3309,13 +3249,11 @@ window.closeOfferPopup = function() {
             delete popup._outsideClickHandler;
         }
         
-        // Закрываем popup
-        popup.classList.remove('show');
-        popup.style.display = 'none';
-        popup.style.opacity = '0';
-        popup.style.visibility = 'hidden';
+        // ИСПРАВЛЕНИЕ: Используем closePopup для корректного закрытия
+        // Это гарантирует, что меню останется открытым
+        closePopup('offerPopup');
         
-        console.log('closeOfferPopup: Popup оферты закрыт');
+        console.log('closeOfferPopup: Popup оферты закрыт через closePopup');
     }
 }
 
@@ -3645,6 +3583,114 @@ function getOfferContent(language) {
             <p><strong>11.3.</strong> The parties have the right to terminate this agreement unilaterally, in the event of non-fulfillment of the terms of this Agreement by one of the parties and in cases provided for by the current legislation of Ukraine.</p>
             
             <p>Please note that the online store "GuitarStrings.com.ua" on the official website https://guitarstrings.com.ua has the right, in accordance with the legislation of Ukraine, to grant the right to use the Internet platform to individual entrepreneurs and legal entities for the sale of goods.</p>
+        `,
+        en: `
+            <h4>General provisions</h4>
+            <p><strong>1.1.</strong> This offer is an official offer of "Guitar Strings", hereinafter referred to as the "Seller", to conclude a Contract for the sale and purchase of goods remotely, i.e. through the Online Store, hereinafter referred to as the "Agreement", and places a Public Offer (Offer) on the Seller's official website https://guitarstrings.com.ua (hereinafter referred to as the Website).</p>
+            
+            <p><strong>1.2.</strong> The moment of full and unconditional acceptance by the Buyer of the Seller's offer (acceptance) to conclude an electronic contract for the sale and purchase of goods is considered the fact of payment by the Buyer for the order under the terms of this Agreement, within the terms and at the prices specified on the Seller's Website.</p>
+            
+            <h4>Concepts and definitions</h4>
+            <p><strong>2.1.</strong> In this offer, unless the context requires otherwise, the terms below have the following meanings:</p>
+            <ul>
+                <li><strong>"goods"</strong> - models, accessories, components and accompanying items;</li>
+                <li><strong>"Online store"</strong> - in accordance with the Law of Ukraine "On Electronic Commerce", a means for presenting or selling goods, work or services by concluding an electronic transaction.</li>
+                <li><strong>"Seller"</strong> - a company that sells goods presented on the Internet site.</li>
+                <li><strong>"Buyer"</strong> - an individual who has concluded an Agreement with the Seller on the terms set out below.</li>
+                <li><strong>"Order"</strong> - a selection of individual items from the list of goods specified by the Buyer when placing an order and making payment.</li>
+            </ul>
+            
+            <h4>Subject of the Agreement</h4>
+            <p><strong>3.1.</strong> The Seller undertakes to transfer the ownership of the Goods to the Buyer, and the Buyer undertakes to pay for and accept the Goods under the terms of this Agreement.</p>
+            
+            <p>This Agreement regulates the purchase and sale of goods in the Online Store, in particular:</p>
+            <ul>
+                <li>Voluntary selection by the Buyer of goods in the Online Store;</li>
+                <li>Independent registration by the Buyer of an order in the Online Store;</li>
+                <li>payment by the Buyer of an order placed in the Online Store;</li>
+                <li>processing and delivery of the order to the Buyer in the ownership under the terms of this Agreement.</li>
+            </ul>
+            
+            <h4>Order processing procedure</h4>
+            <p><strong>4.1.</strong> The Buyer has the right to place an order for any product presented on the Online Store Website and available.</p>
+            <p><strong>4.2.</strong> Each item can be presented in the order in any quantity.</p>
+            <p><strong>4.3.</strong> In the absence of the product in stock, the Company Manager is obliged to notify the Buyer (by phone or e-mail).</p>
+            <p><strong>4.4.</strong> In the absence of the product, the Buyer has the right to replace it with a product of a similar model, refuse this product, cancel the order.</p>
+            
+            <h4>Order payment procedure</h4>
+            <p><strong>Postpaid</strong></p>
+            <p><strong>5.1.</strong> Payment is made upon receipt of the product at the transport company's branch for cash in hryvnias.</p>
+            <p><strong>5.2.</strong> In the event of non-receipt of funds, the Online Store reserves the right to cancel the order.</p>
+            
+            <h4>Order delivery terms</h4>
+            <p><strong>6.1.</strong> Delivery of goods purchased in the Online Store is carried out to the warehouses of transport companies, where orders are issued.</p>
+            <p><strong>6.2.</strong> Together with the order, the Buyer is provided with documents in accordance with the legislation of Ukraine.</p>
+            
+            <h4>Rights and obligations of the parties:</h4>
+            <p><strong>7.1.</strong> The Seller has the right:</p>
+            <ul>
+                <li>unilaterally suspend the provision of services under this Agreement in the event of the Buyer's violation of the terms of this Agreement.</li>
+            </ul>
+            
+            <p><strong>7.2.</strong> The Buyer is obliged to:</p>
+            <ul>
+                <li>timely pay and receive the order under the terms of this Agreement.</li>
+            </ul>
+            
+            <p><strong>7.3.</strong> The Buyer has the right:</p>
+            <ul>
+                <li>Place an order in the Online Store;</li>
+                <li>draw up an electronic agreement;</li>
+                <li>demand that the Seller fulfill the terms of this Agreement.</li>
+            </ul>
+            
+            <h4>Liability of the Parties</h4>
+            <p><strong>8.1.</strong> The Parties are liable for failure to fulfill or improper fulfillment of the terms of this Agreement in the manner prescribed by this Agreement and the current legislation of Ukraine.</p>
+            
+            <p><strong>8.2.</strong> The Seller is not responsible for:</p>
+            <ul>
+                <li>The appearance of the Goods changed by the manufacturer;</li>
+                <li>for a minor discrepancy in the color scheme of the Goods, which may differ from the original Goods solely due to different color rendering of personal computer monitors of individual models;</li>
+                <li>for the content and veracity of the information provided by the Buyer when placing an order;</li>
+                <li>for delays and interruptions in the provision of Services (order processing and delivery of goods) occurring for reasons beyond its control;</li>
+                <li>for unlawful illegal actions committed by the Buyer using this access to the Internet;</li>
+                <li>for the transfer by the Buyer of his network identifiers - IP, MAC address, login and password to third parties;</li>
+            </ul>
+            
+            <p><strong>8.3.</strong> The Buyer, using the access to the Internet provided to him, is independently responsible for the damage caused by his actions (personally, even if another person was under his login) to persons or their property, legal entities, the state or moral principles of morality.</p>
+            
+            <p><strong>8.4.</strong> In the event of force majeure circumstances, the parties are released from the fulfillment of the terms of this agreement. For the purposes of this agreement, force majeure circumstances are understood to mean events of an extraordinary, unforeseeable nature that exclude or objectively impede the fulfillment of this agreement, the occurrence of which the Parties could not foresee and prevent by reasonable means.</p>
+            
+            <p><strong>8.5.</strong> The Parties shall make every effort to resolve any disputes exclusively through negotiations.</p>
+            
+            <h4>Other conditions</h4>
+            <p><strong>9.1.</strong> The online store reserves the right to unilaterally make changes to this agreement subject to its prior publication on the website https://guitarstrings.com.ua</p>
+            
+            <p><strong>9.2.</strong> Online store of creations for organizing a remote method of selling goods via the Internet.</p>
+            
+            <p><strong>9.3.</strong> The Buyer is responsible for the accuracy of the information specified when placing an order. At the same time, when accepting (placing an order and subsequent payment for the goods), the Buyer gives the Seller his unconditional consent to the collection, processing, storage, and use of his personal data within the meaning of the Law of Ukraine "On the Protection of Personal Data".</p>
+            
+            <p><strong>9.4.</strong> Payment by the Buyer of an order placed in the Online Store means the Buyer's full consent to the terms of the purchase and sale agreement (public offer)</p>
+            
+            <p><strong>9.5.</strong> The actual date of the electronic agreement between the parties is the date of acceptance of the terms in accordance with Art. 11 of the Law of Ukraine "On Electronic Commerce"</p>
+            
+            <p><strong>9.6.</strong> The use of the Online Store resource for previewing the product, as well as placing an order for the Buyer is free of charge.</p>
+            
+            <p><strong>9.7.</strong> The information provided by the Buyer is confidential. The Online Store uses information about the Buyer solely for the purpose of processing the order, sending messages to the Buyer, delivering the product, making mutual settlements, etc.</p>
+            
+            <h4>Procedure for returning goods of proper quality</h4>
+            <p><strong>10.1.</strong> The return of goods to the Online Store is carried out in accordance with the current legislation of Ukraine.</p>
+            <p><strong>10.2.</strong> The return of goods to the Online Store is carried out at the expense of the Buyer.</p>
+            <p><strong>10.3.</strong> When the Buyer returns goods of proper quality, the Online Store returns the amount paid for the goods upon the fact of returning the goods, minus compensation for the expenses of the Online Store associated with delivering the goods to the Buyer.</p>
+            
+            <h4>Term of the Agreement</h4>
+            <p><strong>11.1.</strong> An electronic agreement is considered concluded from the moment the person who sent the offer to conclude such an agreement receives a response on acceptance of this offer in the manner specified in Part Six of Article 11 of the Law of Ukraine "On Electronic Commerce".</p>
+            
+            <p><strong>11.2.</strong> Before the expiration of the term of validity, this Agreement may be terminated by mutual consent of the parties until the actual delivery of the goods by refunding the funds</p>
+            
+            <p><strong>11.3.</strong> The parties have the right to terminate this agreement unilaterally, in the event of non-fulfillment of the terms of this Agreement by one of the parties and in cases provided for by the current legislation of Ukraine.</p>
+            
+            <p>Please note that the online store "GuitarStrings.com.ua" on the official website https://guitarstrings.com.ua has the right, in accordance with the legislation of Ukraine, to grant the right to use the Internet platform to individual entrepreneurs and legal entities for the sale of goods.</p>
         `
     };
     
@@ -3715,12 +3761,20 @@ function setupPopupClickOutside() {
         const menuPopup = document.getElementById('menuPopup');
         const settingsPopup = document.getElementById('settingsPopup');
         const contactsPopup = document.getElementById('contactsPopup');
+        const offerPopup = document.getElementById('offerPopup');
         
         // Закрываем меню если клик не по кнопке меню и не по содержимому меню
+        // ИСПРАВЛЕНИЕ: Не закрываем меню если открыто окно оферты или контактов
         if (menuPopup && menuPopup.classList.contains('show')) {
             const menuBtn = document.querySelector('.menu-btn');
-            if (!menuBtn.contains(e.target) && !menuPopup.contains(e.target)) {
-                closePopup('menuPopup');
+            const isOfferOpen = offerPopup && offerPopup.classList.contains('show');
+            const isContactsOpen = contactsPopup && contactsPopup.classList.contains('show');
+            
+            // Не закрываем меню если открыто окно оферты или контактов
+            if (!isOfferOpen && !isContactsOpen) {
+                if (!menuBtn.contains(e.target) && !menuPopup.contains(e.target)) {
+                    closePopup('menuPopup');
+                }
             }
         }
         
@@ -3751,7 +3805,7 @@ function setupPopupClickOutside() {
             // Проверяем, что это не клик по кнопке "Контакты"
             const contactsMenuItem = document.querySelector('.contacts-item');
             const isClickOnContactsMenuItem = contactsMenuItem && contactsMenuItem.contains(e.target);
-            console.log('setupPopupClickOutside: Клик по кнопке контактов:', isClickOnContactsMenuItem);
+            console.log('setupPopupClickOutside: Клик по кнопке контактов:', !!isClickOnContactsMenuItem);
             
             // Проверяем, что это не клик по крестику
             const isClickOnCloseBtn = e.target.closest('.close-btn');
@@ -3764,6 +3818,32 @@ function setupPopupClickOutside() {
                 console.log('setupPopupClickOutside: Клик внутри popup или по кнопкам, не закрываем');
             }
         }
+        
+        // Закрываем popup оферты если клик не по содержимому popup
+        if (offerPopup && offerPopup.classList.contains('show')) {
+            console.log('setupPopupClickOutside: Popup оферты открыт, проверяем клик...');
+            
+            // Проверяем, что клик действительно вне popup
+            const isClickInsidePopup = offerPopup.contains(e.target);
+            
+            // Проверяем, что это не клик по кнопке меню
+            const menuBtn = document.querySelector('.menu-btn');
+            const isClickOnMenuBtn = menuBtn && menuBtn.contains(e.target);
+            
+            // Проверяем, что это не клик по кнопке "Оферта"
+            const offerMenuItem = document.querySelector('.offer-item');
+            const isClickOnOfferMenuItem = offerMenuItem && offerMenuItem.contains(e.target);
+            
+            // Проверяем, что это не клик по крестику
+            const isClickOnCloseBtn = e.target.closest('.close-btn');
+            
+            if (!isClickInsidePopup && !isClickOnMenuBtn && !isClickOnOfferMenuItem && !isClickOnCloseBtn) {
+                console.log('setupPopupClickOutside: Клик вне popup оферты, закрываем...');
+                closeOfferPopup();
+            } else {
+                console.log('setupPopupClickOutside: Клик внутри popup оферты или по кнопкам, не закрываем');
+            }
+        }
     });
     
     // Обработчик клавиши ESC для закрытия popup
@@ -3772,11 +3852,18 @@ function setupPopupClickOutside() {
             const menuPopup = document.getElementById('menuPopup');
             const settingsPopup = document.getElementById('settingsPopup');
             const contactsPopup = document.getElementById('contactsPopup');
+            const offerPopup = document.getElementById('offerPopup');
             
             // Закрываем popup контактов при нажатии ESC
             if (contactsPopup && contactsPopup.classList.contains('show')) {
                 console.log('setupPopupClickOutside: Нажата клавиша ESC, закрываем popup контактов');
                 closeContactsPopup();
+            }
+            
+            // Закрываем popup оферты при нажатии ESC
+            if (offerPopup && offerPopup.classList.contains('show')) {
+                console.log('setupPopupClickOutside: Нажата клавиша ESC, закрываем popup оферты');
+                closeOfferPopup();
             }
             
             // Закрываем другие popup при нажатии ESC
@@ -4126,7 +4213,7 @@ function setupLanguageSwitchers() {
                     console.log(`setupLanguageSwitchers: Переключение с ${previousLanguage} на ${selectedLang}, сбрасываем состояние конца списка`);
                     
                     // Если достигнут конец списка, сбрасываем состояние для нового языка
-                    if (!hasMoreProducts && loadedProductNames.size >= 377) {
+                    if (!hasMoreProducts && loadedProductNames.size >= (maxProducts || 0)) {
                         console.log('setupLanguageSwitchers: Достигнут конец списка, сбрасываем состояние для нового языка');
                         hasMoreProducts = true;
                         currentPage = 0;
@@ -4186,7 +4273,7 @@ function restoreInfiniteScrollState() {
         console.log(`restoreInfiniteScrollState: Загружено товаров: ${loadedProductNames.size}`);
         
         // Проверяем, есть ли еще товары для загрузки
-        const totalProducts = 377; // Общее количество товаров
+        const totalProducts = maxProducts || 0; // Общее количество товаров
         const shouldHaveMore = loadedProductNames.size < totalProducts;
         
         console.log(`restoreInfiniteScrollState: Всего товаров: ${totalProducts}, должно быть больше: ${shouldHaveMore}`);

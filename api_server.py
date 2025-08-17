@@ -88,7 +88,16 @@ def index():
     try:
         with open('index.html', 'r', encoding='utf-8') as f:
             content = f.read()
-        return content, 200, {'Content-Type': 'text/html; charset=utf-8'}
+        return content, 200, {
+            'Content-Type': 'text/html; charset=utf-8',
+            'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0, s-maxage=0',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+            'Last-Modified': '0',
+            'ETag': f'"{hash("index.html")}"',
+            'Vary': '*',
+            'Surrogate-Control': 'no-store'
+        }
     except Exception as e:
         return f"Error loading index.html: {str(e)}", 500
 
@@ -112,7 +121,27 @@ def static_files(filename):
         with open(filename, 'r', encoding='utf-8') as f:
             content = f.read()
         
-        return content, 200, {'Content-Type': content_type}
+        # Добавляем заголовки для предотвращения кеширования
+        headers = {
+            'Content-Type': content_type,
+            'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+        }
+        
+        # Для JavaScript, CSS и HTML файлов добавляем заголовки против кеширования
+        if filename.endswith('.js') or filename.endswith('.css') or filename.endswith('.html'):
+            headers.update({
+                'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0, s-maxage=0',
+                'Pragma': 'no-cache',
+                'Expires': '0',
+                'Last-Modified': '0',
+                'ETag': f'"{hash(filename)}"',
+                'Vary': '*',
+                'Surrogate-Control': 'no-store'
+            })
+        
+        return content, 200, headers
     except Exception as e:
         # Fallback to send_from_directory for binary files or errors
         return send_from_directory('.', filename)
@@ -184,7 +213,14 @@ def api_products():
                 'start': start,
                 'limit': limit,
                 'hasMore': False
-            })
+            }), 200, {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type'
+            }
         
         end_index = min(start + limit, len(product_items))
         paginated_items = product_items[start:end_index]
@@ -446,15 +482,24 @@ def api_products():
         print(f"Debug: products returned: {len(products)}")
         print(f"Debug: hasMore calculation: start+limit={start+limit}, total_items={len(product_items)}, hasMore={has_more}")
         print(f"Debug: start + products = {start + len(products)}")
+        print(f"Debug: total field in response: {len(product_items)}")
+        print(f"Debug: hasMore field in response: {has_more}")
         
         return jsonify({
             'success': True,
             'products': products,
-            'total': len(products),  # Количество товаров на текущей странице
+            'total': len(product_items),  # ИСПРАВЛЕНИЕ: Общее количество всех товаров, а не на текущей странице
             'start': start,
             'limit': limit,
             'hasMore': has_more  # Есть ли еще товары после текущей страницы
-        })
+        }), 200, {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type'
+        }
         
     except Exception as e:
         print(f"Error in API: {e}")
@@ -466,7 +511,14 @@ def api_products():
             'start': start,
             'limit': limit,
             'hasMore': False
-        })
+        }), 500, {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type'
+        }
 
 if __name__ == '__main__':
     print("Starting server...")
