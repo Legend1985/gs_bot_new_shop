@@ -384,12 +384,38 @@ async function searchProducts(query) {
     if (!isSearchActive) {
         // Если поиск отменен, показываем все загруженные товары
         console.log('Поиск отменен, показываем все загруженные товары');
-        await displayProducts(allProducts);
+        
+        // Очищаем поисковый запрос
+        searchTerm = '';
+        window.currentSearchTerm = '';
+        
+        // Проверяем состояние allProducts
+        console.log('Поиск: allProducts.length =', allProducts ? allProducts.length : 'undefined');
+        console.log('Поиск: hasMoreProducts =', hasMoreProducts);
+        console.log('Поиск: currentPage =', currentPage);
+        
+        // Если allProducts пустой, восстанавливаем состояние
+        if (!allProducts || allProducts.length === 0) {
+            console.log('Поиск: allProducts пустой, восстанавливаем состояние...');
+            await restoreAllProducts();
+        } else {
+            // Показываем все загруженные товары
+            console.log('Поиск: Показываем', allProducts.length, 'товаров');
+            await displayProducts(allProducts);
+        }
         
         // Восстанавливаем индикатор загрузки для бесконечной прокрутки
         if (hasMoreProducts) {
             showLoadingIndicator();
         }
+        
+        // Скрываем сообщение "Товары не найдены" если оно есть
+        const noResultsElement = document.querySelector('.no-results');
+        if (noResultsElement) {
+            noResultsElement.remove();
+            console.log('Поиск: Убрано сообщение "Товары не найдены"');
+        }
+        
         return;
     }
     
@@ -2275,6 +2301,48 @@ document.addEventListener('DOMContentLoaded', async () => {
             searchInput.addEventListener('input', async (e) => {
                 const query = e.target.value;
                 console.log(`Поисковый запрос: "${query}"`);
+                
+                // Если поиск очищен, немедленно показываем все товары
+                if (!query.trim()) {
+                    console.log('Поиск очищен, немедленно показываем все товары');
+                    
+                    // Очищаем предыдущий таймаут
+                    if (searchTimeout) {
+                        clearTimeout(searchTimeout);
+                    }
+                    
+                    // Очищаем поисковый запрос
+                    searchTerm = '';
+                    window.currentSearchTerm = '';
+                    
+                    // Проверяем состояние allProducts
+                    console.log('Поиск: allProducts.length =', allProducts ? allProducts.length : 'undefined');
+                    console.log('Поиск: hasMoreProducts =', hasMoreProducts);
+                    console.log('Поиск: currentPage =', currentPage);
+                    
+                    // Если allProducts пустой, восстанавливаем состояние
+                    if (!allProducts || allProducts.length === 0) {
+                        console.log('Поиск: allProducts пустой, восстанавливаем состояние...');
+                        await restoreAllProducts();
+                    } else {
+                        // Показываем все загруженные товары
+                        console.log('Поиск: Показываем', allProducts.length, 'товаров');
+                        await displayProducts(allProducts);
+                    }
+                    
+                    // Скрываем сообщение "Товары не найдены" если оно есть
+                    const noResultsElement = document.querySelector('.no-results');
+                    if (noResultsElement) {
+                        noResultsElement.remove();
+                        console.log('Поиск: Немедленно убрано сообщение "Товары не найдены"');
+                    }
+                    
+                    // Восстанавливаем индикатор загрузки для бесконечной прокрутки
+                    if (hasMoreProducts) {
+                        showLoadingIndicator();
+                    }
+                    return;
+                }
                 
                 // Очищаем предыдущий таймаут
                 if (searchTimeout) {
