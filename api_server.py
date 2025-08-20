@@ -180,8 +180,8 @@ def api_products():
                     name_elem = item.find('h3', class_='product-title') or item.find('h3', class_='title') or item.find('h3') or item.find('h2') or item.find('a', class_='title')
                     name = name_elem.get_text(strip=True) if name_elem else ""
                     
-                    # Ищем в названии товара
-                    if search in name.lower():
+                    # Ищем в названии товара (частичное совпадение)
+                    if search in name.lower() or any(word in name.lower() for word in search.split()):
                         filtered_items.append(item)
                         continue
                     
@@ -189,7 +189,7 @@ def api_products():
                     desc_elem = item.find('div', class_='product-description') or item.find('p', class_='description') or item.find('div', class_='desc')
                     if desc_elem:
                         description = desc_elem.get_text(strip=True)
-                        if search in description.lower():
+                        if search in description.lower() or any(word in description.lower() for word in search.split()):
                             filtered_items.append(item)
                             continue
                             

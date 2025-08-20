@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>GuitarStrings.com.ua</title>
     
     <!-- Фавиконы -->
@@ -17,10 +20,10 @@
     <meta name="theme-color" content="#ffffff">
     <link rel="manifest" href="images/favicon_v016/site.webmanifest">
     
-            <link rel="stylesheet" href="style.css?v=11.20">
+            <link rel="stylesheet" href="style.css?v=11.37">
         <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-        <script src="app.js?v=11.20"></script>
-        <script src="translations.js?v=10.55"></script>
+        <script src="translations.js?v=10.60"></script>
+                          <script src="app.js?v=12.65"></script>
         <!-- Предварительная загрузка фоновых изображений -->
     <link rel="preload" href="images/Contacts_image/background.jpg" as="image" type="image/jpeg">
 </head>
@@ -324,7 +327,7 @@
     </div>
 
     <!-- Онлайн статус -->
-    <div class="online-status">
+    <div class="online-status" onclick="openTelegramChat()">
         <div class="status-dot"></div>
         <span data-translate="onlineStatus">Напишите нам, мы онлайн!</span>
     </div>
@@ -347,7 +350,7 @@
             <i class="fas fa-list"></i>
             <span data-translate="orders">Заказы</span>
         </div>
-        <div class="nav-item">
+        <div class="nav-item" onclick="goToCart()" style="cursor: pointer;">
             <div class="cart-icon-container">
                 <i class="fas fa-shopping-cart"></i>
                 <span class="cart-badge" id="cartBadge" style="display: none;">0</span>
@@ -455,7 +458,7 @@
                     <div class="product-details">
                         <h3 id="cartProductName" data-translate="productName">Название товара</h3>
                         <div class="product-meta">
-                            <p><span data-translate="article">Артикул:</span> <span id="cartProductArticle"></span></p>
+        
                             <p><span data-translate="price">Цена:</span> <span id="cartProductPrice"></span> грн</p>
                             <p><span data-translate="quantity">Кол-во:</span> <span id="cartProductQuantity">1</span> шт</p>
                             <p><span data-translate="total">Всего:</span> <span id="cartProductTotal"></span> грн</p>
@@ -478,18 +481,423 @@
         </div>
     </div>
 
+    <!-- Полноценное окно корзины -->
+    <div class="popup-overlay" id="cartPopup">
+        <div class="popup-content cart-popup">
+            <div class="popup-header">
+                <h3 data-translate="cartTitle">Корзина</h3>
+                <button class="close-btn" onclick="closeCartPopup()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="popup-body">
+                <!-- Заголовок таблицы -->
+                <div class="cart-table-header">
+                    <div class="cart-col-name" data-translate="productName">Наименование товара</div>
+                    <div class="cart-col-quantity" data-translate="quantity">Кол-во</div>
+                    <div class="cart-col-total" data-translate="total">Итого</div>
+                </div>
+                
+                <!-- Список товаров -->
+                <div id="cartItems" class="cart-items-list"></div>
+                
+                <!-- Поля ввода -->
+                <div class="cart-inputs">
+                    <textarea class="cart-comment" placeholder="Добавить комментарий..." data-translate-placeholder="addComment"></textarea>
+                    <div class="cart-coupon-bonuses-row">
+                        <input type="text" id="cartCouponInput" class="cart-coupon" placeholder="Ввести купон:" data-translate-placeholder="enterCoupon">
+                        <input type="number" id="cartBonusesInput" class="cart-bonuses" placeholder="Использовать бонусы:" data-translate-placeholder="useBonuses" min="0" max="100">
+                    </div>
+                </div>
+                
+                <!-- Расчет цен -->
+                <div class="cart-price-breakdown">
+                    <div class="price-row">
+                        <span data-translate="subtotal">Промежуточный итог:</span>
+                        <span id="cartSubtotal">0 грн</span>
+                    </div>
+                    <div class="price-row discount">
+                        <span data-translate="discountAmount">Сумма скидки:</span>
+                        <span id="cartDiscount">-0 грн</span>
+                    </div>
+                    <div class="price-row">
+                        <span data-translate="deliveryCost">Стоимость доставки:</span>
+                        <span id="cartDelivery">80 грн</span>
+                    </div>
+
+                    <div class="price-row bonus">
+                        <span data-translate="bonuses">Бонусы:</span>
+                        <span id="cartBonusUsed">-0 грн</span>
+                    </div>
+                    <div class="price-row coupon">
+                        <span data-translate="coupon">Купон:</span>
+                        <span id="cartCouponUsed">-0 грн</span>
+                    </div>
+                    <div class="price-row total">
+                        <span data-translate="total">Итого:</span>
+                        <span id="cartTotalPrice">0 грн</span>
+                    </div>
+                </div>
+                
+                <!-- Информация о доставке и оплате -->
+                <div class="cart-delivery-info">
+                    <div class="info-row">
+                        <i class="fas fa-credit-card"></i>
+                        <span data-translate="paymentMethod">Способ оплаты:</span>
+                        <div class="payment-method-selector">
+                            <select id="paymentMethodSelect" class="payment-select">
+                                <option value="wayforpay" data-translate="paymentWayForPay">Оплата картой Visa, Mastercard - WayForPay +2%</option>
+                                <option value="privat24" data-translate="paymentPrivat24">Приват 24 вручную по IBAN (меньше комиссия)</option>
+                                <option value="terminal" data-translate="paymentTerminal">Терминал Приватбанка (Предоплата)</option>
+                                <option value="meeting" data-translate="paymentMeeting">При встрече в Одессе</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="info-row">
+                        <i class="fas fa-truck"></i>
+                        <span data-translate="deliveryMethod">Способ доставки:</span>
+                        <div class="delivery-method-selector">
+                            <select id="deliveryMethodSelect" class="delivery-select" onchange="updateDeliveryCost()">
+                                <option value="nova" data-translate="deliveryNova">Nova пошта</option>
+                                <option value="meest" data-translate="deliveryMeest">Meest пошта</option>
+                                <option value="ukrposhta" data-translate="deliveryUkrposhta">УКРПОШТА (передоплата 80грн.)</option>
+                                <option value="pickup" data-translate="deliveryPickup">Самовивіз</option>
+                                <option value="free1001" data-translate="deliveryFree1001" style="display: none;">Моє замовлення від 1001грн. доставка безкоштовно Новою поштою по Одесі</option>
+                                <option value="free2000" data-translate="deliveryFree2000" style="display: none;">Моє замовлення від 2000грн. доставка безкоштовно Новою Поштою, Укрпоштою</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="info-row">
+                        <i class="fas fa-user"></i>
+                        <span data-translate="fullName">Фамилия и имя:</span>
+                        <input type="text" id="cartCustomerName" class="cart-input-field" placeholder="Введите фамилию и имя" data-translate-placeholder="fullNamePlaceholder" value="">
+                    </div>
+                    <div class="info-row">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <span data-translate="settlement">Населённый пункт:</span>
+                        <input type="text" id="cartCustomerSettlement" class="cart-input-field" placeholder="Введите населённый пункт" data-translate-placeholder="settlementPlaceholder" value="">
+                    </div>
+                    <div class="info-row">
+                        <i class="fas fa-building"></i>
+                        <span data-translate="branchNumber">Номер отделения:</span>
+                        <input type="text" id="cartCustomerBranch" class="cart-input-field" placeholder="Введите номер отделения" data-translate-placeholder="branchNumberPlaceholder" value="">
+                    </div>
+                    <div class="info-row">
+                        <i class="fas fa-phone"></i>
+                        <span data-translate="phone">Телефон:</span>
+                        <input type="tel" id="cartCustomerPhone" class="cart-input-field" placeholder="+380" value="+380" onfocus="this.setSelectionRange(4, 4)">
+                    </div>
+                </div>
+                
+                <!-- Кнопка оплаты -->
+                <div class="cart-actions">
+                    <button class="btn btn-pay" onclick="checkout()">
+                        <span data-translate="pay">ОПЛАТИТЬ</span> 
+                        <span id="cartPayAmount">0 грн</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Popup для оферты -->
     <div class="popup-overlay" id="offerPopup">
-        <div class="popup-content offer-popup">
+        <div class="popup-content contacts-popup">
             <button class="close-btn" onclick="closeOfferPopup()">
                 <i class="fas fa-times"></i>
             </button>
             <div class="popup-header">
                 <h3 data-translate="offerTitle">Договір публічної оферти</h3>
             </div>
-            <div class="popup-body offer-content">
-                <div class="offer-text" id="offerText">
-                    <!-- Текст оферты будет загружен динамически -->
+            <div class="popup-body">
+                <div class="offer-content">
+                    <div class="offer-text" id="offerText">
+                        <!-- Текст оферты на основе официального сайта https://guitarstrings.com.ua/oferta -->
+                        <div class="offer-content-uk">
+                        <h4>Договір публічної оферти</h4>
+                        
+                        <h5>Загальні положення</h5>
+                        <p>1.1. Справжня оферта є офіційною пропозицією «Guitar Strings», далі за текстом — «Продавець», укласти Договір купівлі-продажу товарів дистанційним способом, тобто через Інтернет-магазин, далі за текстом — «Договір», та розміщує Публічну оферту (пропозиція) на офіційному інтернет-сайті Продавця https://guitarstrings.com.ua (далі - Інтернет-сайт).</p>
+                        
+                        <p>1.2. Моментом повного та безумовного прийняття Покупцем пропозиції Продавця (акцептом) укласти електронний договір купівлі-продажу товарів, вважається факт оплати Покупцем замовлення на умовах цього Договору, у строки та за цінами, вказаними на Інтернет-сайті Продавця.</p>
+                        
+                        <h5>Поняття та визначення</h5>
+                        <p>2.1. У цій оферті, якщо контекст не вимагає іншого, наведені нижче терміни мають такі значення:</p>
+                        <ul>
+                            <li>«товар» - моделі, аксесуари, комплектуючі та супровідні предмети;</li>
+                            <li>«Інтернет-магазин» - відповідно до Закону України «про електронну комерцію», засіб для подання або реалізації товару, роботи чи послуги шляхом вчинення електронної угоди.</li>
+                            <li>«Продавець» - компанія, що реалізує товари, які представлені на Інтернет-сайті.</li>
+                            <li>«Покупець» - фізична особа, яка уклала з Продавцем Договір на умовах, викладених нижче.</li>
+                            <li>«Замовлення» - вибір окремих позицій із переліку товарів, зазначених Покупцем під час розміщення замовлення та проведення оплати.</li>
+                        </ul>
+                        
+                        <h5>Предмет Договору</h5>
+                        <p>3.1. Продавець зобов'язується передати у власність Покупця Товар, а Покупець зобов'язується сплатити та прийняти Товар на умовах цього Договору.</p>
+                        <p>Цей Договір регулює купівлю-продаж товарів в Інтернет-магазині, зокрема:</p>
+                        <ul>
+                            <li>Добровільний вибір Покупцем товарів в Інтернет-магазині;</li>
+                            <li>Самостійне оформлення Покупцем замовлення в Інтернет-магазині;</li>
+                            <li>оплата Покупцем замовлення, оформленого в Інтернет-магазині;</li>
+                            <li>обробка та доставка замовлення Покупцю у власність на умовах цього Договору.</li>
+                        </ul>
+                        
+                        <h5>Порядок оформлення замовлення</h5>
+                        <p>4.1. Покупець має право оформити замовлення на будь-який товар, представлений на Сайті Інтернет-магазину та наявний.</p>
+                        <p>4.2. Кожна позиція може бути представлена в замовлення у будь-якій кількості.</p>
+                        <p>4.3. За відсутності товару на складі, Менеджер компанії зобов'язаний повідомити Покупця (по телефону або через електронну пошту).</p>
+                        <p>4.4. За відсутності товару Покупець має право замінити його товаром аналогічної моделі, відмовитися від цього товару, анулювати замовлення.</p>
+                        
+                        <h5>Порядок оплати замовлення післяплатою</h5>
+                        <p>5.1. Оплата здійснюється за фактом отримання товару у відділенні транспортної компанії за готівку в гривнях.</p>
+                        <p>5.2. При ненадходженні коштів Інтернет-магазин залишає за собою право анулювати замовлення.</p>
+                        
+                        <h5>Умови доставки замовлення</h5>
+                        <p>6.1. Доставка товарів, придбаних в Інтернет-магазині, здійснюється до складів транспортних компаній, де й провадиться видача замовлень.</p>
+                        <p>6.2. Разом із замовленням Покупцю надаються документи згідно із законодавством України.</p>
+                        
+                        <h5>Права та обов'язки сторін</h5>
+                        <p>7.1. Продавець має право:</p>
+                        <ul>
+                            <li>в односторонньому порядку призупинити надання послуг за цим договором у разі порушення Покупцем умов цього договору.</li>
+                        </ul>
+                        <p>7.2. Покупець зобов'язаний:</p>
+                        <ul>
+                            <li>своєчасно сплатити та отримати замовлення на умовах цього договору.</li>
+                        </ul>
+                        <p>7.3. Покупець має право:</p>
+                        <ul>
+                            <li>Оформити замовлення в Інтернет-магазині;</li>
+                            <li>оформити електронний договір;</li>
+                            <li>вимагати від Продавця виконання умов цього Договору.</li>
+                        </ul>
+                        
+                        <h5>Відповідальність сторін</h5>
+                        <p>8.1. Сторони несуть відповідальність за невиконання або неналежне виконання умов цього договору у порядку, передбаченому цим договором та чинним законодавством України.</p>
+                        <p>8.2. Продавець не несе відповідальності за:</p>
+                        <ul>
+                            <li>Змінений виробником зовнішній вигляд Товару;</li>
+                            <li>за незначну невідповідність кольорової гами товару, що може відрізнятися від оригіналу товару виключно через різну колірну передачу моніторів персональних комп'ютерів окремих моделей;</li>
+                            <li>за зміст та правдивість інформації, що надається Покупцем під час оформлення замовлення;</li>
+                            <li>за затримку та перебої у наданні Послуг (обробки замовлення та доставки товару), що відбуваються з причин, що знаходяться поза сферою його контролю;</li>
+                            <li>за протиправні незаконні дії, здійснені Покупцем за допомогою цього доступу до мережі Інтернет;</li>
+                            <li>за передачу Покупцем своїх мережевих ідентифікаторів - IP, MAC-адреси, логіну та паролю третім особам;</li>
+                        </ul>
+                        <p>8.3. Покупець, використовуючи наданий йому доступ до мережі Інтернет, самостійно несе відповідальність за шкоду, заподіяну його діями (особисто, навіть якщо під її логіном перебувала інша особа) особам або їхньому майну, юридичним особам, державі чи моральним принципам моральності.</p>
+                        <p>8.4. У разі настання обставин непереборної сили сторони звільняються від виконання умов цього договору. Під обставинами непереборної сили для цілей цього договору розуміються події, що мають надзвичайний, непередбачуваний характер, які виключають або об'єктивно заважають виконанню цього договору, настання яких Сторони не могли передбачити та запобігти ти розумним способам.</p>
+                        <p>8.5. Сторони докладають максимум зусиль для вирішення будь-яких суперечностей виключно шляхом переговорів.</p>
+                        
+                        <h5>Інші умови</h5>
+                        <p>9.1. Інтернет-магазин залишає за собою право в односторонньому порядку вносити зміни до цього договору за умови його попередньої публікації на сайті https://guitarstrings.com.ua</p>
+                        <p>9.2. Інтернет-магазин створінь для організації дистанційного способу продажу товарів через Інтернет.</p>
+                        <p>9.3. Покупець несе відповідальність за достовірність зазначеної під час оформлення замовлення інформації. При цьому, при здійсненні акцепту (оформлення замовлення та подальшої оплати товару) Покупець надає Продавцю свою беззастережну згоду на збирання, обробку, зберігання, використання своїх персональних даних у розумінні ЗУ «Про захист персональних даних».</p>
+                        <p>9.4. Оплата Покупцем оформленого в Інтернет магазині замовлення означає повну згоду Покупця з умовами договору купівлі-продажу (публічної оферти)</p>
+                        <p>9.5. Фактичною датою електронної угоди між сторонами є дата прийняття умов відповідно до ст. 11 Закону України "Про електронну комерцію"</p>
+                        <p>9.6. Використання ресурсу Інтернет-магазину для попереднього перегляду товару, а також оформлення замовлення для Покупця є безкоштовним.</p>
+                        <p>9.7. Інформація, що надається Покупцем, є конфіденційною. Інтернет-магазин використовує інформацію про Покупця виключно з метою обробки замовлення, відправлення повідомлень Покупцю, доставки товару, здійснення взаєморозрахунків та ін.</p>
+                        
+                        <h5>Порядок повернення товару належної якості</h5>
+                        <p>10.1. Повернення товару до Інтернет-магазину здійснюється відповідно до чинного законодавства України.</p>
+                        <p>10.2. Повернення товару до Інтернет-магазину здійснюється за рахунок Покупця.</p>
+                        <p>10.3. При поверненні Покупцем товару належної якості Інтернет-магазин повертає йому сплачену за товар грошову суму за фактом повернення товару за вирахуванням компенсації витрат Інтернет-магазину, пов'язаних з доставкою товару Покупцю.</p>
+                        
+                        <h5>Строк дії договору</h5>
+                        <p>11.1. Електронний договір вважається укладеним з моменту отримання особою, яка направила пропозицію укласти такий договір, відповіді про прийняття цього пропозиції в порядку, визначеному частиною шостою статті 11 Закону України "Про електронну комерцію".</p>
+                        <p>11.2. До закінчення строку дії цей Договір може бути розірваний за взаємною згодою сторін до моменту фактичної доставки товару шляхом повернення коштів</p>
+                        <p>11.3. Сторони мають право розірвати цей договір в односторонньому порядку, в разі невиконання однієї із сторін умов цього Договору та у випадках, передбачених чинним законодавством України.</p>
+                        
+                        <p>Звертаємо ваше увагу, що інтернет-магазин «GuitarStrings.com.ua» на офіційному інтернет-сайті https://guitarstrings.com.ua має право, відповідно до законодавства України, надавати право користування інтернет платформою ФОП та юридичним особам для реалізації товару.</p>
+                    </div>
+                    
+                    <div class="offer-content-ru">
+                        <h4>Договор публичной оферты</h4>
+                        
+                        <h5>Общие положения</h5>
+                        <p>1.1. Настоящая оферта является официальным предложением «Guitar Strings», далее по тексту — «Продавец», заключить Договор купли-продажи товаров дистанционным способом, то есть через Интернет-магазин, далее по тексту — «Договор» и размещает Публичную оферту (предложение) на официальном интернет-сайте Продавца https://guitarstrings.com.ua.</p>
+                        
+                        <p>1.2. Моментом полного и безусловного принятия Покупателем предложения Продавца (акцептом) заключить электронный договор купли-продажи товаров считается факт оплаты Покупателем заказа на условиях настоящего Договора, в сроки и по ценам, указанным на Интернет-сайте Продавца.</p>
+                        
+                        <h5>Понятие и определение</h5>
+                        <p>2.1. В этой оферте, если контекст не требует другого, следующие термины имеют следующие значения:</p>
+                        <ul>
+                            <li>«товар» – модели, аксессуары, комплектующие и сопроводительные предметы;</li>
+                            <li>«Интернет-магазин» - в соответствии с Законом Украины «об электронной коммерции», средством предоставления или реализации товара, работы или услугами путем совершения электронного соглашения.</li>
+                            <li>«Продавец» – компания, реализующая товары, представленные на Интернет-сайте.</li>
+                            <li>«Покупатель» - физическое лицо, заключившее с Продавцом Договор на условиях, изложенных ниже.</li>
+                            <li>«Заказ» - выбор отдельных позиций по перечню товаров, указанных Покупателем при размещении заказа и оплате.</li>
+                        </ul>
+                        
+                        <h5>Предмет Договора</h5>
+                        <p>3.1. Продавец обязуется передать в собственность Покупателя Товар, Покупатель обязуется уплатить и принять Товар на условиях настоящего Договора.</p>
+                        <p>Настоящий Договор регулирует куплю-продажу товаров в Интернет-магазине, в частности:</p>
+                        <ul>
+                            <li>добровольный выбор Покупателем товаров в Интернет-магазине;</li>
+                            <li>самостоятельное оформление Покупателем заказа в Интернет-магазине;</li>
+                            <li>оплата Покупателем заказа, оформленного в Интернет-магазине;</li>
+                            <li>обработка и доставка заказа Покупателю в собственность на условиях настоящего Договора.</li>
+                        </ul>
+                        
+                        <h5>Порядок оформления заказа</h5>
+                        <p>4.1. Покупатель имеет право оформить заказ на любой товар, представленный на Сайте Интернет-магазина и имеющийся.</p>
+                        <p>4.2. Каждая позиция может быть представлена в заказ в любом количестве.</p>
+                        <p>4.3. При отсутствии товара на складе, Менеджер компании обязан сообщить Покупателю (по телефону или по электронной почте).</p>
+                        <p>4.4. При отсутствии товара Покупатель имеет право заменить товар аналогичной модели, отказаться от этого товара, аннулировать заказ.</p>
+                        
+                        <h5>Порядок оплаты заказа</h5>
+                        <h5>Наложенным платежом</h5>
+                        <p>5.1. Оплата производится по факту получения товара в отделении транспортной компании за наличные в гривнах.</p>
+                        <p>5.2. При неприходе средств Интернет-магазин оставляет за собой право аннулировать заказ.</p>
+                        
+                        <h5>Условия доставки заказа</h5>
+                        <p>6.1. Доставка товаров, приобретенных в Интернет-магазине, осуществляется в склады транспортных компаний, где и производится выдача заказов.</p>
+                        <p>6.2. Вместе с заказом Покупателю предоставляются документы согласно законодательству Украины.</p>
+                        
+                        <h5>Права и обязанности сторон:</h5>
+                        <p>7.1. Продавец имеет право:</p>
+                        <ul>
+                            <li>в одностороннем порядке приостановить предоставление услуг по настоящему договору в случае нарушения Покупателем условий настоящего договора.</li>
+                        </ul>
+                        <p>7.2. Покупатель обязан:</p>
+                        <ul>
+                            <li>своевременно оплатить и получить заказы на условиях настоящего договора.</li>
+                        </ul>
+                        <p>7.3. Покупатель имеет право:</p>
+                        <ul>
+                            <li>оформить заказ в Интернет-магазине;</li>
+                            <li>оформить электронный договор;</li>
+                            <li>требовать от Продавца выполнения условий настоящего Договора.</li>
+                        </ul>
+                        
+                        <h5>Ответственность сторон</h5>
+                        <p>8.1. Стороны несут ответственность за неисполнение или ненадлежащее исполнение условий настоящего договора в порядке, предусмотренном настоящим договором и действующим законодательством Украины.</p>
+                        <p>8.2. Продавец не несет ответственности за:</p>
+                        <ul>
+                            <li>измененный производителем внешний вид Товара;</li>
+                            <li>за незначительное несоответствие цветовой гаммы товара, что может отличаться от оригинала товара исключительно из-за разной цветовой передачи мониторов персональных компьютеров отдельных моделей;</li>
+                            <li>за содержание и правдивость информации, предоставляемой Покупателем при оформлении заказа;</li>
+                            <li>за задержку и перебои в предоставлении Услуг (обработки заказа и доставки товара), происходящие по причинам, находящимся вне его контроля;</li>
+                            <li>за противоправные незаконные действия, совершенные Покупателем посредством этого доступа в Интернет;</li>
+                            <li>за передачу Покупателем своих сетевых идентификаторов - IP, MAC-адреса, логина и пароля третьим лицам;</li>
+                        </ul>
+                        <p>8.3. Покупатель, используя предоставленный ему доступ к сети Интернет, самостоятельно несет ответственность за ущерб, причиненный его действиями (лично, даже если под его логином находилось другое лицо) лицам или их имуществу, юридическим лицам, государству или моральным принципам нравственности.</p>
+                        <p>8.4. При наступлении обстоятельств непреодолимой силы стороны освобождаются от выполнения условий настоящего договора. Под обстоятельствами непреодолимой силы для целей настоящего договора понимаются события, имеющие чрезвычайный, непредсказуемый характер, исключающие или объективно мешающие выполнению настоящего договора, наступление которых Стороны не могли предусмотреть и предотвратить разумным способом.</p>
+                        <p>8.5. Стороны прилагают максимум усилий для разрешения любых противоречий исключительно путем переговоров.</p>
+                        
+                        <h5>Другие условия</h5>
+                        <p>9.1. Интернет-магазин оставляет за собой право в одностороннем порядке вносить изменения в этот договор при условии его предварительной публикации на сайте https://guitarstrings.com.ua</p>
+                        <p>9.2. Интернет-магазин создан для организации дистанционного способа продаж товаров через Интернет.</p>
+                        <p>9.3. Покупатель несет ответственность за достоверность указанной при оформлении заказа информации. При этом при осуществлении акцепта (оформления заказа и последующей оплаты товара) Покупатель предоставляет Продавцу свое безоговорочное согласие на сбор, обработку, хранение, использование своих персональных данных в понимании ЗУ «О защите персональных данных».</p>
+                        <p>9.4. Оплата Покупателем оформленного в Интернет магазине заказа означает полное согласие Покупателя с условиями договора купли-продажи (публичной оферты)</p>
+                        <p>9.5. Фактической датой электронного соглашения между сторонами является дата принятия условий в соответствии со ст. 11 Закона Украины "Об электронной коммерции"</p>
+                        <p>9.6. Использование ресурса Интернет-магазина для предварительного просмотра товара, а также оформление заказа для Покупателя бесплатно.</p>
+                        <p>9.7. Информация, предоставляемая Покупателем, является конфиденциальной. Интернет-магазин использует информацию о Покупателе исключительно для обработки заказа, отправки сообщений Покупателю, доставки товара, осуществления взаиморасчетов и т.д.</p>
+                        
+                        <h5>Порядок возврата товара надлежащего качества</h5>
+                        <p>10.1. Возврат товара в Интернет-магазин осуществляется в соответствии с действующим законодательством Украины.</p>
+                        <p>10.2. Возврат товара в Интернет-магазин осуществляется за счет Покупателя.</p>
+                        <p>10.3. При возврате Покупателем товара надлежащего качества Интернет-магазин возвращает ему уплаченную за товар денежную сумму по факту возврата товара за вычетом компенсации расходов Интернет-магазина, связанных с доставкой товара Покупателю.</p>
+                        
+                        <h5>Срок действия договора</h5>
+                        <p>11.1. Электронный договор считается заключенным с момента получения лицом, направившим предложение заключить такой договор, ответа о принятии этого предложения в порядке, определенном частью шестой статьи 11 Закона Украины "Об электронной коммерции".</p>
+                        <p>11.2. До истечения срока действия настоящий Договор может быть расторгнут по взаимному согласию сторон к моменту фактической доставки товара путем возврата средств</p>
+                        <p>11.3. Стороны имеют право расторгнуть настоящий договор в одностороннем порядке, в случае невыполнения одной из сторон условий настоящего Договора и в случаях, предусмотренных действующим законодательством Украины.</p>
+                        
+                        <p>Обращаем ваше внимание, что интернет-магазин «GuitarStrings.com.ua» на официальном интернет-сайте https://guitarstrings.com.ua имеет право в соответствии с законодательством Украины предоставлять право пользования интернет платформой ФЛП и юридическим лицам для реализации товара.</p>
+                    </div>
+                    
+                    <div class="offer-content-en">
+                        <h4>Public Offer Agreement</h4>
+                        
+                        <h5>General Provisions</h5>
+                        <p>1.1. This offer is an official proposal of «Guitar Strings», hereinafter referred to as — «Seller», to conclude a Purchase and Sale Agreement for goods by remote means, that is, through the Internet store, hereinafter referred to as — «Agreement», and places a Public Offer (proposal) on the official website of the Seller https://guitarstrings.com.ua (hereinafter - Website).</p>
+                        
+                        <p>1.2. The moment of complete and unconditional acceptance by the Buyer of the Seller's proposal (acceptance) to conclude an electronic purchase and sale agreement for goods is considered to be the fact of payment by the Buyer of the order on the terms of this Agreement, within the terms and at the prices specified on the Seller's Website.</p>
+                        
+                        <h5>Concepts and Definitions</h5>
+                        <p>2.1. In this offer, unless the context requires otherwise, the terms listed below have the following meanings:</p>
+                        <ul>
+                            <li>«goods» - models, accessories, components and related items;</li>
+                            <li>«Internet store» - in accordance with the Law of Ukraine «on electronic commerce», a means for presenting or implementing goods, work or services by making an electronic transaction.</li>
+                            <li>«Seller» - a company that sells goods that are presented on the Website.</li>
+                            <li>«Buyer» - an individual who has concluded an Agreement with the Seller on the terms set forth below.</li>
+                            <li>«Order» - the selection of individual items from the list of goods specified by the Buyer when placing the order and making payment.</li>
+                        </ul>
+                        
+                        <h5>Subject of the Agreement</h5>
+                        <p>3.1. The Seller undertakes to transfer the Goods to the Buyer's ownership, and the Buyer undertakes to pay and accept the Goods on the terms of this Agreement.</p>
+                        <p>This Agreement regulates the purchase and sale of goods in the Internet store, in particular:</p>
+                        <ul>
+                            <li>Voluntary selection of goods by the Buyer in the Internet store;</li>
+                            <li>Independent placement of the order by the Buyer in the Internet store;</li>
+                            <li>payment by the Buyer of the order placed in the Internet store;</li>
+                            <li>processing and delivery of the order to the Buyer in ownership on the terms of this Agreement.</li>
+                        </ul>
+                        
+                        <h5>Order Processing Procedure</h5>
+                        <p>4.1. The Buyer has the right to place an order for any product presented on the Internet Store Site and available.</p>
+                        <p>4.2. Each item can be presented in the order in any quantity.</p>
+                        <p>4.3. In the absence of goods in stock, the Company Manager is obliged to notify the Buyer (by phone or via email).</p>
+                        <p>4.4. In the absence of goods, the Buyer has the right to replace it with a product of an analogous model, refuse this product, cancel the order.</p>
+                        
+                        <h5>Order Payment Procedure - Cash on Delivery</h5>
+                        <p>5.1. Payment is made upon receipt of the goods at the transport company's office for cash in hryvnias.</p>
+                        <p>5.2. In case of non-receipt of funds, the Internet store reserves the right to cancel the order.</p>
+                        
+                        <h5>Order Delivery Terms</h5>
+                        <p>6.1. Delivery of goods purchased in the Internet store is carried out to the warehouses of transport companies, where orders are issued.</p>
+                        <p>6.2. Together with the order, the Buyer is provided with documents in accordance with the legislation of Ukraine.</p>
+                        
+                        <h5>Rights and Obligations of the Parties</h5>
+                        <p>7.1. The Seller has the right:</p>
+                        <ul>
+                            <li>to unilaterally suspend the provision of services under this agreement in case of violation by the Buyer of the terms of this agreement.</li>
+                        </ul>
+                        <p>7.2. The Buyer is obliged:</p>
+                        <ul>
+                            <li>to pay and receive the order in a timely manner on the terms of this agreement.</li>
+                        </ul>
+                        <p>7.3. The Buyer has the right:</p>
+                        <ul>
+                            <li>To place an order in the Internet store;</li>
+                            <li>to conclude an electronic agreement;</li>
+                            <li>to demand from the Seller the fulfillment of the terms of this Agreement.</li>
+                        </ul>
+                        
+                        <h5>Liability of the Parties</h5>
+                        <p>8.1. The parties are liable for non-performance or improper performance of the terms of this agreement in the manner provided for by this agreement and the current legislation of Ukraine.</p>
+                        <p>8.2. The Seller is not responsible for:</p>
+                        <ul>
+                            <li>Changed by the manufacturer external appearance of the Goods;</li>
+                            <li>for minor discrepancies in the color scheme of the goods, which may differ from the original goods solely due to different color transmission of personal computer monitors of individual models;</li>
+                            <li>for the content and accuracy of information provided by the Buyer when placing the order;</li>
+                            <li>for delays and interruptions in the provision of Services (order processing and goods delivery) that occur for reasons beyond its control;</li>
+                            <li>for illegal illegal actions committed by the Buyer using this access to the Internet;</li>
+                            <li>for the Buyer's transfer of their network identifiers - IP, MAC addresses, login and password to third parties;</li>
+                        </ul>
+                        <p>8.3. The Buyer, using the access to the Internet provided to him, independently bears responsibility for damage caused by his actions (personally, even if another person was under his login) to persons or their property, legal entities, the state or moral principles of morality.</p>
+                        <p>8.4. In the event of force majeure circumstances, the parties are released from the performance of the terms of this agreement. Under force majeure circumstances for the purposes of this agreement are understood events that have an extraordinary, unforeseen nature, which exclude or objectively prevent the performance of this agreement, the occurrence of which the Parties could not foresee and prevent by reasonable means.</p>
+                        <p>8.5. The parties make maximum efforts to resolve any disagreements exclusively through negotiations.</p>
+                        
+                        <h5>Other Terms</h5>
+                        <p>9.1. The Internet store reserves the right to make changes to this agreement unilaterally, subject to its prior publication on the website https://guitarstrings.com.ua</p>
+                        <p>9.2. The Internet store is created for the organization of remote sales of goods through the Internet.</p>
+                        <p>9.3. The Buyer is responsible for the accuracy of the information specified when placing the order. At the same time, when making acceptance (placing an order and subsequent payment for goods), the Buyer provides the Seller with his unconditional consent to the collection, processing, storage, use of his personal data in the understanding of the Law of Ukraine «On Personal Data Protection».</p>
+                        <p>9.4. Payment by the Buyer of the order placed in the Internet store means the Buyer's full agreement with the terms of the purchase and sale agreement (public offer)</p>
+                        <p>9.5. The actual date of the electronic transaction between the parties is the date of acceptance of the terms in accordance with Article 11 of the Law of Ukraine "On Electronic Commerce"</p>
+                        <p>9.6. The use of the Internet store resource for preliminary viewing of goods, as well as placing an order for the Buyer is free of charge.</p>
+                        <p>9.7. Information provided by the Buyer is confidential. The Internet store uses information about the Buyer exclusively for the purposes of processing the order, sending messages to the Buyer, delivering goods, making mutual settlements, etc.</p>
+                        
+                        <h5>Procedure for Return of Goods of Proper Quality</h5>
+                        <p>10.1. Return of goods to the Internet store is carried out in accordance with the current legislation of Ukraine.</p>
+                        <p>10.2. Return of goods to the Internet store is carried out at the expense of the Buyer.</p>
+                        <p>10.3. When returning goods of proper quality by the Buyer, the Internet store returns to him the money paid for the goods upon the fact of return of the goods minus compensation for the costs of the Internet store associated with the delivery of goods to the Buyer.</p>
+                        
+                        <h5>Term of the Agreement</h5>
+                        <p>11.1. The electronic agreement is considered concluded from the moment the person who sent the proposal to conclude such an agreement receives a response about accepting this proposal in the manner determined by part six of Article 11 of the Law of Ukraine "On Electronic Commerce".</p>
+                        <p>11.2. Until the expiration of the term, this Agreement may be terminated by mutual agreement of the parties until the moment of actual delivery of the goods by returning the funds</p>
+                        <p>11.3. The parties have the right to terminate this agreement unilaterally, in case of non-performance by one of the parties of the terms of this Agreement and in cases provided for by the current legislation of Ukraine.</p>
+                        
+                        <p>We draw your attention to the fact that the Internet store «GuitarStrings.com.ua» on the official website https://guitarstrings.com.ua has the right, in accordance with the legislation of Ukraine, to provide the right to use the Internet platform to FOP and legal entities for the sale of goods.</p>
+                    </div>
                 </div>
             </div>
         </div>
