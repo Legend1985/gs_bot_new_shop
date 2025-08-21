@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GuitarStrings.com.ua - GitHub Pages Version</title>
+    
+    <!-- Стили -->
+    <link rel="stylesheet" href="style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Скрипты -->
+    <script src="translations.js?v=10.60"></script>
+    <script src="app_github_pages.js?v=1.0"></script>
+    
+    <!-- Предварительная загрузка фоновых изображений -->
+    <link rel="preload" href="images/Contacts_image/background.jpg" as="image" type="image/jpeg">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="images/favicon_v016/favicon.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="images/favicon_v016/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="images/favicon_v016/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="images/favicon_v016/favicon-16x16.png">
+    <link rel="manifest" href="images/favicon_v016/site.webmanifest">
+</head>
+<body>
+    <!-- Telegram Web App -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <!-- Основной контент -->
+    <div class="container">
+        <!-- Заголовок -->
+        <header class="header">
+            <div class="header-top">
+                <div class="logo">
+                    <h1>GuitarStrings.com.ua</h1>
+                </div>
+                <div class="header-actions">
+                    <div class="online-status online">
+                        <span class="status-dot"></span>
+                        <span data-translate="onlineStatus">Онлайн</span>
+                    </div>
+                    <div class="profile-section">
+                        <div class="profile-pic" onclick="toggleAvatarMenu()">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="avatar-dropdown">
+                            <div class="dropdown-item">
+                                <i class="fas fa-user"></i>
+                                <span data-translate="profile">Профиль</span>
+                            </div>
+                            <div class="dropdown-item" onclick="showSettingsPopup()">
+                                <i class="fas fa-cog"></i>
+                                <span data-translate="settings">Настройки</span>
+                            </div>
+                            <div class="dropdown-item">
+                                <i class="fas fa-sign-out-alt"></i>
+                                <span data-translate="logout">Выйти</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="header-bottom">
+                <div class="search-section">
+                    <div class="search-container">
+                        <input type="text" class="search-input" data-translate-placeholder="searchPlaceholder" placeholder="Поиск товаров...">
+                        <button class="search-btn">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="header-buttons">
+                    <button class="menu-btn" onclick="showMenuPopup()">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <button class="cart-btn" onclick="showCartPopup()">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span class="cart-badge" style="display: none;">0</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Основной контент -->
+        <main class="main-content">
+            <div class="inner">
+                <!-- Товары будут загружены здесь -->
+            </div>
+        </main>
+
+        <!-- Нижняя панель навигации -->
+        <nav class="bottom-nav">
+            <div class="nav-item active" onclick="showMenuPopup()">
+                <i class="fas fa-bars"></i>
+                <span data-translate="menu">Меню</span>
+            </div>
+            <div class="nav-item" onclick="showCartPopup()">
+                <i class="fas fa-shopping-cart"></i>
+                <span data-translate="cart">Корзина</span>
+            </div>
+            <div class="nav-item" onclick="showContactsPopup()">
+                <i class="fas fa-phone"></i>
+                <span data-translate="contacts">Контакты</span>
+            </div>
+            <div class="nav-item" onclick="showOfferPopup()">
+                <i class="fas fa-file-contract"></i>
+                <span data-translate="offer">Оферта</span>
+            </div>
+            <div class="nav-item" onclick="showMenuPopup()">
+                <i class="fas fa-bars"></i>
+                <span data-translate="menu">Меню</span>
+            </div>
+        </nav>
+    </div>
+
+    <!-- Попап меню -->
+    <div id="menuPopup" class="popup-overlay">
+        <div class="popup-content menu-popup">
+            <button class="close-btn" onclick="closePopup('menuPopup')">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="menu-grid">
+                <div class="menu-item" onclick="showCategoryPopup()">
+                    <img src="images/Menu_images/bass_strings_category_0x170.png" alt="Струны для Бас гитары">
+                    <span data-translate="bassStrings">Струны для Бас гитары</span>
+                </div>
+                <div class="menu-item" onclick="showCategoryPopup()">
+                    <img src="images/Menu_images/ernie_ball_1010-350_0x170.png" alt="Струны для Электрогитары">
+                    <span data-translate="electricStrings">Струны для Электрогитары</span>
+                </div>
+                <div class="menu-item" onclick="showCategoryPopup()">
+                    <img src="images/Menu_images/aquila_106u_0x170.png" alt="Струны для Классической гитары">
+                    <span data-translate="classicStrings">Струны для Классической гитары</span>
+                </div>
+                <div class="menu-item" onclick="showCategoryPopup()">
+                    <img src="images/Menu_images/elixir_12052_box_open_0x170.png" alt="Струны для Акустической гитары">
+                    <span data-translate="acousticStrings">Струны для Акустической гитары</span>
+                </div>
+                <div class="menu-item" onclick="showCategoryPopup()">
+                    <img src="images/Menu_images/picks_0x90_0x170.png" alt="Медиаторы">
+                    <span data-translate="picks">Медиаторы</span>
+                </div>
+                <div class="menu-item" onclick="showCategoryPopup()">
+                    <img src="images/Menu_images/acs_0x90_0x170.png" alt="Аксессуары">
+                    <span data-translate="accessories">Аксессуары</span>
+                </div>
+                <div class="menu-item" onclick="showCategoryPopup()">
+                    <img src="images/Menu_images/hend_tambourine_0x170.png" alt="Перкуссия">
+                    <span data-translate="percussion">Перкуссия</span>
+                </div>
+                <div class="menu-item" onclick="showCategoryPopup()">
+                    <img src="images/Menu_images/mitchell_mu40c_350_0x170.png" alt="Укулеле">
+                    <span data-translate="ukulele">Укулеле</span>
+                </div>
+                <div class="menu-item" onclick="showCategoryPopup()">
+                    <img src="images/Menu_images/drumstricks_category_0x170.png" alt="Барабанные палочки Vic Firth">
+                    <span data-translate="drumsticks">Барабанные палочки Vic Firth</span>
+                </div>
+                <div class="menu-item" onclick="showCategoryPopup()">
+                    <img src="images/Menu_images/bazooka_0x170.png" alt="Jelly Belly, BeanBoozled">
+                    <span data-translate="jellyBelly">Jelly Belly, BeanBoozled</span>
+                </div>
+                <div class="menu-item" onclick="showCategoryPopup()">
+                    <img src="images/Menu_images/strings_preorder_0x170.png" alt="Под Заказ">
+                    <span data-translate="preorder">Под Заказ</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Попап корзины -->
+    <div id="cartPopup" class="popup-overlay">
+        <div class="popup-content cart-popup">
+            <button class="close-btn cart-close-btn" onclick="closeCartPopup()">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="cart-header">
+                <h3 data-translate="cart">Корзина</h3>
+            </div>
+            
+            <div id="cartItems" class="cart-items">
+                <!-- Товары корзины будут отображены здесь -->
+            </div>
+            
+            <div class="cart-summary">
+                <div class="info-row">
+                    <span data-translate="subtotal">Промежуточный итог:</span>
+                    <span id="cartSubtotal">0 грн</span>
+                </div>
+                <div class="info-row" style="display: none;">
+                    <span data-translate="discount">Сумма скидки:</span>
+                    <span id="cartDiscount">-0 грн</span>
+                </div>
+                <div class="info-row">
+                    <span data-translate="total">Итого:</span>
+                    <span id="cartTotalPrice">0 грн</span>
+                </div>
+            </div>
+            
+            <div class="cart-actions">
+                <button class="btn pay-btn" onclick="processPayment()">
+                    <span data-translate="pay">ОПЛАТИТЬ</span>
+                    <span id="cartPayAmount">0 грн</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Попап контактов -->
+    <div id="contactsPopup" class="popup-overlay contacts-popup">
+        <div class="popup-content contacts-content">
+            <button class="close-btn" onclick="closeContactsPopup()">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="contacts-header">
+                <h3 data-translate="contacts">Контакты</h3>
+            </div>
+            <div class="contacts-info">
+                <div class="contact-item">
+                    <i class="fas fa-clock"></i>
+                    <span data-translate="workingHours">Режим работы с 9:00 до 19:00 Пн.-Вс.</span>
+                </div>
+                <div class="contact-item">
+                    <i class="fas fa-phone"></i>
+                    <span>Life +38 (063) 33-444-08</span>
+                </div>
+                <div class="contact-item">
+                    <i class="fas fa-phone"></i>
+                    <span>Киевстар +38 (096) 607-83-82</span>
+                </div>
+                <div class="contact-item">
+                    <i class="fas fa-phone"></i>
+                    <span>Vodafone +38 (095) 517-56-66</span>
+                </div>
+                <div class="contact-item">
+                    <i class="fab fa-telegram"></i>
+                    <span>Telegram: @GuitarStringsUSA</span>
+                </div>
+                <div class="contact-item">
+                    <i class="fas fa-envelope"></i>
+                    <span>Email: sales@guitarstrings.com.ua</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Попап оферты -->
+    <div id="offerPopup" class="popup-overlay offer-popup">
+        <div class="popup-content offer-content">
+            <button class="close-btn" onclick="closeOfferPopup()">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="offer-header">
+                <h3 data-translate="offer">Оферта</h3>
+            </div>
+            <div class="offer-text">
+                <div class="offer-content-uk active">
+                    <h4>Договір публічної оферти</h4>
+                    <p>Цей документ є публічною офертою (пропозицією) на укладення договору купівлі-продажу товарів, представлених на сайті.</p>
+                    <p>1. Загальні положення</p>
+                    <p>1.1. Цей документ є публічною офертою і містить всі істотні умови договору.</p>
+                    <p>1.2. Акцептом (прийняттям) оферти є повна оплата замовлення Покупцем.</p>
+                    <p>2. Предмет договору</p>
+                    <p>2.1. Продавець зобов'язується передати у власність Покупця Товар, а Покупець зобов'язується сплатити та прийняти Товар на умовах цього Договору.</p>
+                </div>
+                <div class="offer-content-ru">
+                    <h4>Договор публичной оферты</h4>
+                    <p>Этот документ является публичной офертой (предложением) на заключение договора купли-продажи товаров, представленных на сайте.</p>
+                    <p>1. Общие положения</p>
+                    <p>1.1. Этот документ является публичной офертой и содержит все существенные условия договора.</p>
+                    <p>1.2. Акцептом (принятием) оферты является полная оплата заказа Покупателем.</p>
+                    <p>2. Предмет договора</p>
+                    <p>2.1. Продавец обязуется передать в собственность Покупателя Товар, а Покупатель обязуется оплатить и принять Товар на условиях настоящего Договора.</p>
+                </div>
+                <div class="offer-content-en">
+                    <h4>Public Offer Agreement</h4>
+                    <p>This document is a public offer (proposal) for the conclusion of a contract for the sale and purchase of goods presented on the site.</p>
+                    <p>1. General Provisions</p>
+                    <p>1.1. This document is a public offer and contains all the essential terms of the contract.</p>
+                    <p>1.2. Acceptance of the offer is the full payment of the order by the Buyer.</p>
+                    <p>2. Subject of the Agreement</p>
+                    <p>2.1. The Seller undertakes to transfer the Goods to the Buyer's ownership, and the Buyer undertakes to pay and accept the Goods on the terms of this Agreement.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Попап настроек -->
+    <div id="settingsPopup" class="popup-overlay">
+        <div class="popup-content settings-popup">
+            <button class="close-btn" onclick="closeSettingsPopup()">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="settings-header">
+                <h3 data-translate="settings">Настройки</h3>
+            </div>
+            <div class="settings-content">
+                <div class="setting-group">
+                    <h4 data-translate="notifications">Уведомления</h4>
+                    <label class="setting-item">
+                        <input type="checkbox" checked>
+                        <span data-translate="emailNotifications">Email уведомления</span>
+                    </label>
+                    <label class="setting-item">
+                        <input type="checkbox" checked>
+                        <span data-translate="pushNotifications">Push уведомления</span>
+                    </label>
+                </div>
+                
+                <div class="setting-group">
+                    <h4 data-translate="theme">Тема</h4>
+                    <div class="theme-options">
+                        <label class="setting-item">
+                            <input type="radio" name="theme" value="light" checked>
+                            <span data-translate="lightTheme">Светлая</span>
+                        </label>
+                        <label class="setting-item">
+                            <input type="radio" name="theme" value="dark">
+                            <span data-translate="darkTheme">Темная</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <h4 data-translate="language">Язык</h4>
+                    <div class="language-options">
+                        <button class="lang-btn" data-lang="uk">UKR</button>
+                        <button class="lang-btn" data-lang="ru">RUS</button>
+                        <button class="lang-btn" data-lang="en">ENG</button>
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <h4 data-translate="additional">Дополнительно</h4>
+                    <label class="setting-item">
+                        <input type="checkbox">
+                        <span data-translate="autoSave">Автосохранение</span>
+                    </label>
+                    <label class="setting-item">
+                        <input type="checkbox" checked>
+                        <span data-translate="analytics">Аналитика</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Попапы для статусов товаров -->
+    <div id="discontinuedPopup" class="popup-overlay">
+        <div class="popup-content status-popup">
+            <div class="status-content">
+                <img src="images/Discontinued.jpg" alt="Товар снят с производства" class="status-image">
+                <h3 data-translate="discontinuedTitle">Товар снят с производства</h3>
+                <p data-translate="discontinuedText">Данный товар больше не производится и недоступен для заказа.</p>
+                <p data-translate="discontinuedRecommendation">Рекомендуем обратить внимание на аналогичные товары в нашем каталоге.</p>
+                <button class="btn" onclick="closePopup('discontinuedPopup')" data-translate="understand">Понятно</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="outOfStockPopup" class="popup-overlay">
+        <div class="popup-content status-popup">
+            <div class="status-content">
+                <img src="images/Discontinued.jpg" alt="Товар отсутствует" class="status-image">
+                <h3 data-translate="outOfStockTitle">Товар отсутствует</h3>
+                <p data-translate="outOfStockText">К сожалению, данный товар временно отсутствует на складе.</p>
+                <p data-translate="outOfStockContact">Оставьте заявку менеджеру в Telegram @GuitarStringsUSA для уточнения сроков поступления.</p>
+                <button class="btn" onclick="closePopup('outOfStockPopup')" data-translate="understand">Понятно</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="expectedPopup" class="popup-overlay">
+        <div class="popup-content status-popup">
+            <div class="status-content">
+                <img src="images/Discontinued.jpg" alt="Товар ожидается" class="status-image">
+                <h3 data-translate="expectedTitle">Товар ожидается</h3>
+                <p data-translate="expectedText">Товар ожидается в ближайшее время. Оставьте заявку на этот товар менеджеру в Telegram @GuitarStringsUSA.</p>
+                <p data-translate="expectedDetails">Укажите какое количество товаров и наименования вам необходимы, после чего менеджер забронирует для вас товары из новой поставки и когда товары прибудут в Одессу свяжется с вами.</p>
+                <button class="btn" onclick="closePopup('expectedPopup')" data-translate="understand">Понятно</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="onOrderPopup" class="popup-overlay">
+        <div class="popup-content status-popup">
+            <div class="status-content">
+                <img src="images/Discontinued.jpg" alt="Товар под заказ" class="status-image">
+                <h3 data-translate="onOrderTitle">Товар под заказ</h3>
+                <p data-translate="onOrderText">Данный товар доступен под заказ. Свяжитесь с менеджером в Telegram @GuitarStringsUSA для оформления заказа.</p>
+                <p data-translate="onOrderDetails">Укажите необходимое количество и менеджер сообщит сроки поставки и стоимость доставки.</p>
+                <button class="btn" onclick="closePopup('onOrderPopup')" data-translate="understand">Понятно</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Попап категорий -->
+    <div id="categoryPopup" class="popup-overlay">
+        <div class="popup-content category-popup">
+            <button class="close-btn" onclick="closeCategoryPopup()">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="category-header">
+                <h3 data-translate="categories">Категории</h3>
+            </div>
+            <div class="category-content">
+                <p data-translate="categoryInfo">Выберите категорию товаров для просмотра</p>
+                <div class="category-buttons">
+                    <button class="btn category-btn" onclick="loadCategory('electric')" data-translate="electricStrings">Струны для Электрогитары</button>
+                    <button class="btn category-btn" onclick="loadCategory('acoustic')" data-translate="acousticStrings">Струны для Акустической гитары</button>
+                    <button class="btn category-btn" onclick="loadCategory('classic')" data-translate="classicStrings">Струны для Классической гитары</button>
+                    <button class="btn category-btn" onclick="loadCategory('bass')" data-translate="bassStrings">Струны для Бас гитары</button>
+                    <button class="btn category-btn" onclick="loadCategory('picks')" data-translate="picks">Медиаторы</button>
+                    <button class="btn category-btn" onclick="loadCategory('accessories')" data-translate="accessories">Аксессуары</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Попап поиска -->
+    <div id="searchPopup" class="popup-overlay">
+        <div class="popup-content search-popup">
+            <button class="close-btn" onclick="closeSearchPopup()">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="search-header">
+                <h3 data-translate="search">Поиск</h3>
+            </div>
+            <div class="search-content">
+                <div class="search-input-container">
+                    <input type="text" class="search-input-large" data-translate-placeholder="searchPlaceholder" placeholder="Введите название товара...">
+                    <button class="search-btn-large">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+                <div class="search-suggestions">
+                    <p data-translate="searchSuggestions">Популярные запросы:</p>
+                    <div class="suggestion-tags">
+                        <span class="suggestion-tag" onclick="searchByTag('DAddario')">DAddario</span>
+                        <span class="suggestion-tag" onclick="searchByTag('Elixir')">Elixir</span>
+                        <span class="suggestion-tag" onclick="searchByTag('Ernie Ball')">Ernie Ball</span>
+                        <span class="suggestion-tag" onclick="searchByTag('GHS')">GHS</span>
+                        <span class="suggestion-tag" onclick="searchByTag('Pyramid')">Pyramid</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Попап поддержки -->
+    <div id="supportPopup" class="popup-overlay">
+        <div class="popup-content support-popup">
+            <button class="close-btn" onclick="closeSupportPopup()">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="support-header">
+                <h3 data-translate="support">Поддержка</h3>
+            </div>
+            <div class="support-content">
+                <div class="support-item">
+                    <i class="fas fa-phone"></i>
+                    <div class="support-info">
+                        <h4 data-translate="phoneSupport">Телефонная поддержка</h4>
+                        <p>+38 (063) 33-444-08</p>
+                        <p data-translate="phoneHours">Пн.-Вс. 9:00-19:00</p>
+                    </div>
+                </div>
+                <div class="support-item">
+                    <i class="fab fa-telegram"></i>
+                    <div class="support-info">
+                        <h4 data-translate="telegramSupport">Telegram поддержка</h4>
+                        <p>@GuitarStringsUSA</p>
+                        <p data-translate="telegramAvailable">Доступно 24/7</p>
+                    </div>
+                </div>
+                <div class="support-item">
+                    <i class="fas fa-envelope"></i>
+                    <div class="support-info">
+                        <h4 data-translate="emailSupport">Email поддержка</h4>
+                        <p>sales@guitarstrings.com.ua</p>
+                        <p data-translate="emailResponse">Ответ в течение 24 часов</p>
+                    </div>
+                </div>
+                <div class="support-actions">
+                    <button class="btn support-btn" onclick="openTelegramChat()">
+                        <i class="fab fa-telegram"></i>
+                        <span data-translate="openChat">Открыть чат</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Скрипт для инициализации -->
+    <script>
+        // Инициализация Telegram Web App
+        if (window.Telegram && window.Telegram.WebApp) {
+            window.Telegram.WebApp.ready();
+            window.Telegram.WebApp.expand();
+        }
+        
+        // Функция для загрузки категории
+        function loadCategory(category) {
+            console.log('Загружаем категорию:', category);
+            closeCategoryPopup();
+            // Здесь можно добавить логику загрузки товаров по категории
+        }
+        
+        // Функция для поиска по тегу
+        function searchByTag(tag) {
+            console.log('Поиск по тегу:', tag);
+            const searchInput = document.querySelector('.search-input');
+            if (searchInput) {
+                searchInput.value = tag;
+                searchInput.dispatchEvent(new Event('input'));
+            }
+            closeSearchPopup();
+        }
+        
+        // Функция для обработки платежа
+        function processPayment() {
+            alert('Функция оплаты в разработке');
+        }
+        
+        // Функция для открытия чата в Telegram
+        function openTelegramChat() {
+            window.open('https://t.me/GuitarStringsUSA', '_blank');
+        }
+    </script>
+</body>
+</html>

@@ -2790,4 +2790,23 @@ async function fetchAllProducts(totalProducts) {
 - Обновлена версия скрипта до 12.66 для принудительного обновления кэша браузера
 
 **Файлы:** `index.html`, `app.js` (версия 12.66)
+
+### 71. Создание версии для GitHub Pages (версия 1.0)
+- Создана статическая версия сайта для работы на GitHub Pages без сервера
+- Новые файлы:
+  - `app_github_pages.js` - JavaScript для работы со статическими данными
+  - `index_github_pages.html` - HTML версия для GitHub Pages
+  - `static_products.json` - статический файл с данными товаров
+  - `create_static_data.py` - скрипт для генерации статических данных
+- Особенности версии для GitHub Pages:
+  - Товары загружаются из статического JSON файла
+  - Поиск работает локально без API запросов
+  - Все функции (корзина, контакты, оферта) работают статически
+  - Быстрая загрузка без ожидания сервера
+- Решение проблемы медленной загрузки товаров на GitHub Pages
+- Теперь доступны две версии:
+  - Локальная: `http://localhost:8000` (с полным API)
+  - GitHub Pages: `https://legend1985.github.io/gs_bot_new_shop/` (статическая)
+
+**Файлы:** `app_github_pages.js`, `index_github_pages.html`, `static_products.json`, `create_static_data.py` (версия 1.0)
 **Дата:** 2024-12-21
