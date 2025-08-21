@@ -1932,124 +1932,174 @@ function filterProductsByCategory(category) {
         let filteredProducts = [];
         
         switch (category) {
-            // Производители
+            // Производители - улучшенная логика поиска
             case 'cleartone':
                 filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('cleartone'));
+                    product.name.toLowerCase().includes('cleartone') || 
+                    product.name.toLowerCase().includes('клеартон'));
                 break;
             case 'curt-mangan':
                 filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('curt mangan'));
+                    product.name.toLowerCase().includes('curt mangan') || 
+                    product.name.toLowerCase().includes('керт манган'));
                 break;
             case 'daddario':
                 filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('d\'addario'));
+                    product.name.toLowerCase().includes('d\'addario') || 
+                    product.name.toLowerCase().includes('даддарио') ||
+                    product.name.toLowerCase().includes('daddario'));
                 break;
             case 'dean-markley':
                 filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('dean markley'));
+                    product.name.toLowerCase().includes('dean markley') || 
+                    product.name.toLowerCase().includes('дин марклей'));
                 break;
             case 'dr':
                 filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('dr'));
+                    product.name.toLowerCase().includes('dr ') || 
+                    product.name.toLowerCase().includes('dr.') ||
+                    product.name.toLowerCase().includes('dr-'));
                 break;
             case 'dunlop':
                 filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('dunlop'));
+                    product.name.toLowerCase().includes('dunlop') || 
+                    product.name.toLowerCase().includes('данлоп'));
                 break;
             case 'elixir':
                 filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('elixir'));
+                    product.name.toLowerCase().includes('elixir') || 
+                    product.name.toLowerCase().includes('еліксир'));
                 break;
             case 'ernie-ball':
                 filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('ernie ball'));
+                    product.name.toLowerCase().includes('ernie ball') || 
+                    product.name.toLowerCase().includes('ерні бол'));
                 break;
             case 'fender':
                 filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('fender'));
+                    product.name.toLowerCase().includes('fender') || 
+                    product.name.toLowerCase().includes('фендер'));
                 break;
             case 'ghs':
                 filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('ghs'));
+                    product.name.toLowerCase().includes('ghs') || 
+                    product.name.toLowerCase().includes('гхс'));
                 break;
             case 'gibson':
                 filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('gibson'));
+                    product.name.toLowerCase().includes('gibson') || 
+                    product.name.toLowerCase().includes('гібсон'));
                 break;
             case 'la-bella':
                 filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('la bella'));
+                    product.name.toLowerCase().includes('la bella') || 
+                    product.name.toLowerCase().includes('ла белла'));
                 break;
             case 'musicians-gear':
                 filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('musician'));
+                    product.name.toLowerCase().includes('musician') || 
+                    product.name.toLowerCase().includes('музикант'));
                 break;
             case 'pyramid':
                 filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('pyramid'));
+                    product.name.toLowerCase().includes('pyramid') || 
+                    product.name.toLowerCase().includes('пірамід'));
                 break;
             case 'rotosound':
                 filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('rotosound'));
+                    product.name.toLowerCase().includes('rotosound') || 
+                    product.name.toLowerCase().includes('ротосаунд'));
                 break;
             case 'optima':
                 filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('optima'));
+                    product.name.toLowerCase().includes('optima') || 
+                    product.name.toLowerCase().includes('оптима'));
                 break;
             case 'orphee':
                 filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('orphee'));
+                    product.name.toLowerCase().includes('orphee') || 
+                    product.name.toLowerCase().includes('орфей'));
                 break;
             
-            // Характеристики
+            // Характеристики - улучшенная логика поиска
             case '7-string':
                 filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('7') || product.name.toLowerCase().includes('7-string'));
+                    product.name.toLowerCase().includes('7-string') || 
+                    product.name.toLowerCase().includes('7 струн') ||
+                    product.name.toLowerCase().includes('7-струн') ||
+                    product.name.toLowerCase().includes('7 string'));
                 break;
             case '8-string':
                 filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('8') || product.name.toLowerCase().includes('8-string'));
+                    product.name.toLowerCase().includes('8-string') || 
+                    product.name.toLowerCase().includes('8 струн') ||
+                    product.name.toLowerCase().includes('8-струн') ||
+                    product.name.toLowerCase().includes('8 string'));
                 break;
             case '9-string':
                 filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('9') || product.name.toLowerCase().includes('9-string'));
+                    product.name.toLowerCase().includes('9-string') || 
+                    product.name.toLowerCase().includes('9 струн') ||
+                    product.name.toLowerCase().includes('9-струн') ||
+                    product.name.toLowerCase().includes('9 string'));
                 break;
             case 'flatwound':
                 filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('flat') || product.name.toLowerCase().includes('плоск'));
+                    product.name.toLowerCase().includes('flatwound') || 
+                    product.name.toLowerCase().includes('плоская обмотка') ||
+                    product.name.toLowerCase().includes('плоска обмотка') ||
+                    product.name.toLowerCase().includes('flat wound'));
                 break;
             case '09-gauge':
                 filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('09') || product.name.toLowerCase().includes('9-'));
+                    product.name.toLowerCase().includes('09') || 
+                    product.name.toLowerCase().includes('9-') ||
+                    product.name.toLowerCase().includes('9 gauge') ||
+                    product.name.toLowerCase().includes('9 калибр'));
                 break;
             case '10-gauge':
                 filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('10'));
+                    product.name.toLowerCase().includes('10') || 
+                    product.name.toLowerCase().includes('10 gauge') ||
+                    product.name.toLowerCase().includes('10 калибр'));
                 break;
             case '11-gauge':
                 filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('11'));
+                    product.name.toLowerCase().includes('11') || 
+                    product.name.toLowerCase().includes('11 gauge') ||
+                    product.name.toLowerCase().includes('11 калибр'));
                 break;
             case 'nickel-plated':
                 filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('nickel') || product.name.toLowerCase().includes('нікель'));
+                    product.name.toLowerCase().includes('nickel plated') || 
+                    product.name.toLowerCase().includes('нікель') ||
+                    product.name.toLowerCase().includes('никель') ||
+                    product.name.toLowerCase().includes('nickel-plated'));
                 break;
             case 'pure-nickel':
                 filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('pure nickel'));
+                    product.name.toLowerCase().includes('pure nickel') || 
+                    product.name.toLowerCase().includes('чистый никель') ||
+                    product.name.toLowerCase().includes('чистий нікель'));
                 break;
             case 'stainless-steel':
                 filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('stainless') || product.name.toLowerCase().includes('нержав'));
+                    product.name.toLowerCase().includes('stainless steel') || 
+                    product.name.toLowerCase().includes('нержавеющая сталь') ||
+                    product.name.toLowerCase().includes('нержавіюча сталь') ||
+                    product.name.toLowerCase().includes('stainless-steel'));
                 break;
             case 'cobalt':
                 filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('cobalt'));
+                    product.name.toLowerCase().includes('cobalt') || 
+                    product.name.toLowerCase().includes('кобальт'));
                 break;
             case 'colored':
                 filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('color') || product.name.toLowerCase().includes('кольор'));
+                    product.name.toLowerCase().includes('colored') || 
+                    product.name.toLowerCase().includes('цветные') ||
+                    product.name.toLowerCase().includes('кольорові') ||
+                    product.name.toLowerCase().includes('color strings'));
                 break;
             
             default:
@@ -2066,13 +2116,24 @@ function filterProductsByCategory(category) {
             // Показываем сообщение об отсутствии товаров
             const container = document.querySelector('.inner');
             if (container) {
+                // Получаем текущий язык
+                const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
+                const currentTranslations = translations[currentLanguage] || translations.uk;
+                
+                // Получаем название категории для отображения
+                let categoryDisplayName = category;
+                const categoryElement = document.querySelector(`[data-category="${category}"]`);
+                if (categoryElement) {
+                    categoryDisplayName = categoryElement.textContent;
+                }
+                
                 container.innerHTML = `
                     <div style="padding: 40px; text-align: center; grid-column: 1 / -1;">
                         <i class="fas fa-search" style="font-size: 48px; margin-bottom: 20px; opacity: 0.5; color: var(--text-light);"></i>
-                        <h3 style="color: var(--text-primary); margin-bottom: 10px;">Товары не найдены</h3>
-                        <p style="color: var(--text-light); margin-bottom: 20px;">В категории "${category}" пока нет товаров</p>
+                        <h3 style="color: var(--text-primary); margin-bottom: 10px;">${currentTranslations.noProductsFound || 'Товары не найдены'}</h3>
+                        <p style="color: var(--text-light); margin-bottom: 20px;">${currentTranslations.noProductsInCategory || 'В категории'} "${categoryDisplayName}" ${currentTranslations.noProductsInCategoryEnd || 'пока нет товаров'}</p>
                         <button class="btn" onclick="clearCategoryFilter()" style="background: var(--accent-color); color: white; border: none; padding: 12px 24px; border-radius: var(--border-radius); cursor: pointer;">
-                            <i class="fas fa-times"></i> Показать все товары
+                            <i class="fas fa-times"></i> ${currentTranslations.showAllProducts || 'Показать все товары'}
                         </button>
                     </div>
                 `;

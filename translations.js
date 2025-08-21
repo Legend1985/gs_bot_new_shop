@@ -16,6 +16,9 @@ const translations = {
         clearSearch: "Очистити пошук",
         noProductsFound: "Товари не знайдено",
         noProductsForQuery: "За запитом \"{query}\" нічого не знайдено",
+        noProductsInCategory: "В категорії",
+        noProductsInCategoryEnd: "поки немає товарів",
+        showAllProducts: "Показати всі товари",
         
         // Меню
         menu: "Меню",
@@ -286,6 +289,9 @@ const translations = {
         clearSearch: "Очистить поиск",
         noProductsFound: "Товары не найдены",
         noProductsForQuery: "По запросу \"{query}\" ничего не найдено",
+        noProductsInCategory: "В категории",
+        noProductsInCategoryEnd: "пока нет товаров",
+        showAllProducts: "Показать все товары",
         
         // Меню
         menu: "Меню",
@@ -585,6 +591,9 @@ const translations = {
         clearSearch: "Clear search",
         noProductsFound: "Products not found",
         noProductsForQuery: "Nothing found for query \"{query}\"",
+        noProductsInCategory: "In category",
+        noProductsInCategoryEnd: "no products yet",
+        showAllProducts: "Show all products",
         
         // Menu
         menu: "Menu",
