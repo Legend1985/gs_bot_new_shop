@@ -162,8 +162,14 @@ const translations = {
             fullNamePlaceholder: "Введіть прізвище та ім'я",
         settlementPlaceholder: "Введіть населений пункт",
         branchNumberPlaceholder: "Введіть номер відділення",
-    loadingGoods: "Завантажуємо товари...",
-    cartEmpty: "Кошик порожній",
+            loadingGoods: "Завантажуємо товари...",
+        
+        // Главний банер та категорії
+        bannerTitle: "Electric Guitar Strings",
+        manufacturers: "Виробники",
+        characteristics: "Характеристики",
+        
+        cartEmpty: "Кошик порожній",
         cartItemName: "Назва товару",
         cartItemImage: "Зображення товару",
         cartItemDetails: "Деталі товару",
@@ -394,6 +400,11 @@ const translations = {
         settlementPlaceholder: "Введите населённый пункт",
         branchNumberPlaceholder: "Введите номер отделения",
         loadingGoods: "Загружаем товары...",
+        
+        // Главный баннер и категории
+        bannerTitle: "Electric Guitar Strings",
+        manufacturers: "Производители",
+        characteristics: "Характеристики",
         
         // Оферта
         offer: "Оферта",
@@ -655,6 +666,11 @@ const translations = {
         settlementPlaceholder: "Enter settlement",
         branchNumberPlaceholder: "Enter branch number",
         loadingGoods: "Loading goods...",
+        
+        // Main banner and categories
+        bannerTitle: "Electric Guitar Strings",
+        manufacturers: "Manufacturers",
+        characteristics: "Characteristics",
         
         // Оферта
         offer: "Offer",

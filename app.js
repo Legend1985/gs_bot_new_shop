@@ -959,7 +959,7 @@ async function loadProducts(page = 0, append = false) {
         return;
     }
     
-    console.log('loadProducts: Загружаем товары, страница:', page, 'добавляем:', append);
+    // console.log('loadProducts: Загружаем товары, страница:', page, 'добавляем:', append);
     
     isLoading = true;
     
@@ -1004,7 +1004,7 @@ async function loadProducts(page = 0, append = false) {
         const data = await response.json();
         
         if (data && data.products && data.products.length > 0) {
-            console.log('loadProducts: Загружено', data.products.length, 'товаров');
+            // console.log('loadProducts: Загружено', data.products.length, 'товаров');
             
             if (append) {
                 // Добавляем товары к существующим
@@ -1023,9 +1023,9 @@ async function loadProducts(page = 0, append = false) {
                 hasMoreProducts = false;
             }
             
-            console.log('loadProducts: Обновлен currentPage на:', currentPage);
+            // console.log('loadProducts: Обновлен currentPage на:', currentPage);
             
-            console.log('loadProducts: hasMoreProducts:', hasMoreProducts);
+            // console.log('loadProducts: hasMoreProducts:', hasMoreProducts);
         } else {
             console.log('loadProducts: Нет товаров для отображения');
             hasMoreProducts = false;
@@ -1834,9 +1834,21 @@ function setupEventHandlers() {
            });
        }
        
-               // Обработчик кликов по кнопкам нижней панели меню
-        const navItems = document.querySelectorAll('.nav-item');
-        console.log('setupEventHandlers: Найдены nav-items:', navItems.length);
+                       // Обработчик кликов по кнопкам нижней панели меню
+         const navItems = document.querySelectorAll('.nav-item');
+         console.log('setupEventHandlers: Найдены nav-items:', navItems.length);
+         
+         // Обработчик кликов по категориям
+         const categoryItems = document.querySelectorAll('.category-item');
+         console.log('setupEventHandlers: Найдены category-items:', categoryItems.length);
+         
+         categoryItems.forEach(categoryItem => {
+             categoryItem.addEventListener('click', function() {
+                 const category = this.getAttribute('data-category');
+                 console.log('setupEventHandlers: Клик по категории:', category);
+                 filterProductsByCategory(category);
+             });
+         });
         
         if (navItems.length > 0) {
             // Устанавливаем первую кнопку как активную по умолчанию
@@ -1900,6 +1912,193 @@ window.showDiscontinuedPopup = showDiscontinuedPopup;
 window.showOutOfStockPopup = showOutOfStockPopup;
 window.showExpectedPopup = showExpectedPopup;
 window.showOnOrderPopup = showOnOrderPopup;
+
+// Функция фильтрации товаров по категории
+function filterProductsByCategory(category) {
+    console.log('filterProductsByCategory: Фильтруем товары по категории:', category);
+    
+    // Убираем активный класс со всех категорий
+    const allCategoryItems = document.querySelectorAll('.category-item');
+    allCategoryItems.forEach(item => item.classList.remove('active'));
+    
+    // Добавляем активный класс к выбранной категории
+    const selectedCategory = document.querySelector(`[data-category="${category}"]`);
+    if (selectedCategory) {
+        selectedCategory.classList.add('active');
+    }
+    
+    // Фильтруем товары в зависимости от категории
+    if (window.currentProducts && window.currentProducts.length > 0) {
+        let filteredProducts = [];
+        
+        switch (category) {
+            // Производители
+            case 'cleartone':
+                filteredProducts = window.currentProducts.filter(product => 
+                    product.name.toLowerCase().includes('cleartone'));
+                break;
+            case 'curt-mangan':
+                filteredProducts = window.currentProducts.filter(product => 
+                    product.name.toLowerCase().includes('curt mangan'));
+                break;
+            case 'daddario':
+                filteredProducts = window.currentProducts.filter(product => 
+                    product.name.toLowerCase().includes('d\'addario'));
+                break;
+            case 'dean-markley':
+                filteredProducts = window.currentProducts.filter(product => 
+                    product.name.toLowerCase().includes('dean markley'));
+                break;
+            case 'dr':
+                filteredProducts = window.currentProducts.filter(product => 
+                    product.name.toLowerCase().includes('dr'));
+                break;
+            case 'dunlop':
+                filteredProducts = window.currentProducts.filter(product => 
+                    product.name.toLowerCase().includes('dunlop'));
+                break;
+            case 'elixir':
+                filteredProducts = window.currentProducts.filter(product => 
+                    product.name.toLowerCase().includes('elixir'));
+                break;
+            case 'ernie-ball':
+                filteredProducts = window.currentProducts.filter(product => 
+                    product.name.toLowerCase().includes('ernie ball'));
+                break;
+            case 'fender':
+                filteredProducts = window.currentProducts.filter(product => 
+                    product.name.toLowerCase().includes('fender'));
+                break;
+            case 'ghs':
+                filteredProducts = window.currentProducts.filter(product => 
+                    product.name.toLowerCase().includes('ghs'));
+                break;
+            case 'gibson':
+                filteredProducts = window.currentProducts.filter(product => 
+                    product.name.toLowerCase().includes('gibson'));
+                break;
+            case 'la-bella':
+                filteredProducts = window.currentProducts.filter(product => 
+                    product.name.toLowerCase().includes('la bella'));
+                break;
+            case 'musicians-gear':
+                filteredProducts = window.currentProducts.filter(product => 
+                    product.name.toLowerCase().includes('musician'));
+                break;
+            case 'pyramid':
+                filteredProducts = window.currentProducts.filter(product => 
+                    product.name.toLowerCase().includes('pyramid'));
+                break;
+            case 'rotosound':
+                filteredProducts = window.currentProducts.filter(product => 
+                    product.name.toLowerCase().includes('rotosound'));
+                break;
+            case 'optima':
+                filteredProducts = window.currentProducts.filter(product => 
+                    product.name.toLowerCase().includes('optima'));
+                break;
+            case 'orphee':
+                filteredProducts = window.currentProducts.filter(product => 
+                    product.name.toLowerCase().includes('orphee'));
+                break;
+            
+            // Характеристики
+            case '7-string':
+                filteredProducts = window.currentProducts.filter(product => 
+                    product.name.toLowerCase().includes('7') || product.name.toLowerCase().includes('7-string'));
+                break;
+            case '8-string':
+                filteredProducts = window.currentProducts.filter(product => 
+                    product.name.toLowerCase().includes('8') || product.name.toLowerCase().includes('8-string'));
+                break;
+            case '9-string':
+                filteredProducts = window.currentProducts.filter(product => 
+                    product.name.toLowerCase().includes('9') || product.name.toLowerCase().includes('9-string'));
+                break;
+            case 'flatwound':
+                filteredProducts = window.currentProducts.filter(product => 
+                    product.name.toLowerCase().includes('flat') || product.name.toLowerCase().includes('плоск'));
+                break;
+            case '09-gauge':
+                filteredProducts = window.currentProducts.filter(product => 
+                    product.name.toLowerCase().includes('09') || product.name.toLowerCase().includes('9-'));
+                break;
+            case '10-gauge':
+                filteredProducts = window.currentProducts.filter(product => 
+                    product.name.toLowerCase().includes('10'));
+                break;
+            case '11-gauge':
+                filteredProducts = window.currentProducts.filter(product => 
+                    product.name.toLowerCase().includes('11'));
+                break;
+            case 'nickel-plated':
+                filteredProducts = window.currentProducts.filter(product => 
+                    product.name.toLowerCase().includes('nickel') || product.name.toLowerCase().includes('нікель'));
+                break;
+            case 'pure-nickel':
+                filteredProducts = window.currentProducts.filter(product => 
+                    product.name.toLowerCase().includes('pure nickel'));
+                break;
+            case 'stainless-steel':
+                filteredProducts = window.currentProducts.filter(product => 
+                    product.name.toLowerCase().includes('stainless') || product.name.toLowerCase().includes('нержав'));
+                break;
+            case 'cobalt':
+                filteredProducts = window.currentProducts.filter(product => 
+                    product.name.toLowerCase().includes('cobalt'));
+                break;
+            case 'colored':
+                filteredProducts = window.currentProducts.filter(product => 
+                    product.name.toLowerCase().includes('color') || product.name.toLowerCase().includes('кольор'));
+                break;
+            
+            default:
+                // Если категория не распознана, показываем все товары
+                filteredProducts = window.currentProducts;
+                break;
+        }
+        
+        // Отображаем отфильтрованные товары
+        if (filteredProducts.length > 0) {
+            displayProducts(filteredProducts);
+            console.log(`filterProductsByCategory: Найдено ${filteredProducts.length} товаров для категории "${category}"`);
+        } else {
+            // Показываем сообщение об отсутствии товаров
+            const container = document.querySelector('.inner');
+            if (container) {
+                container.innerHTML = `
+                    <div style="padding: 40px; text-align: center; grid-column: 1 / -1;">
+                        <i class="fas fa-search" style="font-size: 48px; margin-bottom: 20px; opacity: 0.5; color: var(--text-light);"></i>
+                        <h3 style="color: var(--text-primary); margin-bottom: 10px;">Товары не найдены</h3>
+                        <p style="color: var(--text-light); margin-bottom: 20px;">В категории "${category}" пока нет товаров</p>
+                        <button class="btn" onclick="clearCategoryFilter()" style="background: var(--accent-color); color: white; border: none; padding: 12px 24px; border-radius: var(--border-radius); cursor: pointer;">
+                            <i class="fas fa-times"></i> Показать все товары
+                        </button>
+                    </div>
+                `;
+            }
+            console.log(`filterProductsByCategory: В категории "${category}" товары не найдены`);
+        }
+    }
+}
+
+// Функция очистки фильтра категорий
+function clearCategoryFilter() {
+    console.log('clearCategoryFilter: Очищаем фильтр категорий');
+    
+    // Убираем активный класс со всех категорий
+    const allCategoryItems = document.querySelectorAll('.category-item');
+    allCategoryItems.forEach(item => item.classList.remove('active'));
+    
+    // Показываем все товары
+    if (window.currentProducts && window.currentProducts.length > 0) {
+        displayProducts(window.currentProducts);
+    }
+}
+
+// Делаем функции доступными глобально
+window.filterProductsByCategory = filterProductsByCategory;
+window.clearCategoryFilter = clearCategoryFilter;
 
 
 
