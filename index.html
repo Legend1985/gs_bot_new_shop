@@ -23,7 +23,7 @@
             <link rel="stylesheet" href="style.css?v=11.37">
         <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
         <script src="translations.js?v=10.60"></script>
-                          <script src="app.js?v=12.68"></script>
+                          <script src="app.js?v=12.69"></script>
         <!-- Предварительная загрузка фоновых изображений -->
     <link rel="preload" href="images/Contacts_image/background.jpg" as="image" type="image/jpeg">
 </head>
@@ -82,22 +82,11 @@
         <div class="main-banner">
             <div class="banner-content">
                 <h2 class="banner-title" data-translate="bannerTitle">Electric Guitar Strings</h2>
-                <div class="brand-logos">
-                    <div class="brand-logo">Pyramid</div>
-                    <div class="brand-logo">Elixir</div>
-                    <div class="brand-logo">D'Addario</div>
-                    <div class="brand-logo">Monster</div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Система категорий для струн электрогитары -->
-        <div class="categories-section">
-            <div class="categories-container">
+                
                 <!-- Категории по производителям -->
-                <div class="category-group">
-                    <h3 class="category-group-title" data-translate="manufacturers">Производители</h3>
-                    <div class="category-items">
+                <div class="category-section">
+                    <h3 class="category-section-title" data-translate="manufacturers">Производители</h3>
+                    <div class="category-grid">
                         <div class="category-item" data-category="cleartone">Cleartone</div>
                         <div class="category-item" data-category="curt-mangan">Curt Mangan</div>
                         <div class="category-item" data-category="daddario">D'Addario</div>
@@ -119,9 +108,9 @@
                 </div>
                 
                 <!-- Категории по характеристикам -->
-                <div class="category-group">
-                    <h3 class="category-group-title" data-translate="characteristics">Характеристики</h3>
-                    <div class="category-items">
+                <div class="category-section">
+                    <h3 class="category-section-title" data-translate="characteristics">Характеристики</h3>
+                    <div class="category-grid">
                         <div class="category-item" data-category="7-string">7 струн для электрогитары</div>
                         <div class="category-item" data-category="8-string">8 струн для электрогитары</div>
                         <div class="category-item" data-category="9-string">9 струн для электрогитары</div>
@@ -138,6 +127,8 @@
                 </div>
             </div>
         </div>
+        
+
         
         <!-- Popup для меню -->
         <div class="popup-menu" id="menuPopup">

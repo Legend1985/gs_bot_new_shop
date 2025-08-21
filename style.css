@@ -281,7 +281,7 @@ body::before {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     margin: 20px;
     border-radius: var(--border-radius);
-    padding: 24px;
+    padding: 30px;
     color: white;
     position: relative;
     overflow: hidden;
@@ -302,127 +302,110 @@ body::before {
 .banner-content {
     position: relative;
     z-index: 1;
-}
-
-.banner-title {
-    font-size: 24px;
-    font-weight: 700;
-    margin-bottom: 16px;
-    text-align: center;
-}
-
-.brand-logos {
-    display: flex;
-    justify-content: center;
-    gap: 16px;
-    flex-wrap: wrap;
-}
-
-.brand-logo {
-    background: rgba(255, 255, 255, 0.2);
-    padding: 8px 16px;
-    border-radius: 20px;
-    font-size: 14px;
-    font-weight: 600;
-    backdrop-filter: blur(10px);
-}
-
-/* Система категорий */
-.categories-section {
-    background: var(--bg-secondary);
-    padding: 24px 20px;
-    border-bottom: 1px solid var(--border-color);
-    margin: 0 20px;
-    border-radius: var(--border-radius);
-    margin-bottom: 20px;
-}
-
-.categories-container {
     max-width: 1200px;
     margin: 0 auto;
 }
 
-.category-group {
-    margin-bottom: 24px;
+.banner-title {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 30px;
+    text-align: center;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
 }
 
-.category-group-title {
+/* Секции категорий внутри баннера */
+.category-section {
+    margin-bottom: 25px;
+}
+
+.category-section-title {
     font-size: 18px;
     font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: 16px;
+    margin-bottom: 15px;
     text-align: center;
+    color: rgba(255, 255, 255, 0.9);
     position: relative;
 }
 
-.category-group-title::after {
+.category-section-title::after {
     content: '';
     position: absolute;
-    bottom: -6px;
+    bottom: -5px;
     left: 50%;
     transform: translateX(-50%);
-    width: 50px;
+    width: 40px;
     height: 2px;
-    background: linear-gradient(90deg, #667eea, #764ba2);
+    background: rgba(255, 255, 255, 0.6);
     border-radius: 1px;
 }
 
-.category-items {
+.category-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 12px;
-    max-width: 800px;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+    max-width: 900px;
     margin: 0 auto;
 }
 
 .category-item {
-    background: var(--bg-primary);
-    padding: 12px 16px;
-    border-radius: var(--border-radius);
+    background: rgba(255, 255, 255, 0.15);
+    padding: 10px 15px;
+    border-radius: 8px;
     text-align: center;
     font-weight: 500;
-    color: var(--text-primary);
-    border: 2px solid transparent;
+    font-size: 13px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: var(--shadow-small);
-    font-size: 14px;
+    backdrop-filter: blur(5px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .category-item:hover {
-    border-color: var(--accent-color);
-    color: var(--accent-color);
+    background: rgba(255, 255, 255, 0.25);
     transform: translateY(-2px);
-    box-shadow: var(--shadow-medium);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    border-color: rgba(255, 255, 255, 0.4);
 }
 
 .category-item.active {
-    background: var(--accent-color);
-    color: white;
-    border-color: var(--accent-color);
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.6);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
 }
 
 /* Адаптивность для мобильных устройств */
 @media (max-width: 768px) {
-    .categories-section {
-        margin: 0 10px;
-        padding: 16px 15px;
+    .main-banner {
+        margin: 10px;
+        padding: 20px;
     }
     
-    .category-items {
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    .banner-title {
+        font-size: 24px;
+        margin-bottom: 20px;
+    }
+    
+    .category-section-title {
+        font-size: 16px;
+        margin-bottom: 12px;
+    }
+    
+    .category-grid {
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
         gap: 8px;
     }
     
     .category-item {
-        padding: 10px 12px;
-        font-size: 13px;
-    }
-    
-    .category-group-title {
-        font-size: 16px;
+        padding: 8px 12px;
+        font-size: 12px;
     }
 }
+
+
 
 /* Контейнер для товаров */
 .container {
