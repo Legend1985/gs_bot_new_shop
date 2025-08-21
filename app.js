@@ -1839,8 +1839,8 @@ function setupEventHandlers() {
          console.log('setupEventHandlers: Найдены nav-items:', navItems.length);
          
          // Обработчик кликов по категориям
-         const categoryItems = document.querySelectorAll('.category-logo');
-         console.log('setupEventHandlers: Найдены category-logo:', categoryItems.length);
+         const categoryItems = document.querySelectorAll('.brand-logo');
+         console.log('setupEventHandlers: Найдены brand-logo:', categoryItems.length);
          
          categoryItems.forEach(categoryItem => {
              categoryItem.addEventListener('click', function() {
@@ -1918,7 +1918,7 @@ function filterProductsByCategory(category) {
     console.log('filterProductsByCategory: Фильтруем товары по категории:', category);
     
     // Убираем активный класс со всех категорий
-    const allCategoryItems = document.querySelectorAll('.category-logo');
+    const allCategoryItems = document.querySelectorAll('.brand-logo');
     allCategoryItems.forEach(item => item.classList.remove('active'));
     
     // Добавляем активный класс к выбранной категории
@@ -2087,7 +2087,7 @@ function clearCategoryFilter() {
     console.log('clearCategoryFilter: Очищаем фильтр категорий');
     
     // Убираем активный класс со всех категорий
-    const allCategoryItems = document.querySelectorAll('.category-logo');
+    const allCategoryItems = document.querySelectorAll('.brand-logo');
     allCategoryItems.forEach(item => item.classList.remove('active'));
     
     // Показываем все товары
