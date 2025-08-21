@@ -813,7 +813,7 @@ async function searchProducts(query) {
     
     try {
         // Загружаем ВСЕ найденные товары без ограничений
-        const response = await fetch(`/api/products?search=${encodeURIComponent(currentSearchTerm)}&start=0&limit=1000`);
+        const response = await fetch(`http://localhost:8000/api/products?search=${encodeURIComponent(currentSearchTerm)}&start=0&limit=1000`);
         const data = await response.json();
         
         if (data && data.products && data.products.length > 0) {
@@ -1000,7 +1000,7 @@ async function loadProducts(page = 0, append = false) {
     try {
         // Вычисляем start на основе номера страницы (30 товаров на страницу для быстрой загрузки)
         const start = page * 30;
-        const response = await fetch(`/api/products?start=${start}&limit=30`);
+        const response = await fetch(`http://localhost:8000/api/products?start=${start}&limit=30`);
         const data = await response.json();
         
         if (data && data.products && data.products.length > 0) {
