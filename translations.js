@@ -33,6 +33,39 @@ const translations = {
         // Баннер
         bannerTitle: "Electric Guitar Strings",
         
+        // Категории производителей
+        cleartone: "Cleartone",
+        curtMangan: "Curt Mangan",
+        daddario: "D'Addario",
+        deanMarkley: "Dean Markley",
+        dr: "DR",
+        dunlop: "Dunlop",
+        elixir: "Elixir",
+        ernieBall: "Ernie Ball",
+        fender: "Fender",
+        ghs: "GHS",
+        gibson: "Gibson",
+        laBella: "La Bella",
+        musiciansGear: "Musician's Gear",
+        pyramid: "Pyramid",
+        rotosound: "Rotosound",
+        optima: "Optima",
+        orphee: "Orphee",
+        
+        // Категории характеристик
+        sevenString: "7 струн для електрогітари",
+        eightString: "8 струн для електрогітари",
+        nineString: "9 струн для електрогітари",
+        flatwound: "Струни електро з плоскою обмоткою",
+        gauge09: "09 для електрогітари",
+        gauge10: "10 для електрогітари",
+        gauge11: "11 для електрогітари",
+        nickelPlated: "Nickel Plated Electric Strings",
+        pureNickel: "Pure Nickel Electric Strings",
+        stainlessSteel: "Stainless Steel Electric Strings",
+        cobalt: "Cobalt Electric Strings",
+        colored: "Colored Electric Strings",
+        
         // Навигация внизу
         products: "Товари",
         cabinet: "Кабінет",
@@ -269,6 +302,39 @@ const translations = {
         
         // Баннер
         bannerTitle: "Electric Guitar Strings",
+        
+        // Категории производителей
+        cleartone: "Cleartone",
+        curtMangan: "Curt Mangan",
+        daddario: "D'Addario",
+        deanMarkley: "Dean Markley",
+        dr: "DR",
+        dunlop: "Dunlop",
+        elixir: "Elixir",
+        ernieBall: "Ernie Ball",
+        fender: "Fender",
+        ghs: "GHS",
+        gibson: "Gibson",
+        laBella: "La Bella",
+        musiciansGear: "Musician's Gear",
+        pyramid: "Pyramid",
+        rotosound: "Rotosound",
+        optima: "Optima",
+        orphee: "Orphee",
+        
+        // Категории характеристик
+        sevenString: "7 струн для электрогитары",
+        eightString: "8 струн для электрогитары",
+        nineString: "9 струн для электрогитары",
+        flatwound: "Струны электро с плоской обмоткой",
+        gauge09: "09 для электрогитары",
+        gauge10: "10 для электрогитары",
+        gauge11: "11 для электрогитары",
+        nickelPlated: "Nickel Plated Electric Strings",
+        pureNickel: "Pure Nickel Electric Strings",
+        stainlessSteel: "Stainless Steel Electric Strings",
+        cobalt: "Cobalt Electric Strings",
+        colored: "Colored Electric Strings",
         
         // Навигация внизу
         products: "Товары",
@@ -535,6 +601,39 @@ const translations = {
         
         // Banner
         bannerTitle: "Electric Guitar Strings",
+        
+        // Manufacturer categories
+        cleartone: "Cleartone",
+        curtMangan: "Curt Mangan",
+        daddario: "D'Addario",
+        deanMarkley: "Dean Markley",
+        dr: "DR",
+        dunlop: "Dunlop",
+        elixir: "Elixir",
+        ernieBall: "Ernie Ball",
+        fender: "Fender",
+        ghs: "GHS",
+        gibson: "Gibson",
+        laBella: "La Bella",
+        musiciansGear: "Musician's Gear",
+        pyramid: "Pyramid",
+        rotosound: "Rotosound",
+        optima: "Optima",
+        orphee: "Orphee",
+        
+        // Characteristic categories
+        sevenString: "7-string electric guitar",
+        eightString: "8-string electric guitar",
+        nineString: "9-string electric guitar",
+        flatwound: "Electric strings with flat winding",
+        gauge09: "09 for electric guitar",
+        gauge10: "10 for electric guitar",
+        gauge11: "11 for electric guitar",
+        nickelPlated: "Nickel Plated Electric Strings",
+        pureNickel: "Pure Nickel Electric Strings",
+        stainlessSteel: "Stainless Steel Electric Strings",
+        cobalt: "Cobalt Electric Strings",
+        colored: "Colored Electric Strings",
         
         // Bottom navigation
         products: "Products",
