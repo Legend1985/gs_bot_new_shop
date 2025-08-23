@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Отладка элементов 7-струнных товаров</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .debug-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .debug-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+        }
+        .debug-button:hover {
+            background: #0056b3;
+        }
+        .debug-button.danger {
+            background: #dc3545;
+        }
+        .debug-button.danger:hover {
+            background: #c82333;
+        }
+        .log-container {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 20px;
+            max-height: 500px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 2px 0;
+        }
+        .log-info { color: #0066cc; }
+        .log-success { color: #28a745; }
+        .log-error { color: #dc3545; }
+        .log-warning { color: #ffc107; }
+        .product-card {
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+        .product-seven-string {
+            background: #ff8c00;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            margin-left: 10px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <div class="debug-container">
+        <h1>Отладка элементов 7-струнных товаров</h1>
+        
+        <div>
+            <button class="debug-button" onclick="check7StringElements()">Проверить элементы 7-струнных</button>
+            <button class="debug-button" onclick="simulate7StringSearch()">Симулировать поиск 7-струнных</button>
+            <button class="debug-button" onclick="createTestElements()">Создать тестовые элементы</button>
+            <button class="debug-button danger" onclick="clearTestElements()">Удалить тестовые элементы</button>
+            <button class="debug-button" onclick="clearLog()">Очистить лог</button>
+        </div>
+        
+        <div class="log-container" id="logContainer">
+            <div class="log-entry log-info">Готов к отладке...</div>
+        </div>
+        
+        <div id="testProductsContainer" style="margin-top: 20px;">
+            <!-- Здесь будут создаваться тестовые товары -->
+        </div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${type}`;
+            logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollTop + 1000;
+        }
+
+        function clearLog() {
+            document.getElementById('logContainer').innerHTML = '<div class="log-entry log-info">Лог очищен...</div>';
+        }
+
+        function check7StringElements() {
+            log('Проверяем элементы с пометкой 7-струнных...', 'info');
+            
+            // Ищем все элементы с классом product-seven-string
+            const sevenStringElements = document.querySelectorAll('.product-seven-string');
+            log(`Найдено элементов с классом .product-seven-string: ${sevenStringElements.length}`, 'info');
+            
+            if (sevenStringElements.length > 0) {
+                log('Элементы найдены:', 'success');
+                sevenStringElements.forEach((element, index) => {
+                    const productCard = element.closest('.product-card');
+                    if (productCard) {
+                        const productName = productCard.querySelector('.product-name');
+                        const name = productName ? productName.textContent : 'Без названия';
+                        log(`  ${index + 1}. ${name}`, 'success');
+                    } else {
+                        log(`  ${index + 1}. Элемент без родительской карточки`, 'warning');
+                    }
+                });
+            } else {
+                log('Элементы с пометкой 7-струнных НЕ найдены', 'error');
+            }
+            
+            // Проверяем все карточки товаров
+            const allProductCards = document.querySelectorAll('.product-card');
+            log(`Всего карточек товаров: ${allProductCards.length}`, 'info');
+            
+            // Проверяем, есть ли карточки с пометкой 7-струнных
+            let cardsWithSevenString = 0;
+            allProductCards.forEach((card, index) => {
+                const hasSevenStringMark = card.querySelector('.product-seven-string');
+                if (hasSevenStringMark) {
+                    cardsWithSevenString++;
+                    const productName = card.querySelector('.product-name');
+                    const name = productName ? productName.textContent : 'Без названия';
+                    log(`  Карточка ${index + 1} с пометкой 7-струнных: ${name}`, 'success');
+                }
+            });
+            
+            log(`Карточек с пометкой 7-струнных: ${cardsWithSevenString}`, 'info');
+        }
+
+        function simulate7StringSearch() {
+            log('Симулируем поиск 7-струнных товаров...', 'info');
+            
+            // Проверяем доступность функции
+            if (typeof search7StringProducts === 'function') {
+                log('✓ Функция search7StringProducts доступна', 'success');
+                
+                try {
+                    search7StringProducts();
+                    log('✓ search7StringProducts() вызвана успешно', 'success');
+                } catch (error) {
+                    log(`✗ Ошибка при вызове search7StringProducts: ${error.message}`, 'error');
+                }
+            } else {
+                log('✗ Функция search7StringProducts НЕ доступна', 'error');
+            }
+            
+            log('Проверьте консоль браузера для детальных логов', 'info');
+        }
+
+        function createTestElements() {
+            log('Создаем тестовые элементы...', 'info');
+            
+            const container = document.getElementById('testProductsContainer');
+            container.innerHTML = '';
+            
+            const testProducts = [
+                'Ernie Ball 2621 7-String Regular Slinky 10-56',
+                'DAddario EXL110-7 7-String Nickel Wound Regular Light 10-59',
+                'GHS Boomers GB7MH 7-String Medium Heavy 11-64',
+                'La Bella HRS-71 Hard Rockin Steel Nickel-Plated 7-String 9-64',
+                'DR BKE7-11 Black Beauties K3 Coated 7-String Extra Heavy 11-60'
+            ];
+            
+            testProducts.forEach((productName, index) => {
+                const productCard = document.createElement('div');
+                productCard.className = 'product-card';
+                productCard.innerHTML = `
+                    <div class="product-name">${productName}</div>
+                    <div class="product-subtitle">
+                        <span class="product-seven-string">7 струн для электрогитары</span>
+                    </div>
+                    <div class="product-price">Цена: 350 грн</div>
+                `;
+                container.appendChild(productCard);
+            });
+            
+            log(`Создано ${testProducts.length} тестовых товаров с пометкой 7-струнных`, 'success');
+        }
+
+        function clearTestElements() {
+            log('Удаляем тестовые элементы...', 'info');
+            document.getElementById('testProductsContainer').innerHTML = '';
+            log('Тестовые элементы удалены', 'success');
+        }
+
+        // Автоматическая проверка при загрузке
+        window.addEventListener('load', function() {
+            log('Страница загружена', 'info');
+            log('Проверяем наличие элементов...', 'info');
+            check7StringElements();
+        });
+    </script>
+</body>
+</html>

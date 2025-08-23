@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест кнопки 7-струнных товаров</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+        }
+        .test-button:hover {
+            background: #0056b3;
+        }
+        .log-container {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 2px 0;
+        }
+        .log-info { color: #0066cc; }
+        .log-success { color: #28a745; }
+        .log-error { color: #dc3545; }
+        .log-warning { color: #ffc107; }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Тест кнопки 7-струнных товаров</h1>
+        
+        <div>
+            <button class="test-button" onclick="test7StringButton()">Тест кнопки 7-струнных</button>
+            <button class="test-button" onclick="clearLog()">Очистить лог</button>
+            <button class="test-button" onclick="checkAppVersion()">Проверить версию app.js</button>
+        </div>
+        
+        <div class="log-container" id="logContainer">
+            <div class="log-entry log-info">Готов к тестированию...</div>
+        </div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${type}`;
+            logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollTop + 1000;
+        }
+
+        function clearLog() {
+            document.getElementById('logContainer').innerHTML = '<div class="log-entry log-info">Лог очищен...</div>';
+        }
+
+        function checkAppVersion() {
+            log('Проверяем версию app.js...', 'info');
+            
+            // Проверяем, загружен ли app.js
+            if (typeof filterProductsByCategory === 'function') {
+                log('✓ filterProductsByCategory доступна', 'success');
+            } else {
+                log('✗ filterProductsByCategory НЕ доступна', 'error');
+            }
+            
+            if (typeof search7StringProducts === 'function') {
+                log('✓ search7StringProducts доступна', 'success');
+            } else {
+                log('✗ search7StringProducts НЕ доступна', 'error');
+            }
+            
+            // Проверяем версию в консоли
+            log('Проверьте консоль браузера для информации о версии app.js', 'warning');
+        }
+
+        function test7StringButton() {
+            log('Тестируем кнопку 7-струнных товаров...', 'info');
+            
+            // Проверяем доступность функций
+            if (typeof filterProductsByCategory !== 'function') {
+                log('✗ filterProductsByCategory недоступна', 'error');
+                return;
+            }
+            
+            if (typeof search7StringProducts !== 'function') {
+                log('✗ search7StringProducts недоступна', 'error');
+                return;
+            }
+            
+            log('✓ Все необходимые функции доступны', 'success');
+            
+            // Симулируем клик по кнопке 7-струнных
+            log('Вызываем filterProductsByCategory("7-string")...', 'info');
+            
+            try {
+                filterProductsByCategory('7-string');
+                log('✓ filterProductsByCategory("7-string") вызвана успешно', 'success');
+            } catch (error) {
+                log(`✗ Ошибка при вызове filterProductsByCategory: ${error.message}`, 'error');
+            }
+            
+            log('Проверьте консоль браузера для детальных логов', 'info');
+        }
+
+        // Автоматическая проверка при загрузке
+        window.addEventListener('load', function() {
+            log('Страница загружена', 'info');
+            log('Проверяем доступность функций...', 'info');
+            checkAppVersion();
+        });
+    </script>
+</body>
+</html>

@@ -10,6 +10,7 @@ let cartItemCount = 0;
 // Переменные для поиска
 let searchTerm = '';
 let isSearchActive = false;
+let isCategoryFilterActive = false;
 let searchTimeout = null;
 
 // Переменные для бесконечной прокрутки
@@ -802,7 +803,7 @@ function closeSearchPopup() {
 async function searchProducts(query) {
     console.log('searchProducts: Поиск товаров по запросу:', query);
     
-    const currentSearchTerm = query.toLowerCase().trim();
+    let currentSearchTerm = query.toLowerCase().trim();
     isSearchActive = currentSearchTerm.length > 0;
     
     if (!isSearchActive) {
@@ -810,6 +811,41 @@ async function searchProducts(query) {
         await loadProducts();
         return;
     }
+    
+         // Нормализуем поисковые запросы для лучшего поиска
+     if (currentSearchTerm.includes('d\'addario') || currentSearchTerm.includes('d\'addario') || currentSearchTerm.includes('daddario')) {
+         currentSearchTerm = 'addario';
+         console.log('searchProducts: Нормализован запрос D\'Addario в:', currentSearchTerm);
+     }
+     
+     // Нормализуем поисковые запросы для DR
+     if (currentSearchTerm === 'dr' || currentSearchTerm === 'DR') {
+         currentSearchTerm = 'DR';
+         console.log('searchProducts: Нормализован запрос DR в:', currentSearchTerm);
+     }
+     
+     // Нормализуем поисковые запросы для La Bella
+     if (currentSearchTerm === 'la bella' || currentSearchTerm === 'la bella' || currentSearchTerm === 'labella' || 
+         currentSearchTerm === 'La Bella' || currentSearchTerm === 'La bella' || currentSearchTerm === 'LABELLA') {
+         currentSearchTerm = 'La Bella';
+         console.log('searchProducts: Нормализован запрос La Bella в:', currentSearchTerm);
+     }
+     
+     // Специальная обработка для DR - ищем по нескольким вариантам
+     if (currentSearchTerm === 'DR') {
+         console.log('searchProducts: Специальный поиск для DR - используем несколько вариантов');
+         // Попробуем найти товары DR разными способами
+         await searchDRProducts();
+         return;
+     }
+     
+     // Специальная обработка для La Bella - ищем по нескольким вариантам
+     if (currentSearchTerm === 'La Bella') {
+         console.log('searchProducts: Специальный поиск для La Bella - используем несколько вариантов');
+         // Попробуем найти товары La Bella разными способами
+         await searchLaBellaProducts();
+         return;
+     }
     
     try {
         // Загружаем ВСЕ найденные товары без ограничений
@@ -859,6 +895,7 @@ async function clearSearch() {
     
     searchTerm = '';
     isSearchActive = false;
+    isCategoryFilterActive = false;
     
     // Сбрасываем состояние бесконечной прокрутки
     currentPage = 0;
@@ -871,8 +908,8 @@ async function clearSearch() {
 
 // Функция загрузки следующей страницы
 async function loadNextPage() {
-    if (isLoading || !hasMoreProducts || isSearchActive) {
-        console.log('loadNextPage: Загрузка невозможна - isLoading:', isLoading, 'hasMoreProducts:', hasMoreProducts, 'isSearchActive:', isSearchActive);
+    if (isLoading || !hasMoreProducts || isSearchActive || isCategoryFilterActive) {
+        console.log('loadNextPage: Загрузка невозможна - isLoading:', isLoading, 'hasMoreProducts:', hasMoreProducts, 'isSearchActive:', isSearchActive, 'isCategoryFilterActive:', isCategoryFilterActive);
         return;
     }
     
@@ -1093,16 +1130,31 @@ function displayProducts(products) {
     // Очищаем список загруженных товаров
     loadedProductNames.clear();
     
+    // Удаляем дубликаты товаров перед отображением
+    const uniqueProducts = [];
+    const seenNames = new Set();
+    
+    products.forEach(product => {
+        if (!seenNames.has(product.name)) {
+            seenNames.add(product.name);
+            uniqueProducts.push(product);
+        } else {
+            console.log('displayProducts: Удален дубликат товара:', product.name);
+        }
+    });
+    
+    console.log('displayProducts: После удаления дубликатов осталось товаров:', uniqueProducts.length, 'из', products.length);
+    
     // Сохраняем товары в глобальный массив для доступа из обработчиков
-    window.currentProducts = products;
+    window.currentProducts = uniqueProducts;
     
     // Добавляем имена товаров в Set для отслеживания дубликатов
-    products.forEach(product => {
+    uniqueProducts.forEach(product => {
         loadedProductNames.add(product.name);
     });
     
-    console.log('displayProducts: Создаем карточки для', products.length, 'товаров');
-    products.forEach((product, index) => {
+    console.log('displayProducts: Создаем карточки для', uniqueProducts.length, 'товаров');
+    uniqueProducts.forEach((product, index) => {
         const productCard = createProductCard(product, index);
         container.appendChild(productCard);
     });
@@ -1208,6 +1260,46 @@ function createProductCard(product, index) {
     // Формируем HTML для рейтинга
     const ratingHtml = createRatingHtml(product.rating, currentTranslations);
     
+    // Определяем производителя для товаров DR и La Bella, а также информацию о 7-струнных товарах
+    let manufacturerHtml = '';
+    let sevenStringHtml = '';
+    
+    // Проверяем, является ли товар одним из товаров DR (гибкий поиск)
+    const isDRProduct = (() => {
+        const productName = product.name.toLowerCase();
+        return productName.startsWith('dr ') || productName.includes(' dr ');
+    })();
+    
+    // Проверяем, является ли товар одним из товаров La Bella (гибкий поиск)
+    const isLaBellaProduct = (() => {
+        const productName = product.name.toLowerCase();
+        return productName.includes('la bella');
+    })();
+    
+    // Проверяем, является ли товар 7-струнным (гибкий поиск)
+    const is7StringProduct = (() => {
+        const productName = product.name.toLowerCase();
+        return productName.includes('7-string') || 
+               productName.includes('7 string') || 
+               productName.includes('7-струн') || 
+               productName.includes('7 струн') ||
+               productName.includes('7-string electric') ||
+               productName.includes('7 string electric') ||
+               productName.includes('7-струн для электрогитары') ||
+               productName.includes('7 струн для электрогитары');
+    })();
+    
+    if (isDRProduct) {
+        manufacturerHtml = `<span class="product-manufacturer">${currentTranslations.manufacturer}: DR</span>`;
+    } else if (isLaBellaProduct) {
+        manufacturerHtml = `<span class="product-manufacturer">${currentTranslations.manufacturer}: La Bella</span>`;
+    }
+    
+    // Добавляем информацию о 7-струнных товарах
+    if (is7StringProduct) {
+        sevenStringHtml = `<span class="product-seven-string">${currentTranslations.sevenStringInfo}</span>`;
+    }
+    
     const cardHtml = 
         '<div class="product-card-top">' +
             '<div class="product-actions">' +
@@ -1222,6 +1314,8 @@ function createProductCard(product, index) {
             '<div class="product-subtitle">' +
                 '<input type="checkbox" class="compare-checkbox" data-index="' + index + '">' +
                 '<span>' + currentTranslations.compare + '</span>' +
+                manufacturerHtml +
+                sevenStringHtml +
             '</div>' +
             '<div class="product-prices">' +
                 oldPriceHtml +
@@ -1287,17 +1381,25 @@ function switchLanguage(lang) {
     
     // Обновляем все элементы с data-translate
     const elements = document.querySelectorAll('[data-translate]');
+    console.log(`switchLanguage: Найдено ${elements.length} элементов для перевода`);
+    
     elements.forEach(element => {
         const key = element.getAttribute('data-translate');
         if (translations[lang] && translations[lang][key]) {
             if (key === 'offerText') {
                 element.innerHTML = translations[lang][key];
+                console.log(`switchLanguage: Обновлен ${key} (innerHTML):`, translations[lang][key]);
             } else if (key === 'searchPlaceholder') {
                 // Специальная обработка для placeholder поиска
                 element.placeholder = translations[lang][key];
+                console.log(`switchLanguage: Обновлен ${key} (placeholder):`, translations[lang][key]);
             } else {
+                const oldText = element.textContent;
                 element.textContent = translations[lang][key];
+                console.log(`switchLanguage: Обновлен ${key}: "${oldText}" → "${translations[lang][key]}"`);
             }
+        } else {
+            console.warn(`switchLanguage: Перевод не найден для ключа "${key}" на языке "${lang}"`);
         }
     });
     
@@ -1342,6 +1444,28 @@ function initializeLanguage() {
         console.log('initializeLanguage: Дополнительно обновляем активное состояние кнопок языка');
         updateLanguageButtons(savedLanguage);
     }, 100);
+    
+    // Принудительно обновляем переводы еще раз через небольшую задержку
+    // Это помогает в случаях, когда DOM еще не полностью готов
+    setTimeout(() => {
+        console.log('initializeLanguage: Принудительно обновляем переводы');
+        switchLanguage(savedLanguage);
+    }, 500);
+    
+    // Дополнительная проверка и принудительное обновление через 1 секунду
+    // Это гарантирует, что переводы применятся даже при проблемах с кэшем
+    setTimeout(() => {
+        console.log('initializeLanguage: Финальная проверка переводов');
+        const bannerTitle = document.querySelector('[data-translate="bannerTitle"]');
+        if (bannerTitle) {
+            console.log('initializeLanguage: Текущий текст заголовка баннера:', bannerTitle.textContent);
+            console.log('initializeLanguage: Ожидаемый текст для языка', savedLanguage, ':', translations[savedLanguage]?.bannerTitle);
+            if (bannerTitle.textContent !== translations[savedLanguage]?.bannerTitle) {
+                console.log('initializeLanguage: Принудительно обновляем заголовок баннера');
+                switchLanguage(savedLanguage);
+            }
+        }
+    }, 1000);
     
     console.log('initializeLanguage: Язык инициализирован:', savedLanguage);
 }
@@ -1454,10 +1578,10 @@ document.addEventListener('DOMContentLoaded', function() {
     loadedProductNames.clear();
     
     // Автоматически загружаем товары
-    loadProducts(0, false);
-    
-    // Настраиваем обработчики событий
-    setupEventHandlers();
+    loadProducts(0, false).then(() => {
+        // Настраиваем обработчики событий после загрузки товаров
+        setupEventHandlers();
+    });
     
     // Обновляем онлайн статус
     updateOnlineStatus();
@@ -1705,7 +1829,13 @@ function setupEventHandlers() {
     if (searchInput) {
         console.log('setupEventHandlers: Найден поисковый input, настраиваем обработчик');
         
-        searchInput.addEventListener('input', function(e) {
+        // Удаляем предыдущий обработчик, если он есть
+        if (searchInput._inputHandler) {
+            searchInput.removeEventListener('input', searchInput._inputHandler);
+        }
+        
+        // Создаем новый обработчик
+        searchInput._inputHandler = function(e) {
             const query = e.target.value;
             console.log('setupEventHandlers: Поисковый запрос:', query);
             
@@ -1730,12 +1860,16 @@ function setupEventHandlers() {
             searchTimeout = setTimeout(function() {
                 searchProducts(query);
             }, 300);
-        });
+        };
+        
+        // Добавляем обработчик
+        searchInput.addEventListener('input', searchInput._inputHandler);
     }
     
          // Обработчик прокрутки для бесконечной загрузки
      window.addEventListener('scroll', function() {
-         if (isLoading || !hasMoreProducts || isSearchActive) {
+         if (isLoading || !hasMoreProducts || isSearchActive || isCategoryFilterActive) {
+             console.log('setupEventHandlers: Прокрутка заблокирована - isLoading:', isLoading, 'hasMoreProducts:', hasMoreProducts, 'isSearchActive:', isSearchActive, 'isCategoryFilterActive:', isCategoryFilterActive);
              return;
          }
          
@@ -1842,13 +1976,27 @@ function setupEventHandlers() {
          const categoryItems = document.querySelectorAll('.brand-logo');
          console.log('setupEventHandlers: Найдены brand-logo:', categoryItems.length);
          
-         categoryItems.forEach(categoryItem => {
-             categoryItem.addEventListener('click', function() {
-                 const category = this.getAttribute('data-category');
-                 console.log('setupEventHandlers: Клик по категории:', category);
-                 filterProductsByCategory(category);
+         if (categoryItems.length > 0) {
+             categoryItems.forEach(categoryItem => {
+                 // Удаляем предыдущий обработчик, если он есть
+                 if (categoryItem._clickHandler) {
+                     categoryItem.removeEventListener('click', categoryItem._clickHandler);
+                 }
+                 
+                 // Создаем новый обработчик
+                 categoryItem._clickHandler = function() {
+                     const category = this.getAttribute('data-category');
+                     console.log('setupEventHandlers: Клик по категории:', category);
+                     filterProductsByCategory(category);
+                 };
+                 
+                 // Добавляем обработчик
+                 categoryItem.addEventListener('click', categoryItem._clickHandler);
              });
-         });
+             console.log('setupEventHandlers: Обработчики для категорий настроены');
+         } else {
+             console.warn('setupEventHandlers: Элементы .brand-logo не найдены');
+         }
         
         if (navItems.length > 0) {
             // Устанавливаем первую кнопку как активную по умолчанию
@@ -1884,7 +2032,11 @@ function setupEventHandlers() {
                      console.log(`setupEventHandlers: Выполняем действие для: ${navText}`);
                      
                      // Выполняем действие в зависимости от кнопки
-                     if (navText.includes('Корзина') || navText.includes('Cart')) {
+                     if (navText.includes('Товары') || navText.includes('Products')) {
+                         // Показываем все товары (категория Струны для электрогитары)
+                         console.log('setupEventHandlers: Открываем категорию Товары (Струны для электрогитары)');
+                         clearCategoryFilter();
+                     } else if (navText.includes('Корзина') || navText.includes('Cart')) {
                          showCartPopup();
                      } else if (navText.includes('Контакты') || navText.includes('Contacts')) {
                          showContactsPopup();
@@ -1900,6 +2052,38 @@ function setupEventHandlers() {
                 navItem.addEventListener('click', navItem._clickHandler);
                 console.log(`setupEventHandlers: Обработчик для nav-item ${index + 1} настроен`);
             });
+        }
+        
+        // Обработчик кликов по элементам меню
+        const menuItems = document.querySelectorAll('.menu-item');
+        console.log('setupEventHandlers: Найдены menu-items:', menuItems.length);
+        
+        if (menuItems.length > 0) {
+            menuItems.forEach(menuItem => {
+                menuItem.addEventListener('click', function() {
+                    const category = this.getAttribute('data-category');
+                    console.log('setupEventHandlers: Клик по элементу меню:', category);
+                    
+                    // Закрываем меню
+                    const menuPopup = document.getElementById('menuPopup');
+                    if (menuPopup) {
+                        menuPopup.style.display = 'none';
+                    }
+                    
+                    // Обрабатываем категорию
+                    if (category === 'electricGuitarStrings') {
+                        // Для "Струны для электрогитары" просто показываем все товары
+                        console.log('setupEventHandlers: Открываем категорию Струны для электрогитары');
+                        clearCategoryFilter();
+                    } else if (category) {
+                        // Для других категорий используем фильтрацию
+                        filterProductsByCategory(category);
+                    }
+                });
+            });
+            console.log('setupEventHandlers: Обработчики для меню настроены');
+        } else {
+            console.warn('setupEventHandlers: Элементы .menu-item не найдены');
         }
 }
 
@@ -1917,6 +2101,10 @@ window.showOnOrderPopup = showOnOrderPopup;
 function filterProductsByCategory(category) {
     console.log('filterProductsByCategory: Фильтруем товары по категории:', category);
     
+    // Устанавливаем флаг активной фильтрации по категориям
+    isCategoryFilterActive = true;
+    console.log('filterProductsByCategory: Установлен флаг isCategoryFilterActive = true');
+    
     // Убираем активный класс со всех категорий
     const allCategoryItems = document.querySelectorAll('.brand-logo');
     allCategoryItems.forEach(item => item.classList.remove('active'));
@@ -1927,108 +2115,121 @@ function filterProductsByCategory(category) {
         selectedCategory.classList.add('active');
     }
     
+    // Определяем, является ли категория производителем
+    const manufacturerCategories = [
+        'cleartone', 'curt-mangan', 'daddario', 'dean-markley', 'dr', 'dunlop', 
+        'elixir', 'ernie-ball', 'fender', 'ghs', 'gibson', 'la-bella', 
+        'musicians-gear', 'pyramid', 'rotosound', 'optima', 'orphee'
+    ];
+    
+    // Специальная обработка для 7-струнных товаров
+    if (category === '7-string') {
+        console.log('filterProductsByCategory: 7-string - специальная категория, вызываем search7StringProducts()');
+        search7StringProducts();
+        return;
+    }
+    
+    // Если это производитель, используем поиск
+    if (manufacturerCategories.includes(category)) {
+        console.log(`filterProductsByCategory: ${category} - производитель, используем поиск`);
+        
+                 // Получаем название производителя для поиска
+         let searchTerm = '';
+         switch (category) {
+             case 'cleartone':
+                 searchTerm = 'Cleartone';
+                 break;
+             case 'curt-mangan':
+                 searchTerm = 'Curt Mangan';
+                 break;
+             case 'daddario':
+                 searchTerm = 'addario'; // Ищем по "addario" без апострофа для лучшего поиска
+                 break;
+             case 'dean-markley':
+                 searchTerm = 'Dean Markley';
+                 break;
+             case 'dr':
+                 // Для DR используем несколько вариантов поиска для лучшего покрытия
+                 searchTerm = 'DR';
+                 console.log('filterProductsByCategory: DR - используем поиск по DR');
+                 break;
+             case 'dunlop':
+                 searchTerm = 'Dunlop';
+                 break;
+             case 'elixir':
+                 searchTerm = 'Elixir';
+                 break;
+             case 'ernie-ball':
+                 searchTerm = 'Ernie Ball';
+                 break;
+             case 'fender':
+                 searchTerm = 'Fender';
+                 break;
+             case 'ghs':
+                 searchTerm = 'GHS';
+                 break;
+             case 'gibson':
+                 searchTerm = 'Gibson';
+                 break;
+             case 'la-bella':
+                 searchTerm = 'La Bella';
+                 break;
+             case 'musicians-gear':
+                 searchTerm = 'Musician\'s Gear';
+                 break;
+             case 'pyramid':
+                 searchTerm = 'Pyramid';
+                 break;
+             case 'rotosound':
+                 searchTerm = 'Rotosound';
+                 break;
+             case 'optima':
+                 searchTerm = 'Optima';
+                 break;
+             case 'orphee':
+                 searchTerm = 'Orphee';
+                 break;
+         }
+        
+        // Выполняем поиск по производителю
+        if (searchTerm) {
+            console.log(`filterProductsByCategory: Выполняем поиск по запросу: "${searchTerm}"`);
+            searchProducts(searchTerm);
+        }
+        return;
+    }
+    
+    // Для характеристик используем старую логику фильтрации
+    console.log(`filterProductsByCategory: ${category} - характеристика, используем фильтрацию`);
+    
+    // Проверяем, загружены ли товары
+    if (!window.currentProducts || window.currentProducts.length === 0) {
+        console.warn('filterProductsByCategory: Товары не загружены, загружаем...');
+        loadProducts(0, false).then(() => {
+            // Повторно вызываем фильтрацию после загрузки
+            filterProductsByCategory(category);
+        });
+        return;
+    }
+    
     // Фильтруем товары в зависимости от категории
     if (window.currentProducts && window.currentProducts.length > 0) {
+        console.log('filterProductsByCategory: Всего товаров для фильтрации:', window.currentProducts.length);
+        console.log('filterProductsByCategory: Примеры названий товаров:');
+        window.currentProducts.slice(0, 5).forEach((product, index) => {
+            console.log(`  ${index + 1}. "${product.name}"`);
+        });
+        
         let filteredProducts = [];
         
         switch (category) {
-            // Производители - улучшенная логика поиска
-            case 'cleartone':
-                filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('cleartone') || 
-                    product.name.toLowerCase().includes('клеартон'));
-                break;
-            case 'curt-mangan':
-                filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('curt mangan') || 
-                    product.name.toLowerCase().includes('керт манган'));
-                break;
-            case 'daddario':
-                filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('d\'addario') || 
-                    product.name.toLowerCase().includes('даддарио') ||
-                    product.name.toLowerCase().includes('daddario'));
-                break;
-            case 'dean-markley':
-                filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('dean markley') || 
-                    product.name.toLowerCase().includes('дин марклей'));
-                break;
-            case 'dr':
-                filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('dr ') || 
-                    product.name.toLowerCase().includes('dr.') ||
-                    product.name.toLowerCase().includes('dr-'));
-                break;
-            case 'dunlop':
-                filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('dunlop') || 
-                    product.name.toLowerCase().includes('данлоп'));
-                break;
-            case 'elixir':
-                filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('elixir') || 
-                    product.name.toLowerCase().includes('еліксир'));
-                break;
-            case 'ernie-ball':
-                filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('ernie ball') || 
-                    product.name.toLowerCase().includes('ерні бол'));
-                break;
-            case 'fender':
-                filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('fender') || 
-                    product.name.toLowerCase().includes('фендер'));
-                break;
-            case 'ghs':
-                filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('ghs') || 
-                    product.name.toLowerCase().includes('гхс'));
-                break;
-            case 'gibson':
-                filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('gibson') || 
-                    product.name.toLowerCase().includes('гібсон'));
-                break;
-            case 'la-bella':
-                filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('la bella') || 
-                    product.name.toLowerCase().includes('ла белла'));
-                break;
-            case 'musicians-gear':
-                filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('musician') || 
-                    product.name.toLowerCase().includes('музикант'));
-                break;
-            case 'pyramid':
-                filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('pyramid') || 
-                    product.name.toLowerCase().includes('пірамід'));
-                break;
-            case 'rotosound':
-                filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('rotosound') || 
-                    product.name.toLowerCase().includes('ротосаунд'));
-                break;
-            case 'optima':
-                filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('optima') || 
-                    product.name.toLowerCase().includes('оптима'));
-                break;
-            case 'orphee':
-                filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('orphee') || 
-                    product.name.toLowerCase().includes('орфей'));
-                break;
-            
             // Характеристики - улучшенная логика поиска
             case '7-string':
-                filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('7-string') || 
-                    product.name.toLowerCase().includes('7 струн') ||
-                    product.name.toLowerCase().includes('7-струн') ||
-                    product.name.toLowerCase().includes('7 string'));
-                break;
+                console.log('filterProductsByCategory: 7-string - используем специальный поиск');
+                console.log('filterProductsByCategory: Вызываем search7StringProducts()');
+                // Используем специальную функцию для 7-струнных товаров
+                search7StringProducts();
+                return;
             case '8-string':
                 filteredProducts = window.currentProducts.filter(product => 
                     product.name.toLowerCase().includes('8-string') || 
@@ -2112,6 +2313,10 @@ function filterProductsByCategory(category) {
         if (filteredProducts.length > 0) {
             displayProducts(filteredProducts);
             console.log(`filterProductsByCategory: Найдено ${filteredProducts.length} товаров для категории "${category}"`);
+            console.log('filterProductsByCategory: Примеры найденных товаров:');
+            filteredProducts.slice(0, 3).forEach((product, index) => {
+                console.log(`  ${index + 1}. "${product.name}"`);
+            });
         } else {
             // Показываем сообщение об отсутствии товаров
             const container = document.querySelector('.inner');
@@ -2151,9 +2356,224 @@ function clearCategoryFilter() {
     const allCategoryItems = document.querySelectorAll('.brand-logo');
     allCategoryItems.forEach(item => item.classList.remove('active'));
     
-    // Показываем все товары
-    if (window.currentProducts && window.currentProducts.length > 0) {
-        displayProducts(window.currentProducts);
+    // Очищаем поиск
+    const searchInput = document.querySelector('.search-input');
+    if (searchInput) {
+        searchInput.value = '';
+    }
+    
+    // Сбрасываем состояние поиска
+    searchTerm = '';
+    isSearchActive = false;
+    isCategoryFilterActive = false;
+    
+    // Сбрасываем состояние бесконечной прокрутки
+    currentPage = 0;
+    hasMoreProducts = true;
+    loadedProductNames.clear();
+    
+    // Всегда загружаем все товары заново
+    console.log('clearCategoryFilter: Загружаем все товары заново');
+    loadProducts(0, false);
+}
+
+// Функция специального поиска для товаров DR
+async function searchDRProducts() {
+    console.log('searchDRProducts: Поиск товаров DR по пометкам в карточках');
+    
+    try {
+        // Сначала загружаем все товары в DOM для поиска по пометкам
+        const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log(`searchDRProducts: Загружено ${data.products.length} товаров для поиска по пометкам`);
+        
+        if (data && data.products && data.products.length > 0) {
+            // Отображаем все товары в DOM
+            displayProducts(data.products);
+            
+            // Теперь ищем по пометкам в карточках
+            const drCards = document.querySelectorAll('.product-manufacturer');
+            console.log(`searchDRProducts: Найдено ${drCards.length} карточек с пометкой производителя`);
+            
+            if (drCards.length > 0) {
+                // Фильтруем только карточки с пометкой DR
+                const drProductCards = [];
+                drCards.forEach(card => {
+                    if (card.textContent.includes('DR')) {
+                        const productCard = card.closest('.product-card');
+                        if (productCard) {
+                            drProductCards.push(productCard);
+                        }
+                    }
+                });
+                
+                console.log(`searchDRProducts: Найдено ${drProductCards.length} карточек DR`);
+                
+                if (drProductCards.length > 0) {
+                    // Скрываем все карточки, кроме DR
+                    const allProductCards = document.querySelectorAll('.product-card');
+                    allProductCards.forEach(card => {
+                        card.style.display = 'none';
+                    });
+                    
+                    // Показываем только карточки DR
+                    drProductCards.forEach(card => {
+                        card.style.display = 'block';
+                    });
+                    
+                    isCategoryFilterActive = true;
+                    console.log('searchDRProducts: Отображены только товары DR по пометкам');
+                } else {
+                    console.log('searchDRProducts: Карточки DR не найдены');
+                    showNoSearchResults('DR');
+                }
+            } else {
+                console.log('searchDRProducts: Карточки с пометкой производителя не найдены');
+                showNoSearchResults('DR');
+            }
+        } else {
+            console.log('searchDRProducts: Нет товаров для поиска');
+            showNoSearchResults('DR');
+        }
+        
+    } catch (error) {
+        console.error('searchDRProducts: Ошибка специального поиска DR:', error);
+        showNoSearchResults('DR');
+    }
+}
+
+// Функция специального поиска для товаров La Bella
+async function searchLaBellaProducts() {
+    console.log('searchLaBellaProducts: Поиск товаров La Bella по пометкам в карточках');
+    
+    try {
+        // Сначала загружаем все товары в DOM для поиска по пометкам
+        const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log(`searchLaBellaProducts: Загружено ${data.products.length} товаров для поиска по пометкам`);
+        
+        if (data && data.products && data.products.length > 0) {
+            // Отображаем все товары в DOM
+            displayProducts(data.products);
+            
+            // Теперь ищем по пометкам в карточках
+            const laBellaCards = document.querySelectorAll('.product-manufacturer');
+            console.log(`searchLaBellaProducts: Найдено ${laBellaCards.length} карточек с пометкой производителя`);
+            
+            if (laBellaCards.length > 0) {
+                // Фильтруем только карточки с пометкой La Bella
+                const laBellaProductCards = [];
+                laBellaCards.forEach(card => {
+                    if (card.textContent.includes('La Bella')) {
+                        const productCard = card.closest('.product-card');
+                        if (productCard) {
+                            laBellaProductCards.push(productCard);
+                        }
+                    }
+                });
+                
+                console.log(`searchLaBellaProducts: Найдено ${laBellaProductCards.length} карточек La Bella`);
+                
+                if (laBellaProductCards.length > 0) {
+                    // Скрываем все карточки, кроме La Bella
+                    const allProductCards = document.querySelectorAll('.product-card');
+                    allProductCards.forEach(card => {
+                        card.style.display = 'none';
+                    });
+                    
+                    // Показываем только карточки La Bella
+                    laBellaProductCards.forEach(card => {
+                        card.style.display = 'block';
+                    });
+                    
+                    isCategoryFilterActive = true;
+                    console.log('searchLaBellaProducts: Отображены только товары La Bella по пометкам');
+                } else {
+                    console.log('searchLaBellaProducts: Карточки La Bella не найдены');
+                    showNoSearchResults('La Bella');
+                }
+            } else {
+                console.log('searchLaBellaProducts: Карточки с пометкой производителя не найдены');
+                showNoSearchResults('La Bella');
+            }
+        } else {
+            console.log('searchLaBellaProducts: Нет товаров для поиска');
+            showNoSearchResults('La Bella');
+        }
+        
+    } catch (error) {
+        console.error('searchLaBellaProducts: Ошибка специального поиска La Bella:', error);
+        showNoSearchResults('La Bella');
+    }
+}
+
+// Функция специального поиска для 7-струнных товаров
+async function search7StringProducts() {
+    console.log('search7StringProducts: Поиск 7-струнных товаров по пометкам в карточках');
+    
+    try {
+        // Сначала загружаем все товары в DOM для поиска по пометкам
+        const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log(`search7StringProducts: Загружено ${data.products.length} товаров для поиска по пометкам`);
+        
+        if (data && data.products && data.products.length > 0) {
+            // Отображаем все товары в DOM
+            displayProducts(data.products);
+            
+            // Теперь ищем по пометкам в карточках
+            const sevenStringCards = document.querySelectorAll('.product-seven-string');
+            console.log(`search7StringProducts: Найдено ${sevenStringCards.length} карточек с пометкой 7-струнных`);
+            
+            if (sevenStringCards.length > 0) {
+                // Скрываем все карточки, кроме 7-струнных
+                const allProductCards = document.querySelectorAll('.product-card');
+                allProductCards.forEach(card => {
+                    card.style.display = 'none';
+                });
+                
+                // Показываем только карточки с пометкой 7-струнных
+                sevenStringCards.forEach(sevenStringCard => {
+                    const productCard = sevenStringCard.closest('.product-card');
+                    if (productCard) {
+                        productCard.style.display = 'block';
+                    }
+                });
+                
+                isCategoryFilterActive = true;
+                console.log('search7StringProducts: Отображены только 7-струнные товары по пометкам');
+                
+                // Показываем примеры найденных товаров
+                const productNames = Array.from(sevenStringCards).slice(0, 5).map(card => {
+                    const productCard = card.closest('.product-card');
+                    const nameElement = productCard?.querySelector('.product-name');
+                    return nameElement?.textContent || 'Неизвестный товар';
+                });
+                console.log('search7StringProducts: Примеры найденных товаров:', productNames);
+            } else {
+                console.log('search7StringProducts: Карточки с пометкой 7-струнных не найдены');
+                showNoSearchResults('7-струнные');
+            }
+        } else {
+            console.log('search7StringProducts: Нет товаров для поиска');
+            showNoSearchResults('7-струнные');
+        }
+        
+    } catch (error) {
+        console.error('search7StringProducts: Ошибка поиска 7-струнных товаров:', error);
+        showNoSearchResults('7-струнные');
     }
 }
 
@@ -2161,6 +2581,20 @@ function clearCategoryFilter() {
 window.filterProductsByCategory = filterProductsByCategory;
 window.clearCategoryFilter = clearCategoryFilter;
 
+// Функция для принудительной очистки кэша и перезагрузки переводов
+function forceClearCache() {
+    console.log('forceClearCache: Принудительная очистка кэша');
+    
+    // Очищаем localStorage
+    localStorage.clear();
+    console.log('forceClearCache: localStorage очищен');
+    
+    // Принудительно перезагружаем страницу
+    window.location.reload(true);
+}
 
+// Делаем функцию доступной глобально
+window.forceClearCache = forceClearCache;
 
-console.log('app.js инициализирован');
+console.log('app.js инициализирован (версия 13.14 - исправлена фильтрация DR и La Bella по пометкам в карточках)');
+console.log('Для принудительной очистки кэша выполните: forceClearCache()');

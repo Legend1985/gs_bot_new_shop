@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест отображения производителя в карточках</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background: #0056b3;
+        }
+        .results {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        .success {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .error {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .product-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .product-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .product-manufacturer {
+            color: #007bff;
+            font-weight: bold;
+        }
+        .product-subtitle {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .compare-checkbox {
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Тест отображения производителя в карточках товаров</h1>
+        <p>Эта страница тестирует, правильно ли отображается производитель в карточках товаров La Bella и DR.</p>
+        
+        <div class="test-section">
+            <h3>Тест 1: Проверка API</h3>
+            <button class="test-button" onclick="checkAPI()">Проверить API</button>
+            <div id="api-results" class="results"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Тест 2: Отображение товаров La Bella</h3>
+            <button class="test-button" onclick="testLaBellaDisplay()">Показать товары La Bella</button>
+            <div id="labella-results" class="results"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Тест 3: Отображение товаров DR</h3>
+            <button class="test-button" onclick="testDRDisplay()">Показать товары DR</button>
+            <div id="dr-results" class="results"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Тест 4: Создание карточек с производителем</h3>
+            <button class="test-button" onclick="testCardCreation()">Создать тестовые карточки</button>
+            <div id="card-results" class="results"></div>
+        </div>
+    </div>
+
+    <script>
+        async function checkAPI() {
+            const resultsDiv = document.getElementById('api-results');
+            resultsDiv.innerHTML = 'Проверяем API...';
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/products?start=0&limit=10');
+                if (response.ok) {
+                    const data = await response.json();
+                    resultsDiv.innerHTML = `
+                        <div class="success">✓ API работает</div>
+                        <div>Всего товаров: ${data.total}</div>
+                        <div>Получено: ${data.products.length}</div>
+                        <div>Статус: ${response.status}</div>
+                    `;
+                } else {
+                    resultsDiv.innerHTML = `<div class="error">✗ Ошибка API: ${response.status}</div>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">✗ Ошибка подключения: ${error.message}</div>`;
+            }
+        }
+
+        async function testLaBellaDisplay() {
+            const resultsDiv = document.getElementById('labella-results');
+            resultsDiv.innerHTML = 'Загружаем товары La Bella...';
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/products?start=0&limit=377');
+                if (response.ok) {
+                    const data = await response.json();
+                    const laBellaProducts = data.products.filter(product => {
+                        const productName = product.name.toLowerCase();
+                        return productName.includes('la bella');
+                    });
+                    
+                    if (laBellaProducts.length > 0) {
+                        resultsDiv.innerHTML = `
+                            <div class="success">✓ Найдено ${laBellaProducts.length} товаров La Bella</div>
+                            <div>Проверяем отображение производителя в карточках...</div>
+                            <div style="margin-top: 15px;">
+                                ${laBellaProducts.map(product => `
+                                    <div class="product-card">
+                                        <div class="product-title">${product.name}</div>
+                                        <div class="product-subtitle">
+                                            <input type="checkbox" class="compare-checkbox">
+                                            <span>Сравнить</span>
+                                            <span class="product-manufacturer">Производитель: La Bella</span>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        `;
+                    } else {
+                        resultsDiv.innerHTML = `<div class="error">✗ Товары La Bella не найдены</div>`;
+                    }
+                } else {
+                    resultsDiv.innerHTML = `<div class="error">✗ Ошибка API: ${response.status}</div>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">✗ Ошибка подключения: ${error.message}</div>`;
+            }
+        }
+
+        async function testDRDisplay() {
+            const resultsDiv = document.getElementById('dr-results');
+            resultsDiv.innerHTML = 'Загружаем товары DR...';
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/products?start=0&limit=377');
+                if (response.ok) {
+                    const data = await response.json();
+                    const drProducts = data.products.filter(product => {
+                        const productName = product.name.toLowerCase();
+                        return productName.startsWith('dr ') || productName.includes(' dr ');
+                    });
+                    
+                    if (drProducts.length > 0) {
+                        resultsDiv.innerHTML = `
+                            <div class="success">✓ Найдено ${drProducts.length} товаров DR</div>
+                            <div>Проверяем отображение производителя в карточках...</div>
+                            <div style="margin-top: 15px;">
+                                ${drProducts.map(product => `
+                                    <div class="product-card">
+                                        <div class="product-title">${product.name}</div>
+                                        <div class="product-subtitle">
+                                            <input type="checkbox" class="compare-checkbox">
+                                            <span>Сравнить</span>
+                                            <span class="product-manufacturer">Производитель: DR</span>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        `;
+                    } else {
+                        resultsDiv.innerHTML = `<div class="error">✗ Товары DR не найдены</div>`;
+                    }
+                } else {
+                    resultsDiv.innerHTML = `<div class="error">✗ Ошибка API: ${response.status}</div>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">✗ Ошибка подключения: ${error.message}</div>`;
+            }
+        }
+
+        function testCardCreation() {
+            const resultsDiv = document.getElementById('card-results');
+            
+            // Тестируем логику определения производителя
+            const testProducts = [
+                { name: 'La Bella HRS-XL Hard Rockin\' Steel Nickel-Plated Extra Light 9-42' },
+                { name: 'DR LH-9 Tite-Fit Nickel Plated Electric Guitar Strings Light Heavy 9-46' },
+                { name: 'La Bella HRS-L Hard Rockin\' Steel Nickel-Plated Light 9-46' },
+                { name: 'DR MT-10 Tite-Fit Nickel Plated Electric Guitar Strings Medium 10-46' },
+                { name: 'Some Other Brand Product' }
+            ];
+            
+            const results = testProducts.map(product => {
+                const productName = product.name.toLowerCase();
+                const isDR = productName.startsWith('dr ') || productName.includes(' dr ');
+                const isLaBella = productName.includes('la bella');
+                
+                let manufacturer = 'Не определен';
+                if (isDR) manufacturer = 'DR';
+                else if (isLaBella) manufacturer = 'La Bella';
+                
+                return `
+                    <div class="product-card">
+                        <div class="product-title">${product.name}</div>
+                        <div class="product-subtitle">
+                            <input type="checkbox" class="compare-checkbox">
+                            <span>Сравнить</span>
+                            ${manufacturer !== 'Не определен' ? 
+                                `<span class="product-manufacturer">Производитель: ${manufacturer}</span>` : 
+                                '<span style="color: #6c757d;">Производитель не определен</span>'
+                            }
+                        </div>
+                    </div>
+                `;
+            });
+            
+            resultsDiv.innerHTML = `
+                <div class="success">✓ Тест логики определения производителя</div>
+                <div>Проверяем, как работает новая логика определения производителя:</div>
+                <div style="margin-top: 15px;">
+                    ${results.join('')}
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

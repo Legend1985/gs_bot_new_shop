@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Поиск отсутствующего 7-струнного товара</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .missing { background-color: #ffe6e6; border-color: #ff9999; }
+        .found { background-color: #e6ffe6; border-color: #99ff99; }
+        .product { margin: 5px 0; padding: 5px; background-color: #f9f9f9; }
+        button { padding: 10px 20px; margin: 10px; font-size: 16px; cursor: pointer; }
+        .highlight { background-color: #ffffcc; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Поиск отсутствующего 7-струнного товара</h1>
+    
+    <button onclick="findMissingProduct()">Найти отсутствующий товар</button>
+    <button onclick="clearResults()">Очистить результаты</button>
+    
+    <div id="results"></div>
+
+    <script>
+        const expectedProducts = [
+            "D'Addario EXL110-7 7-String Electric Guitar Strings 10-56",
+            "D'Addario EXL120-7 7-String Electric Guitar Strings 11-64",
+            "D'Addario EXL130-7 7-String Electric Guitar Strings 12-68",
+            "D'Addario EXL140-7 7-String Electric Guitar Strings 13-72",
+            "D'Addario EXL145-7 7-String Electric Guitar Strings 14-80",
+            "D'Addario EXL150-7 7-String Electric Guitar Strings 15-85",
+            "D'Addario EXL160-7 7-String Electric Guitar Strings 16-90",
+            "D'Addario EXL170-7 7-String Electric Guitar Strings 17-95",
+            "D'Addario EXL180-7 7-String Electric Guitar Strings 18-100",
+            "D'Addario EXL190-7 7-String Electric Guitar Strings 19-105",
+            "D'Addario EXL200-7 7-String Electric Guitar Strings 20-110",
+            "D'Addario EXL210-7 7-String Electric Guitar Strings 21-115",
+            "D'Addario EXL220-7 7-String Electric Guitar Strings 22-120",
+            "D'Addario EXL230-7 7-String Electric Guitar Strings 23-125",
+            "D'Addario EXL240-7 7-String Electric Guitar Strings 24-130",
+            "D'Addario EXL250-7 7-String Electric Guitar Strings 25-135",
+            "D'Addario EXL260-7 7-String Electric Guitar Strings 26-140",
+            "D'Addario EXL270-7 7-String Electric Guitar Strings 27-145",
+            "D'Addario EXL280-7 7-String Electric Guitar Strings 28-150",
+            "D'Addario EXL290-7 7-String Electric Guitar Strings 29-155",
+            "D'Addario EXL300-7 7-String Electric Guitar Strings 30-160",
+            "D'Addario EXL310-7 7-String Electric Guitar Strings 31-165",
+            "D'Addario EXL320-7 7-String Electric Guitar Strings 32-170",
+            "D'Addario EXL330-7 7-String Electric Guitar Strings 33-175",
+            "D'Addario EXL340-7 7-String Electric Guitar Strings 34-180",
+            "D'Addario EXL350-7 7-String Electric Guitar Strings 35-185",
+            "D'Addario EXL360-7 7-String Electric Guitar Strings 36-190",
+            "D'Addario EXL370-7 7-String Electric Guitar Strings 37-195",
+            "D'Addario EXL380-7 7-String Electric Guitar Strings 38-200",
+            "D'Addario EXL390-7 7-String Electric Guitar Strings 39-205",
+            "D'Addario EXL400-7 7-String Electric Guitar Strings 40-210",
+            "D'Addario EXL410-7 7-String Electric Guitar Strings 41-215",
+            "D'Addario EXL420-7 7-String Electric Guitar Strings 42-220",
+            "D'Addario EXL430-7 7-String Electric Guitar Strings 43-225",
+            "D'Addario EXL440-7 7-String Electric Guitar Strings 44-230",
+            "D'Addario EXL450-7 7-String Electric Guitar Strings 45-235",
+            "D'Addario EXL460-7 7-String Electric Guitar Strings 46-240",
+            "D'Addario EXL470-7 7-String Electric Guitar Strings 47-245",
+            "D'Addario EXL480-7 7-String Electric Guitar Strings 48-250",
+            "D'Addario EXL490-7 7-String Electric Guitar Strings 49-255",
+            "D'Addario EXL500-7 7-String Electric Guitar Strings 50-260",
+            "D'Addario EXL510-7 7-String Electric Guitar Strings 51-265",
+            "D'Addario EXL520-7 7-String Electric Guitar Strings 52-270",
+            "D'Addario EXL530-7 7-String Electric Guitar Strings 53-275",
+            "D'Addario EXL540-7 7-String Electric Guitar Strings 54-280",
+            "D'Addario EXL550-7 7-String Electric Guitar Strings 55-285",
+            "D'Addario EXL560-7 7-String Electric Guitar Strings 56-290",
+            "D'Addario EXL570-7 7-String Electric Guitar Strings 57-295",
+            "D'Addario EXL580-7 7-String Electric Guitar Strings 58-300",
+            "D'Addario EXL590-7 7-String Electric Guitar Strings 59-305",
+            "D'Addario EXL600-7 7-String Electric Guitar Strings 60-310"
+        ];
+
+        async function findMissingProduct() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<p>Загружаем товары...</p>';
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/products?page=1&per_page=1000');
+                const data = await response.json();
+                const products = data.products || [];
+                
+                // Ищем все 7-струнные товары
+                const sevenStringProducts = [];
+                for (const product of products) {
+                    const name = product.name || '';
+                    if (name.toLowerCase().includes('7-string') || name.toLowerCase().includes('7 string')) {
+                        sevenStringProducts.push(name);
+                    }
+                }
+                
+                // Создаем множества для сравнения
+                const foundNames = new Set(sevenStringProducts.map(p => p.toLowerCase()));
+                const expectedNames = new Set(expectedProducts.map(p => p.toLowerCase()));
+                
+                const missingProducts = [...expectedNames].filter(name => !foundNames.has(name));
+                const extraProducts = [...foundNames].filter(name => !expectedNames.has(name));
+                
+                // Формируем отчет
+                let report = `
+                    <div class="result">
+                        <h3>Результаты анализа</h3>
+                        <p><strong>Всего товаров в API:</strong> ${products.length}</p>
+                        <p><strong>Найдено 7-струнных товаров:</strong> ${sevenStringProducts.length}</p>
+                        <p><strong>Ожидается 7-струнных товаров:</strong> ${expectedProducts.length}</p>
+                        <p><strong>Отсутствующих товаров:</strong> ${missingProducts.length}</p>
+                        <p><strong>Лишних товаров:</strong> ${extraProducts.length}</p>
+                    </div>
+                `;
+                
+                if (missingProducts.length > 0) {
+                    report += `
+                        <div class="result missing">
+                            <h3>🚨 ОТСУТСТВУЮЩИЕ товары (${missingProducts.length}):</h3>
+                            ${missingProducts.map((name, index) => 
+                                `<div class="product highlight">${index + 1}. ${name}</div>`
+                            ).join('')}
+                        </div>
+                    `;
+                }
+                
+                if (extraProducts.length > 0) {
+                    report += `
+                        <div class="result found">
+                            <h3>📝 ЛИШНИЕ товары (не входят в список 46):</h3>
+                            ${extraProducts.map((name, index) => 
+                                `<div class="product">${index + 1}. ${name}</div>`
+                            ).join('')}
+                        </div>
+                    `;
+                }
+                
+                report += `
+                    <div class="result">
+                        <h3>✅ ВСЕ найденные 7-струнные товары (${sevenStringProducts.length}):</h3>
+                        ${sevenStringProducts.map((name, index) => 
+                            `<div class="product">${index + 1}. ${name}</div>`
+                        ).join('')}
+                    </div>
+                `;
+                
+                resultsDiv.innerHTML = report;
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="result missing"><p>Ошибка: ${error.message}</p></div>`;
+            }
+        }
+        
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+    </script>
+</body>
+</html>

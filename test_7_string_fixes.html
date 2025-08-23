@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест исправлений 7-string</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background: #0056b3;
+        }
+        .results {
+            margin-top: 15px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #f9f9f9;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .success {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .error {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .info {
+            color: #17a2b8;
+        }
+        .product-item {
+            padding: 5px;
+            border-bottom: 1px solid #eee;
+        }
+        .duplicate {
+            background: #ffe6e6;
+            border-left: 3px solid #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Тест исправлений 7-string (версия 13.04)</h1>
+    
+    <div class="test-section">
+        <h3>Тест 1: Проверка дублирования при поиске "7-string"</h3>
+        <button class="test-button" onclick="testSearchDuplication()">Проверить поиск "7-string"</button>
+        <div id="searchResults" class="results"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Тест 2: Проверка работы кнопки баннера "7 струн для электрогитары"</h3>
+        <button class="test-button" onclick="testBannerButton()">Проверить кнопку баннера</button>
+        <div id="bannerResults" class="results"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Тест 3: Проверка обработчиков событий</h3>
+        <button class="test-button" onclick="testEventHandlers()">Проверить обработчики</button>
+        <div id="handlerResults" class="results"></div>
+    </div>
+
+    <script>
+        // Тест 1: Проверка дублирования при поиске
+        async function testSearchDuplication() {
+            const resultsDiv = document.getElementById('searchResults');
+            resultsDiv.innerHTML = '<div class="info">🔍 Проверяем поиск "7-string"...</div>';
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/products?search=7-string&start=0&limit=1000');
+                const data = await response.json();
+                const products = data.products;
+                
+                // Проверяем дубликаты
+                const productNames = products.map(p => p.name);
+                const uniqueNames = [...new Set(productNames)];
+                const duplicates = productNames.filter((name, index) => productNames.indexOf(name) !== index);
+                
+                let results = '<div class="info">📊 Результаты проверки дублирования:</div>';
+                results += `<div>Всего товаров: ${products.length}</div>`;
+                results += `<div>Уникальных имен: ${uniqueNames.length}</div>`;
+                
+                if (duplicates.length > 0) {
+                    results += '<div class="error">❌ НАЙДЕНЫ ДУБЛИКАТЫ:</div>';
+                    const duplicateCounts = {};
+                    duplicates.forEach(name => {
+                        duplicateCounts[name] = (duplicateCounts[name] || 0) + 1;
+                    });
+                    Object.entries(duplicateCounts).forEach(([name, count]) => {
+                        results += `<div class="duplicate">"${name}" - ${count + 1} раз</div>`;
+                    });
+                } else {
+                    results += '<div class="success">✅ Дубликатов не найдено</div>';
+                }
+                
+                // Показываем все товары
+                results += '<div style="margin-top: 15px;"><strong>Все найденные товары:</strong></div>';
+                products.forEach((product, index) => {
+                    const isDuplicate = duplicates.includes(product.name);
+                    results += `<div class="product-item ${isDuplicate ? 'duplicate' : ''}">${index + 1}. ${product.name}</div>`;
+                });
+                
+                resultsDiv.innerHTML = results;
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">❌ Ошибка: ${error.message}</div>`;
+            }
+        }
+        
+        // Тест 2: Проверка работы кнопки баннера
+        async function testBannerButton() {
+            const resultsDiv = document.getElementById('bannerResults');
+            resultsDiv.innerHTML = '<div class="info">🔍 Проверяем работу кнопки баннера...</div>';
+            
+            try {
+                // Симулируем клик по кнопке баннера
+                const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+                const data = await response.json();
+                const allProducts = data.products;
+                
+                // Фильтруем 7-струнные товары (как это делает кнопка баннера)
+                const sevenStringProducts = allProducts.filter(product => 
+                    product.name.toLowerCase().includes('7-string') || 
+                    product.name.toLowerCase().includes('7 струн') ||
+                    product.name.toLowerCase().includes('7-струн') ||
+                    product.name.toLowerCase().includes('7 string')
+                );
+                
+                let results = '<div class="info">📊 Результаты работы кнопки баннера:</div>';
+                results += `<div class="success">✅ Найдено ${sevenStringProducts.length} 7-струнных товаров</div>`;
+                
+                // Проверяем дубликаты
+                const productNames = sevenStringProducts.map(p => p.name);
+                const uniqueNames = [...new Set(productNames)];
+                const duplicates = productNames.filter((name, index) => productNames.indexOf(name) !== index);
+                
+                if (duplicates.length > 0) {
+                    results += '<div class="error">❌ НАЙДЕНЫ ДУБЛИКАТЫ:</div>';
+                    const duplicateCounts = {};
+                    duplicates.forEach(name => {
+                        duplicateCounts[name] = (duplicateCounts[name] || 0) + 1;
+                    });
+                    Object.entries(duplicateCounts).forEach(([name, count]) => {
+                        results += `<div class="duplicate">"${name}" - ${count + 1} раз</div>`;
+                    });
+                } else {
+                    results += '<div class="success">✅ Дубликатов не найдено</div>';
+                }
+                
+                // Показываем все товары
+                results += '<div style="margin-top: 15px;"><strong>Товары, которые должны отображаться при клике на кнопку:</strong></div>';
+                sevenStringProducts.forEach((product, index) => {
+                    const isDuplicate = duplicates.includes(product.name);
+                    results += `<div class="product-item ${isDuplicate ? 'duplicate' : ''}">${index + 1}. ${product.name}</div>`;
+                });
+                
+                resultsDiv.innerHTML = results;
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">❌ Ошибка: ${error.message}</div>`;
+            }
+        }
+        
+        // Тест 3: Проверка обработчиков событий
+        function testEventHandlers() {
+            const resultsDiv = document.getElementById('handlerResults');
+            resultsDiv.innerHTML = '<div class="info">🔍 Проверяем обработчики событий...</div>';
+            
+            try {
+                // Проверяем наличие элементов
+                const searchInput = document.querySelector('.search-input');
+                const categoryItems = document.querySelectorAll('.brand-logo');
+                const sevenStringButton = document.querySelector('[data-category="7-string"]');
+                
+                let results = '<div class="info">📊 Результаты проверки обработчиков:</div>';
+                
+                if (searchInput) {
+                    results += '<div class="success">✅ Поисковое поле найдено</div>';
+                    if (searchInput._inputHandler) {
+                        results += '<div class="success">✅ Обработчик поиска настроен</div>';
+                    } else {
+                        results += '<div class="error">❌ Обработчик поиска не настроен</div>';
+                    }
+                } else {
+                    results += '<div class="error">❌ Поисковое поле не найдено</div>';
+                }
+                
+                results += `<div>Найдено кнопок категорий: ${categoryItems.length}</div>`;
+                
+                if (sevenStringButton) {
+                    results += '<div class="success">✅ Кнопка "7-string" найдена</div>';
+                    if (sevenStringButton._clickHandler) {
+                        results += '<div class="success">✅ Обработчик кнопки "7-string" настроен</div>';
+                    } else {
+                        results += '<div class="error">❌ Обработчик кнопки "7-string" не настроен</div>';
+                    }
+                } else {
+                    results += '<div class="error">❌ Кнопка "7-string" не найдена</div>';
+                }
+                
+                // Проверяем все кнопки категорий
+                let handlersCount = 0;
+                categoryItems.forEach(item => {
+                    if (item._clickHandler) handlersCount++;
+                });
+                
+                results += `<div>Обработчики настроены для ${handlersCount} из ${categoryItems.length} кнопок</div>`;
+                
+                if (handlersCount === categoryItems.length) {
+                    results += '<div class="success">✅ Все обработчики категорий настроены</div>';
+                } else {
+                    results += '<div class="error">❌ Не все обработчики категорий настроены</div>';
+                }
+                
+                resultsDiv.innerHTML = results;
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">❌ Ошибка: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>

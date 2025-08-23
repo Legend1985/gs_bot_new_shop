@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест исправлений поиска</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .test-button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        .test-button:hover { background: #0056b3; }
+        .results { margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 3px; }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+    </style>
+</head>
+<body>
+    <h1>Тест исправлений поиска производителей</h1>
+    
+    <div class="test-section">
+        <h2>Тест поиска La Bella</h2>
+        <button class="test-button" onclick="testLaBellaSearch()">Тест поиска La Bella</button>
+        <div id="laBellaResults" class="results"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Тест поиска DR</h2>
+        <button class="test-button" onclick="testDRSearch()">Тест поиска DR</button>
+        <div id="drResults" class="results"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Проверка API</h2>
+        <button class="test-button" onclick="checkAPI()">Проверить API</button>
+        <div id="apiResults" class="results"></div>
+    </div>
+
+    <script>
+        async function testLaBellaSearch() {
+            const resultsDiv = document.getElementById('laBellaResults');
+            resultsDiv.innerHTML = 'Тестируем поиск La Bella...';
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+                const data = await response.json();
+                
+                if (data && data.products) {
+                    const laBellaProducts = data.products.filter(product => {
+                        const productName = product.name.toLowerCase();
+                        return productName.includes('la bella');
+                    });
+                    
+                    if (laBellaProducts.length > 0) {
+                        resultsDiv.innerHTML = `
+                            <div class="success">✓ Найдено ${laBellaProducts.length} товаров La Bella</div>
+                            <ul>
+                                ${laBellaProducts.map(p => `<li>${p.name}</li>`).join('')}
+                            </ul>
+                        `;
+                    } else {
+                        resultsDiv.innerHTML = '<div class="error">✗ Товары La Bella не найдены</div>';
+                    }
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Ошибка: ${error.message}</div>`;
+            }
+        }
+        
+        async function testDRSearch() {
+            const resultsDiv = document.getElementById('drResults');
+            resultsDiv.innerHTML = 'Тестируем поиск DR...';
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+                const data = await response.json();
+                
+                if (data && data.products) {
+                    const drProducts = data.products.filter(product => {
+                        const productName = product.name.toLowerCase();
+                        return productName.startsWith('dr ') || productName.includes(' dr ');
+                    });
+                    
+                    if (drProducts.length > 0) {
+                        resultsDiv.innerHTML = `
+                            <div class="success">✓ Найдено ${drProducts.length} товаров DR</div>
+                            <ul>
+                                ${drProducts.map(p => `<li>${p.name}</li>`).join('')}
+                            </ul>
+                        `;
+                    } else {
+                        resultsDiv.innerHTML = '<div class="error">✗ Товары DR не найдены</div>';
+                    }
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Ошибка: ${error.message}</div>`;
+            }
+        }
+        
+        async function checkAPI() {
+            const resultsDiv = document.getElementById('apiResults');
+            resultsDiv.innerHTML = 'Проверяем API...';
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/products?start=0&limit=5');
+                const data = await response.json();
+                
+                if (data && data.products) {
+                    resultsDiv.innerHTML = `
+                        <div class="success">✓ API работает</div>
+                        <div>Всего товаров: ${data.total}</div>
+                        <div>Получено: ${data.products.length}</div>
+                        <div>Статус: ${response.status}</div>
+                    `;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Ошибка API: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>

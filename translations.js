@@ -34,7 +34,7 @@ const translations = {
         additional: "Додатково",
         
         // Баннер
-        bannerTitle: "Electric Guitar Strings",
+        bannerTitle: "Струни для Електрогітари",
         
         // Категории производителей
         cleartone: "Cleartone",
@@ -90,6 +90,10 @@ const translations = {
         // Кнопки
         compare: "Порівняти",
         noRating: "Немає рейтингу",
+        manufacturer: "Виробник",
+        
+        // 7-струнная информация
+        sevenStringInfo: "7 струн для електрогітари",
         
         // Попапы товаров
         discontinuedTitle: "Товар знято з виробництва",
@@ -201,7 +205,7 @@ const translations = {
             loadingGoods: "Завантажуємо товари...",
         
         // Главний банер та категорії
-        bannerTitle: "Electric Guitar Strings",
+        bannerTitle: "Струни для Електрогітари",
         manufacturers: "Виробники",
         characteristics: "Характеристики",
         
@@ -307,7 +311,7 @@ const translations = {
         additional: "Дополнительно",
         
         // Баннер
-        bannerTitle: "Electric Guitar Strings",
+        bannerTitle: "Струны для электрогитары",
         
         // Категории производителей
         cleartone: "Cleartone",
@@ -363,6 +367,10 @@ const translations = {
         // Кнопки
         compare: "Сравнить",
         noRating: "Нет рейтинга",
+        manufacturer: "Производитель",
+        
+        // 7-струнная информация
+        sevenStringInfo: "7 струн для электрогитары",
         
         // Попапы товаров
         discontinuedTitle: "Товар снят с производства",
@@ -474,7 +482,7 @@ const translations = {
         loadingGoods: "Загружаем товары...",
         
         // Главный баннер и категории
-        bannerTitle: "Electric Guitar Strings",
+        bannerTitle: "Струны для электрогитары",
         manufacturers: "Производители",
         characteristics: "Характеристики",
         
@@ -665,6 +673,10 @@ const translations = {
         // Buttons
         compare: "Compare",
         noRating: "No rating",
+        manufacturer: "Manufacturer",
+        
+        // 7-string information
+        sevenStringInfo: "7 strings for electric guitar",
         
         // Product popups
         discontinuedTitle: "Product discontinued",

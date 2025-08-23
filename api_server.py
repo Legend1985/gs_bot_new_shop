@@ -253,7 +253,7 @@ def api_products():
                 # Ищем цены в правильной структуре HTML
                 price_container = item.find('div', class_='vm3pr-2')
                 if price_container:
-                    # Ищем новую цену (акционную)
+                    # Ищем новую цену (акционную) - исправленная логика
                     sales_price_elem = price_container.find('span', class_='PricesalesPrice')
                     if sales_price_elem:
                         price_text = sales_price_elem.get_text(strip=True)
@@ -262,14 +262,27 @@ def api_products():
                             new_price = float(price_match.group(1))
                             print(f"Found sales price: {new_price} for product: {name}")
                     
-                    # Ищем старую цену (зачеркнутую)
-                    base_price_elem = price_container.find('span', class_='PricebasePrice')
-                    if base_price_elem:
-                        price_text = base_price_elem.get_text(strip=True)
-                        price_match = re.search(r'(\d+(?:\.\d+)?)', price_text.replace('грн', '').replace('₴', '').replace(' ', ''))
-                        if price_match:
-                            old_price = float(price_match.group(1))
-                            print(f"Found base price: {old_price} for product: {name}")
+                    # Ищем старую цену (зачеркнутую) - исправленная логика
+                    # Сначала ищем span внутри div с классом PricebasePrice
+                    base_price_div = price_container.find('div', class_='PricebasePrice')
+                    if base_price_div:
+                        base_price_elem = base_price_div.find('span', class_='PricebasePrice')
+                        if base_price_elem:
+                            price_text = base_price_elem.get_text(strip=True)
+                            price_match = re.search(r'(\d+(?:\.\d+)?)', price_text.replace('грн', '').replace('₴', '').replace(' ', ''))
+                            if price_match:
+                                old_price = float(price_match.group(1))
+                                print(f"Found base price: {old_price} for product: {name}")
+                    
+                    # Если не нашли в div, ищем span напрямую (fallback)
+                    if old_price == 0:
+                        base_price_elem = price_container.find('span', class_='PricebasePrice')
+                        if base_price_elem:
+                            price_text = base_price_elem.get_text(strip=True)
+                            price_match = re.search(r'(\d+(?:\.\d+)?)', price_text.replace('грн', '').replace('₴', '').replace(' ', ''))
+                            if price_match:
+                                old_price = float(price_match.group(1))
+                                print(f"Found base price (fallback): {old_price} for product: {name}")
                 
                 # Если не нашли цены в vm3pr-2, ищем в других местах
                 if new_price == 0:
@@ -379,6 +392,19 @@ def api_products():
                     print(f"Final availability: {availability}")
                     print(f"Raw HTML for this product:")
                     print(item.prettify()[:2000])  # Первые 2000 символов HTML
+                    print(f"=== END SPECIAL DEBUG ===")
+                
+                # Специальная отладка для товаров La Bella с проблемными ценами
+                if "La Bella" in name and ("HRS-XL" in name or "HRS-R" in name):
+                    print(f"=== SPECIAL DEBUG: La Bella product found ===")
+                    print(f"Product name: {name}")
+                    print(f"New price: {new_price}")
+                    print(f"Old price: {old_price}")
+                    print(f"Price container HTML:")
+                    if price_container:
+                        print(price_container.prettify())
+                    else:
+                        print("No price container found")
                     print(f"=== END SPECIAL DEBUG ===")
                 
                 # Extract rating - исправленная логика с правильным округлением
@@ -521,7 +547,7 @@ def api_products():
         }
 
 if __name__ == '__main__':
-    print("Starting server...")
+    print("Starting server... (версия 13.02 - исправление цен La Bella)")
     print("Pre-loading product cache...")
     try:
         # Pre-load cache on startup

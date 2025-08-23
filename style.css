@@ -531,6 +531,30 @@ body::before {
     text-align: center;
 }
 
+/* Производитель товара */
+.product-manufacturer {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--accent-color);
+    background-color: rgba(76, 175, 80, 0.1);
+    padding: 2px 6px;
+    border-radius: 8px;
+    display: inline-block;
+    margin-left: 8px;
+}
+
+/* 7-струнная информация */
+.product-seven-string {
+    font-size: 10px;
+    font-weight: 500;
+    color: #ff6b35;
+    background-color: rgba(255, 107, 53, 0.1);
+    padding: 2px 6px;
+    border-radius: 8px;
+    display: inline-block;
+    margin-left: 8px;
+}
+
 /* Статус товара */
 .product-status {
     font-size: 12px;
