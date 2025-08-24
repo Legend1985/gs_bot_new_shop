@@ -19,6 +19,10 @@ let hasMoreProducts = true;
 let isLoading = false;
 let loadedProductNames = new Set();
 
+// Добавляем переменные для debounce
+let categorySearchTimeout = null;
+let lastCategorySearch = '';
+
 // Функция сохранения корзины в localStorage
 function saveCartToStorage() {
     try {
@@ -2099,253 +2103,118 @@ window.showOnOrderPopup = showOnOrderPopup;
 
 // Функция фильтрации товаров по категории
 function filterProductsByCategory(category) {
-    console.log('filterProductsByCategory: Фильтруем товары по категории:', category);
+    console.log(`filterProductsByCategory: Фильтруем товары по категории: ${category}`);
     
-    // Устанавливаем флаг активной фильтрации по категориям
+    // Предотвращаем дублирование поиска
+    if (lastCategorySearch === category) {
+        console.log(`filterProductsByCategory: Пропускаем дублирующий поиск для: ${category}`);
+        return;
+    }
+    
+    // Очищаем предыдущий таймаут
+    if (categorySearchTimeout) {
+        clearTimeout(categorySearchTimeout);
+    }
+    
+    // Устанавливаем флаг активной фильтрации
     isCategoryFilterActive = true;
-    console.log('filterProductsByCategory: Установлен флаг isCategoryFilterActive = true');
+    console.log(`filterProductsByCategory: Установлен флаг isCategoryFilterActive = true`);
     
-    // Убираем активный класс со всех категорий
-    const allCategoryItems = document.querySelectorAll('.brand-logo');
-    allCategoryItems.forEach(item => item.classList.remove('active'));
-    
-    // Добавляем активный класс к выбранной категории
-    const selectedCategory = document.querySelector(`[data-category="${category}"]`);
-    if (selectedCategory) {
-        selectedCategory.classList.add('active');
+    // Очищаем поисковое поле
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.value = '';
     }
     
-    // Определяем, является ли категория производителем
-    const manufacturerCategories = [
-        'cleartone', 'curt-mangan', 'daddario', 'dean-markley', 'dr', 'dunlop', 
-        'elixir', 'ernie-ball', 'fender', 'ghs', 'gibson', 'la-bella', 
-        'musicians-gear', 'pyramid', 'rotosound', 'optima', 'orphee'
-    ];
+    // Сбрасываем пагинацию
+    currentPage = 0;
+    hasMoreProducts = true;
     
-    // Специальная обработка для 7-струнных товаров
-    if (category === '7-string') {
-        console.log('filterProductsByCategory: 7-string - специальная категория, вызываем search7StringProducts()');
-        search7StringProducts();
-        return;
+    // Очищаем контейнер товаров
+    const productsContainer = document.getElementById('productsContainer');
+    if (productsContainer) {
+        productsContainer.innerHTML = '';
     }
     
-    // Если это производитель, используем поиск
-    if (manufacturerCategories.includes(category)) {
-        console.log(`filterProductsByCategory: ${category} - производитель, используем поиск`);
-        
-                 // Получаем название производителя для поиска
-         let searchTerm = '';
-         switch (category) {
-             case 'cleartone':
-                 searchTerm = 'Cleartone';
-                 break;
-             case 'curt-mangan':
-                 searchTerm = 'Curt Mangan';
-                 break;
-             case 'daddario':
-                 searchTerm = 'addario'; // Ищем по "addario" без апострофа для лучшего поиска
-                 break;
-             case 'dean-markley':
-                 searchTerm = 'Dean Markley';
-                 break;
-             case 'dr':
-                 // Для DR используем несколько вариантов поиска для лучшего покрытия
-                 searchTerm = 'DR';
-                 console.log('filterProductsByCategory: DR - используем поиск по DR');
-                 break;
-             case 'dunlop':
-                 searchTerm = 'Dunlop';
-                 break;
-             case 'elixir':
-                 searchTerm = 'Elixir';
-                 break;
-             case 'ernie-ball':
-                 searchTerm = 'Ernie Ball';
-                 break;
-             case 'fender':
-                 searchTerm = 'Fender';
-                 break;
-             case 'ghs':
-                 searchTerm = 'GHS';
-                 break;
-             case 'gibson':
-                 searchTerm = 'Gibson';
-                 break;
-             case 'la-bella':
-                 searchTerm = 'La Bella';
-                 break;
-             case 'musicians-gear':
-                 searchTerm = 'Musician\'s Gear';
-                 break;
-             case 'pyramid':
-                 searchTerm = 'Pyramid';
-                 break;
-             case 'rotosound':
-                 searchTerm = 'Rotosound';
-                 break;
-             case 'optima':
-                 searchTerm = 'Optima';
-                 break;
-             case 'orphee':
-                 searchTerm = 'Orphee';
-                 break;
-         }
-        
-        // Выполняем поиск по производителю
-        if (searchTerm) {
-            console.log(`filterProductsByCategory: Выполняем поиск по запросу: "${searchTerm}"`);
-            searchProducts(searchTerm);
-        }
-        return;
-    }
+    // Показываем индикатор загрузки
+    showLoadingIndicator();
     
-    // Для характеристик используем старую логику фильтрации
-    console.log(`filterProductsByCategory: ${category} - характеристика, используем фильтрацию`);
-    
-    // Проверяем, загружены ли товары
-    if (!window.currentProducts || window.currentProducts.length === 0) {
-        console.warn('filterProductsByCategory: Товары не загружены, загружаем...');
-        loadProducts(0, false).then(() => {
-            // Повторно вызываем фильтрацию после загрузки
-            filterProductsByCategory(category);
-        });
-        return;
-    }
-    
-    // Фильтруем товары в зависимости от категории
-    if (window.currentProducts && window.currentProducts.length > 0) {
-        console.log('filterProductsByCategory: Всего товаров для фильтрации:', window.currentProducts.length);
-        console.log('filterProductsByCategory: Примеры названий товаров:');
-        window.currentProducts.slice(0, 5).forEach((product, index) => {
-            console.log(`  ${index + 1}. "${product.name}"`);
-        });
+    // Debounce для поиска категорий - задержка 300ms
+    categorySearchTimeout = setTimeout(() => {
+        console.log(`filterProductsByCategory: Выполняем отложенный поиск для: ${category}`);
         
-        let filteredProducts = [];
-        
-        switch (category) {
-            // Характеристики - улучшенная логика поиска
-            case '7-string':
-                console.log('filterProductsByCategory: 7-string - используем специальный поиск');
-                console.log('filterProductsByCategory: Вызываем search7StringProducts()');
-                // Используем специальную функцию для 7-струнных товаров
-                search7StringProducts();
-                return;
-            case '8-string':
-                filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('8-string') || 
-                    product.name.toLowerCase().includes('8 струн') ||
-                    product.name.toLowerCase().includes('8-струн') ||
-                    product.name.toLowerCase().includes('8 string'));
-                break;
-            case '9-string':
-                filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('9-string') || 
-                    product.name.toLowerCase().includes('9 струн') ||
-                    product.name.toLowerCase().includes('9-струн') ||
-                    product.name.toLowerCase().includes('9 string'));
-                break;
-            case 'flatwound':
-                filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('flatwound') || 
-                    product.name.toLowerCase().includes('плоская обмотка') ||
-                    product.name.toLowerCase().includes('плоска обмотка') ||
-                    product.name.toLowerCase().includes('flat wound'));
-                break;
-            case '09-gauge':
-                filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('09') || 
-                    product.name.toLowerCase().includes('9-') ||
-                    product.name.toLowerCase().includes('9 gauge') ||
-                    product.name.toLowerCase().includes('9 калибр'));
-                break;
-            case '10-gauge':
-                filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('10') || 
-                    product.name.toLowerCase().includes('10 gauge') ||
-                    product.name.toLowerCase().includes('10 калибр'));
-                break;
-            case '11-gauge':
-                filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('11') || 
-                    product.name.toLowerCase().includes('11 gauge') ||
-                    product.name.toLowerCase().includes('11 калибр'));
-                break;
-            case 'nickel-plated':
-                filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('nickel plated') || 
-                    product.name.toLowerCase().includes('нікель') ||
-                    product.name.toLowerCase().includes('никель') ||
-                    product.name.toLowerCase().includes('nickel-plated'));
-                break;
-            case 'pure-nickel':
-                filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('pure nickel') || 
-                    product.name.toLowerCase().includes('чистый никель') ||
-                    product.name.toLowerCase().includes('чистий нікель'));
-                break;
-            case 'stainless-steel':
-                filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('stainless steel') || 
-                    product.name.toLowerCase().includes('нержавеющая сталь') ||
-                    product.name.toLowerCase().includes('нержавіюча сталь') ||
-                    product.name.toLowerCase().includes('stainless-steel'));
-                break;
-            case 'cobalt':
-                filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('cobalt') || 
-                    product.name.toLowerCase().includes('кобальт'));
-                break;
-            case 'colored':
-                filteredProducts = window.currentProducts.filter(product => 
-                    product.name.toLowerCase().includes('colored') || 
-                    product.name.toLowerCase().includes('цветные') ||
-                    product.name.toLowerCase().includes('кольорові') ||
-                    product.name.toLowerCase().includes('color strings'));
-                break;
-            
-            default:
-                // Если категория не распознана, показываем все товары
-                filteredProducts = window.currentProducts;
-                break;
-        }
-        
-        // Отображаем отфильтрованные товары
-        if (filteredProducts.length > 0) {
-            displayProducts(filteredProducts);
-            console.log(`filterProductsByCategory: Найдено ${filteredProducts.length} товаров для категории "${category}"`);
-            console.log('filterProductsByCategory: Примеры найденных товаров:');
-            filteredProducts.slice(0, 3).forEach((product, index) => {
-                console.log(`  ${index + 1}. "${product.name}"`);
-            });
+        if (category === '7-string') {
+            console.log(`filterProductsByCategory: 7-string - характеристика, используем фильтрацию`);
+            search7StringProducts();
+        } else if (category === 'dr') {
+            console.log(`filterProductsByCategory: DR - используем поиск по DR`);
+            searchDRProducts();
+        } else if (category === 'la-bella') {
+            console.log(`filterProductsByCategory: La Bella - используем поиск по La Bella`);
+            searchLaBellaProducts();
         } else {
-            // Показываем сообщение об отсутствии товаров
-            const container = document.querySelector('.inner');
-            if (container) {
-                // Получаем текущий язык
-                const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
-                const currentTranslations = translations[currentLanguage] || translations.uk;
-                
-                // Получаем название категории для отображения
-                let categoryDisplayName = category;
-                const categoryElement = document.querySelector(`[data-category="${category}"]`);
-                if (categoryElement) {
-                    categoryDisplayName = categoryElement.textContent;
-                }
-                
-                container.innerHTML = `
-                    <div style="padding: 40px; text-align: center; grid-column: 1 / -1;">
-                        <i class="fas fa-search" style="font-size: 48px; margin-bottom: 20px; opacity: 0.5; color: var(--text-light);"></i>
-                        <h3 style="color: var(--text-primary); margin-bottom: 10px;">${currentTranslations.noProductsFound || 'Товары не найдены'}</h3>
-                        <p style="color: var(--text-light); margin-bottom: 20px;">${currentTranslations.noProductsInCategory || 'В категории'} "${categoryDisplayName}" ${currentTranslations.noProductsInCategoryEnd || 'пока нет товаров'}</p>
-                        <button class="btn" onclick="clearCategoryFilter()" style="background: var(--accent-color); color: white; border: none; padding: 12px 24px; border-radius: var(--border-radius); cursor: pointer;">
-                            <i class="fas fa-times"></i> ${currentTranslations.showAllProducts || 'Показать все товары'}
-                        </button>
-                    </div>
-                `;
+            console.log(`filterProductsByCategory: ${category} - производитель, используем поиск`);
+            
+            // Определяем поисковый запрос для производителя
+            let searchQuery = '';
+            switch (category) {
+                case 'daddario':
+                    searchQuery = 'addario';
+                    break;
+                case 'dean-markley':
+                    searchQuery = 'Dean Markley';
+                    break;
+                case 'ernie-ball':
+                    searchQuery = 'Ernie Ball';
+                    break;
+                case 'ghs':
+                    searchQuery = 'GHS';
+                    break;
+                case 'dunlop':
+                    searchQuery = 'Dunlop';
+                    break;
+                case 'elixir':
+                    searchQuery = 'Elixir';
+                    break;
+                case 'fender':
+                    searchQuery = 'Fender';
+                    break;
+                case 'gibson':
+                    searchQuery = 'Gibson';
+                    break;
+                case 'cleartone':
+                    searchQuery = 'Cleartone';
+                    break;
+                case 'curt-mangan':
+                    searchQuery = 'Curt Mangan';
+                    break;
+                case 'pyramid':
+                    searchQuery = 'Pyramid';
+                    break;
+                case 'rotosound':
+                    searchQuery = 'Rotosound';
+                    break;
+                case 'optima':
+                    searchQuery = 'Optima';
+                    break;
+                case 'orphee':
+                    searchQuery = 'Orphee';
+                    break;
+                case 'musicians-gear':
+                    searchQuery = 'Musicians Gear';
+                    break;
+                default:
+                    searchQuery = category;
             }
-            console.log(`filterProductsByCategory: В категории "${category}" товары не найдены`);
+            
+            console.log(`filterProductsByCategory: Выполняем поиск по запросу: "${searchQuery}"`);
+            searchProducts(searchQuery);
         }
-    }
+        
+        // Запоминаем последний поиск
+        lastCategorySearch = category;
+        
+    }, 300); // Задержка 300ms для предотвращения множественных вызовов
 }
 
 // Функция очистки фильтра категорий
@@ -2598,3 +2467,22 @@ window.forceClearCache = forceClearCache;
 
 console.log('app.js инициализирован (версия 13.14 - исправлена фильтрация DR и La Bella по пометкам в карточках)');
 console.log('Для принудительной очистки кэша выполните: forceClearCache()');
+
+// Функции для индикатора загрузки
+function showLoadingIndicator() {
+    const container = document.getElementById('productsContainer');
+    if (container) {
+        container.innerHTML = `
+            <div style="display: flex; justify-content: center; align-items: center; padding: 40px; grid-column: 1 / -1;">
+                <div class="loading-spinner">
+                    <div class="spinner"></div>
+                    <p style="margin-top: 20px; color: var(--text-light);">Загружаем товары...</p>
+                </div>
+            </div>
+        `;
+    }
+}
+
+function hideLoadingIndicator() {
+    // Индикатор скрывается автоматически при отображении товаров
+}

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Поиск товара 2730 в API</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .section { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .success { color: #28a745; font-weight: bold; }
+        .error { color: #dc3545; font-weight: bold; }
+        .info { color: #17a2b8; }
+        .warning { color: #ffc107; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin: 5px; }
+        .results { background: #f8f9fa; padding: 15px; border-radius: 4px; margin: 10px 0; border-left: 4px solid #007bff; }
+        .found-item { background: #d4edda; padding: 10px; margin: 5px 0; border-radius: 4px; border-left: 3px solid #28a745; }
+        .highlight { background: #fff3cd; border-left: 3px solid #ffc107; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Поиск товара 2730 в API</h1>
+    
+    <div class="section">
+        <h2>1. Загрузка всех товаров</h2>
+        <button onclick="loadAllProducts()">Загрузить все товары</button>
+        <div id="load-results" class="results"></div>
+    </div>
+    
+    <div class="section">
+        <h2>2. Поиск товара 2730</h2>
+        <button onclick="find2730()">Найти товар 2730</button>
+        <div id="find-results" class="results"></div>
+    </div>
+    
+    <div class="section">
+        <h2>3. Поиск похожих товаров</h2>
+        <button onclick="findSimilar()">Найти похожие товары</button>
+        <div id="similar-results" class="results"></div>
+    </div>
+
+    <script>
+        let allProducts = [];
+
+        async function loadAllProducts() {
+            const results = document.getElementById('load-results');
+            results.innerHTML = '<div class="info">🔄 Загружаем все товары из API...</div>';
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                allProducts = data.products || [];
+                
+                results.innerHTML = `
+                    <div class="success">✅ Данные загружены!</div>
+                    <div class="info">📊 Всего товаров: ${allProducts.length}</div>
+                `;
+                
+            } catch (error) {
+                results.innerHTML = `<div class="error">❌ Ошибка: ${error.message}</div>`;
+            }
+        }
+
+        function find2730() {
+            const results = document.getElementById('find-results');
+            
+            if (allProducts.length === 0) {
+                results.innerHTML = '<div class="error">❌ Сначала загрузите товары</div>';
+                return;
+            }
+            
+            results.innerHTML = '<div class="info">🔍 Ищем товар 2730...</div>';
+            
+            // Ищем товары, содержащие "2730"
+            const productsWith2730 = allProducts.filter(product => {
+                const name = product.name.toLowerCase();
+                return name.includes('2730') || name.includes('ernie ball') && name.includes('cobalt slinky') && name.includes('10-62');
+            });
+            
+            if (productsWith2730.length > 0) {
+                results.innerHTML += `
+                    <div class="success">✅ Найдено ${productsWith2730.length} товаров с 2730:</div>
+                `;
+                
+                productsWith2730.forEach((product, index) => {
+                    const is7String = product.name.toLowerCase().includes('7-string') || 
+                                    product.name.toLowerCase().includes('7 string');
+                    
+                    results.innerHTML += `
+                        <div class="${is7String ? 'found-item' : 'highlight'}">
+                            <strong>${index + 1}. ${product.name}</strong><br>
+                            <small>7-струнный: ${is7String ? '✅ ДА' : '❌ НЕТ'}</small><br>
+                            <small>ID: ${product.id || 'N/A'}</small>
+                        </div>
+                    `;
+                });
+            } else {
+                results.innerHTML += `
+                    <div class="warning">⚠️ Товар 2730 не найден в API</div>
+                `;
+            }
+            
+            // Ищем все товары Ernie Ball для сравнения
+            const ernieBallProducts = allProducts.filter(product => {
+                return product.name.toLowerCase().includes('ernie ball');
+            });
+            
+            results.innerHTML += `
+                <div style="margin-top: 20px;">
+                    <h4>🔍 Все товары Ernie Ball (${ernieBallProducts.length}):</h4>
+                </div>
+            `;
+            
+            ernieBallProducts.forEach((product, index) => {
+                const is7String = product.name.toLowerCase().includes('7-string') || 
+                                product.name.toLowerCase().includes('7 string');
+                const has2730 = product.name.toLowerCase().includes('2730');
+                
+                results.innerHTML += `
+                    <div class="${has2730 ? 'highlight' : (is7String ? 'found-item' : '')}">
+                        <strong>${index + 1}. ${product.name}</strong><br>
+                        <small>7-струнный: ${is7String ? '✅ ДА' : '❌ НЕТ'}</small>
+                        ${has2730 ? '<br><small>🎯 СОДЕРЖИТ 2730!</small>' : ''}
+                    </div>
+                `;
+            });
+        }
+
+        function findSimilar() {
+            const results = document.getElementById('similar-results');
+            
+            if (allProducts.length === 0) {
+                results.innerHTML = '<div class="error">❌ Сначала загрузите товары</div>';
+                return;
+            }
+            
+            results.innerHTML = '<div class="info">🔍 Ищем похожие товары...</div>';
+            
+            // Ищем товары с похожими характеристиками
+            const similarProducts = allProducts.filter(product => {
+                const name = product.name.toLowerCase();
+                return name.includes('ernie ball') && 
+                       name.includes('cobalt slinky') && 
+                       (name.includes('10-62') || name.includes('10-56') || name.includes('11-58'));
+            });
+            
+            if (similarProducts.length > 0) {
+                results.innerHTML += `
+                    <div class="success">✅ Найдено ${similarProducts.length} похожих товаров:</div>
+                `;
+                
+                similarProducts.forEach((product, index) => {
+                    const is7String = product.name.toLowerCase().includes('7-string') || 
+                                    product.name.toLowerCase().includes('7 string');
+                    
+                    results.innerHTML += `
+                        <div class="${is7String ? 'found-item' : 'highlight'}">
+                            <strong>${index + 1}. ${product.name}</strong><br>
+                            <small>7-струнный: ${is7String ? '✅ ДА' : '❌ НЕТ'}</small>
+                        </div>
+                    `;
+                });
+            } else {
+                results.innerHTML += `
+                    <div class="warning">⚠️ Похожие товары не найдены</div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
