@@ -546,6 +546,41 @@ def api_products():
             'Access-Control-Allow-Headers': 'Content-Type'
         }
 
+@app.route('/proxy_fetch')
+def proxy_fetch():
+    """Прокси для загрузки HTML с guitarstrings.com.ua, чтобы обойти CORS в браузере.
+    Пример: /proxy_fetch?url=https://guitarstrings.com.ua/electro/11-electric?limitstart=0&limit=150
+    Разрешаем только домен guitarstrings.com.ua.
+    """
+    src_url = request.args.get('url', '').strip()
+    if not src_url:
+        return 'Missing url', 400
+    if not src_url.startswith('https://guitarstrings.com.ua/'):
+        return 'URL not allowed', 403
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+        }
+        r = requests.get(src_url, headers=headers, timeout=20)
+        r.raise_for_status()
+        html = r.text
+        return html, 200, {
+            'Content-Type': 'text/html; charset=utf-8',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+            'Access-Control-Allow-Origin': '*'
+        }
+    except Exception as e:
+        return f'Proxy error: {e}', 502, {
+            'Content-Type': 'text/plain; charset=utf-8',
+            'Access-Control-Allow-Origin': '*'
+        }
+
 if __name__ == '__main__':
     print("Starting server... (версия 13.02 - исправление цен La Bella)")
     print("Pre-loading product cache...")

@@ -1,0 +1,98 @@
+## Категория: 09 калибр (электрогитара)
+
+Источник: https://guitarstrings.com.ua/electro/09-electric
+
+- Orphee RX15 Nickel Alloy Super Light 9-42
+- Ernie Ball 2248 Custom Gauge Stainless Steel 9-42
+- Ernie Ball 2247 Custom Gauge Stainless Steel 9-46
+- GHS Boomers GBCL Custom Light 9-46
+- GHS Boomers GBXL Extra Light 9-42
+- DAddario EXL120+-3D Nickel Wound 9.5-44 1 set
+- DAddario EXL120-10P Nickel Wound Super Light 9-42 1 set
+- DAddario EXL125-10P Nickel Wound Super Lt Top Reg Btm 9-46 1 set
+- DAddario EXL125 Nickel Wound Super Light Top Regular Bottom 9-46
+- DAddario EXL120+ Nickel Wound Super Light Plus 9.5-44
+- DAddario EXL120 Nickel Wound Super Light 9-42
+- Dunlop 3PDEN0942 Nickel Wound Extra Light 9-42 1 set
+- Dunlop DEN0942 Nickel Wound Light 9-42
+- Dunlop DEN0946 Nickel Wound Light/Heavy 9-46
+- Ernie Ball 2222 Hybrid Slinky 9-46
+- Ernie Ball 2223 Super Slinky 9-42
+- Ernie Ball 2212 Primo Slinky 9.5-44
+- Fender 250L-3 Nickel Plated Steel Light 9-42 1 set
+- Fender 250L Nickel Plated Steel Light 9-42
+- Fender 250LR Nickel Plated Steel 9-46 Light/Regular
+- Ernie Ball 2224 Turbo Slinky 9.5-46
+- Ernie Ball 2239 RPS Super Slinky 9-42
+- Ernie Ball 2241 RPS Hybrid Slinky 9-46
+- La Bella HRS-XL Hard Rockin Steel Nickel-Plated Extra Light 9-42
+- Rotosound RH9 Roto Orange 9-46
+- Rotosound R9 Roto Pinks 9-42
+- La Bella HRS-L Hard Rockin Steel Nickel-Plated Light 9-46
+- Ernie Ball 2253 Pure Nickel Super Slinky 9-42
+- Dunlop RWN0942 Rev. Willy Mexican Lottery Billy Gibbons 9-42
+- Ernie Ball 2252 Pure Nickel Hybrid Slinky 9-46
+- Dean Markley 2508 Nickel Steel 9-46 Signature
+- DAddario EPN120 Pure Nickel Wound Super Light 9-41
+- GHS BCCL Big Core Nickel Rockers Pure Nickel 9.5-48 Custom Light
+- Dean Markley 2552 Blue Steel Light 9-42
+- Fender 3250L Super Bullets Nickel Plated Steel 9-42 Light
+- Ernie Ball 2722 Cobalt Slinky 9-46
+- Ernie Ball 2723 Cobalt Slinky 9-42
+- DAddario NYXL09544 Nickel Wound Carbon Core Super Light Plus 9.5-44
+- DAddario NYXL0946 Nickel Wound Carbon Core Custom Light 9-46
+- DAddario XTE0942 XT Extended Life Super Light 9-42
+- DAddario NYXL0942 Nickel Wound Carbon Core Super Light 9-42
+- DAddario XTE0946 XT Extended Life Super Top Regular Bottom 9-46
+- Rotosound UM9 Ultramag Type 52 Alloy 9-42
+- Ernie Ball 3122 Titanium Hybrid Slinky 9-46
+- Ernie Ball 3123 Titanium Super Slinky 9-42
+- Ernie Ball 2712 Cobalt Primo Slinky 9.5-44
+- Elixir 16540 Nanoweb Super Light 9-42 1 set
+- DR NGE-9/46 Hi-Def Neon Green K3 Coated Light Top Heavy Bottom 9-46
+- DR NGE-9 Hi-Def Neon Green K3 Coated Light 9-42
+- DAddario XSE0942 XS Coated Nickel Plated Super Light 9-42
+- DAddario XSE0946 XS Coated Nickel Plated Super Light Top Reg Btm 9-46
+- DAddario XSE09544 XS Coated Nickel Plated Super Light Plus 9.5-44
+- Elixir 16550 Optiweb Nickel Plated Steel Super Light 9-42 1 set
+- Elixir 12002 Nanoweb Super Light 9-42
+- Gibson SEG-LES9 Les Paul Premium Silk-Wrapped Pure Nickel 9-42 Ultra L
+- Elixir 12027 Nanoweb Custom Light 9-46
+- Ernie Ball 2022 Paradigm Hybrid Slinky 9-46
+- Ernie Ball 2018 Paradigm Primo Slinky 9.5-44
+- Ernie Ball 2023 Paradigm Super Slinky 9-42
+- Elixir 19002 Optiweb Nickel Plated Steel Super Light 9-42
+- Elixir 19027 Optiweb Nickel Plated Steel Custom Light 9-46
+- Ernie Ball 2923 M-Steel Super Slinky 9-42
+- Ernie Ball 2922 M-Steel Hybrid Slinky 9-46
+- Ernie Ball 3826 Paradigm Tim Henson Signature Electric Strings 9.5-46
+- DAddario EXL120-3D Nickel Wound Super Light 9-42 3 sets
+- DAddario EXL125-3D Nickel Wound 9-46 3 sets
+- DAddario EXL120+-3D Nickel Wound 9.5-44 3 sets
+- Dunlop 3PDEN0942 Nickel Wound Extra Light 9-42 3 sets
+- Fender 250L-3 Nickel Plated Steel Light 9-42 3-Pack
+- Ernie Ball 2593 Flatwound Cobalt Super Slinky 9-42
+- Optima 2028 BM 24 Karat Gold Plated Brian May Electric Guitar Strings 9-42
+- Elixir 16540 Nanoweb Super Light 9-42 3 Sets
+- Elixir 16550 Optiweb Nickel Plated Steel Super Light 9-42 3 sets
+- Ernie Ball 2722 Cobalt Slinky 9-46 6 sets
+- DAddario EXL125-10P Nickel Wound Super Lt Top Reg Btm 9-46 10 sets
+- Ernie Ball 2222 Hybrid Slinky 9-46 12 sets
+- Ernie Ball 2223 Super Slinky 9-42 12 sets
+- Elixir 12002 Nanoweb Super Light 9-42 12 sets
+- GHS Boomers GBXL 9-42 Extra Light 1 set
+- DR LH-9 Tite-Fit Nickel Plated Electric Guitar Strings Light Heavy 9-46
+- Fender 3250LR Super Bullets Nickel Plated Steel 9-46 Light/Regular
+- GHS Boomers GBXL-6P 9-42 Extra Light 6 sets
+- Ernie Ball 2723 Cobalt Slinky 9-42 6 sets
+- DAddario EXL120-10P Nickel Wound Super Light 9-42 10 sets
+- Elixir 12027 Nanoweb Custom Light 9-46 12 sets
+- Dean Markley 2502 Nickel Steel 9-42 Signature
+- Dean Markley 2554 Blue Steel Custom Light 9-46
+
+### Интеграция в UI
+- Баннер: кнопка с `data-category="09-gauge"` — по клику включается фильтр 09 калибра (функция `searchGauge09ElectricProducts()`).
+- Карточки: каждому товару из списка добавляется кликабельная пометка «09 калибр электро» (класс `.product-gauge09`); по клику показываются все карточки с этой пометкой.
+- API: используется `/api/products`; фильтрация 09 калибра реализована на фронтенде.
+
+

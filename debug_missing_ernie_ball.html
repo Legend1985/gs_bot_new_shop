@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Поиск пропущенного товара Ernie Ball</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .debug-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .debug-button {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        .debug-button:hover {
+            background: #c82333;
+        }
+        .results {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border-left: 4px solid #dc3545;
+        }
+        .missing-info {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+            border-left: 4px solid #ffc107;
+        }
+        .product-item {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+            margin: 3px 0;
+            font-size: 14px;
+        }
+        .product-name {
+            font-weight: bold;
+            color: #333;
+        }
+        .product-details {
+            color: #666;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="debug-container">
+        <h1>🔍 Поиск пропущенного товара Ernie Ball</h1>
+        
+        <div class="missing-info">
+            <h3>⚠️ Проблема:</h3>
+            <p><strong>Ожидается:</strong> 112 товаров Ernie Ball</p>
+            <p><strong>Получаем:</strong> 111 товаров Ernie Ball</p>
+            <p><strong>Пропущен:</strong> 1 товар</p>
+        </div>
+        
+        <div>
+            <button class="debug-button" onclick="debugErnieBallSearch()">🔍 Детальный анализ</button>
+            <button class="debug-button" onclick="compareWithWebsite()">🌐 Сравнить с сайтом</button>
+            <button class="debug-button" onclick="clearResults()">🗑️ Очистить</button>
+        </div>
+        
+        <div id="results" class="results" style="display: none;">
+            <h3>📋 Результаты анализа:</h3>
+            <div id="debugInfo"></div>
+            <div id="productAnalysis"></div>
+        </div>
+    </div>
+
+    <script>
+        async function debugErnieBallSearch() {
+            const resultsDiv = document.getElementById('results');
+            const debugInfoDiv = document.getElementById('debugInfo');
+            const productAnalysisDiv = document.getElementById('productAnalysis');
+            
+            resultsDiv.style.display = 'block';
+            debugInfoDiv.innerHTML = '<p>⏳ Выполняем детальный анализ...</p>';
+            productAnalysisDiv.innerHTML = '';
+            
+            try {
+                // Получаем все товары
+                const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+                const data = await response.json();
+                
+                if (data.success && data.products) {
+                    const allProducts = data.products;
+                    const ernieBallProducts = allProducts.filter(product => 
+                        product.name.toLowerCase().includes('ernie ball')
+                    );
+                    
+                    // Анализируем названия для поиска паттернов
+                    const namePatterns = {};
+                    ernieBallProducts.forEach(product => {
+                        const name = product.name.toLowerCase();
+                        
+                        // Ищем паттерны в названиях
+                        if (name.includes('slinky')) namePatterns.slinky = (namePatterns.slinky || 0) + 1;
+                        if (name.includes('paradigm')) namePatterns.paradigm = (namePatterns.paradigm || 0) + 1;
+                        if (name.includes('cobalt')) namePatterns.cobalt = (namePatterns.cobalt || 0) + 1;
+                        if (name.includes('nickel')) namePatterns.nickel = (namePatterns.nickel || 0) + 1;
+                        if (name.includes('hybrid')) namePatterns.hybrid = (namePatterns.hybrid || 0) + 1;
+                        if (name.includes('power')) namePatterns.power = (namePatterns.power || 0) + 1;
+                        if (name.includes('super')) namePatterns.super = (namePatterns.super || 0) + 1;
+                        if (name.includes('regular')) namePatterns.regular = (namePatterns.regular || 0) + 1;
+                        if (name.includes('skinny')) namePatterns.skinny = (namePatterns.skinny || 0) + 1;
+                        if (name.includes('heavy')) namePatterns.heavy = (namePatterns.heavy || 0) + 1;
+                        if (name.includes('mammoth')) namePatterns.mammoth = (namePatterns.mammoth || 0) + 1;
+                        if (name.includes('burly')) namePatterns.burly = (namePatterns.burly || 0) + 1;
+                        if (name.includes('flatwound')) namePatterns.flatwound = (namePatterns.flatwound || 0) + 1;
+                        if (name.includes('titanium')) namePatterns.titanium = (namePatterns.titanium || 0) + 1;
+                        if (name.includes('silver')) namePatterns.silver = (namePatterns.silver || 0) + 1;
+                        if (name.includes('pure')) namePatterns.pure = (namePatterns.pure || 0) + 1;
+                        if (name.includes('m-steel')) namePatterns.msteel = (namePatterns.msteel || 0) + 1;
+                        if (name.includes('not even')) namePatterns.notEven = (namePatterns.notEven || 0) + 1;
+                        if (name.includes('baritone')) namePatterns.baritone = (namePatterns.baritone || 0) + 1;
+                        if (name.includes('john mayer')) namePatterns.johnMayer = (namePatterns.johnMayer || 0) + 1;
+                        if (name.includes('papa hets')) namePatterns.papaHets = (namePatterns.papaHets || 0) + 1;
+                        if (name.includes('72 seasons')) namePatterns.seasons72 = (namePatterns.seasons72 || 0) + 1;
+                        if (name.includes('hard wired')) namePatterns.hardWired = (namePatterns.hardWired || 0) + 1;
+                        if (name.includes('drop tuning')) namePatterns.dropTuning = (namePatterns.dropTuning || 0) + 1;
+                        if (name.includes('6 sets')) namePatterns.sixSets = (namePatterns.sixSets || 0) + 1;
+                        if (name.includes('12 sets')) namePatterns.twelveSets = (namePatterns.twelveSets || 0) + 1;
+                        if (name.includes('3-pack')) namePatterns.threePack = (namePatterns.threePack || 0) + 1;
+                        if (name.includes('6-pack')) namePatterns.sixPack = (namePatterns.sixPack || 0) + 1;
+                    });
+                    
+                    // Отображаем детальную информацию
+                    debugInfoDiv.innerHTML = `
+                        <div class="missing-info">
+                            <h4>📊 Детальная статистика:</h4>
+                            <p><strong>Всего товаров в API:</strong> ${allProducts.length}</p>
+                            <p><strong>Товаров Ernie Ball:</strong> ${ernieBallProducts.length}</p>
+                            <p><strong>Ожидается:</strong> 112</p>
+                            <p><strong>Пропущено:</strong> <span style="color: #dc3545; font-weight: bold;">${112 - ernieBallProducts.length}</span></p>
+                        </div>
+                        
+                        <div class="missing-info">
+                            <h4>🔍 Анализ паттернов в названиях:</h4>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                                ${Object.entries(namePatterns).map(([pattern, count]) => 
+                                    `<div style="background: #f8f9fa; padding: 8px; border-radius: 4px;">
+                                        <strong>${pattern}:</strong> ${count}
+                                    </div>`
+                                ).join('')}
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Отображаем все товары Ernie Ball для проверки
+                    productAnalysisDiv.innerHTML = '<h4>🎸 Все найденные товары Ernie Ball:</h4>';
+                    ernieBallProducts.forEach((product, index) => {
+                        const productDiv = document.createElement('div');
+                        productDiv.className = 'product-item';
+                        productDiv.innerHTML = `
+                            <div class="product-name">${index + 1}. ${product.name}</div>
+                            <div class="product-details">
+                                Цена: ${product.newPrice} грн | Статус: ${product.status} | Рейтинг: ${product.rating}
+                            </div>
+                        `;
+                        productAnalysisDiv.appendChild(productDiv);
+                    });
+                    
+                } else {
+                    debugInfoDiv.innerHTML = '<p style="color: #dc3545;">❌ Ошибка API: ' + (data.error || 'Неизвестная ошибка') + '</p>';
+                }
+                
+            } catch (error) {
+                debugInfoDiv.innerHTML = '<p style="color: #dc3545;">❌ Ошибка соединения: ' + error.message + '</p>';
+                console.error('Ошибка анализа:', error);
+            }
+        }
+        
+        async function compareWithWebsite() {
+            const debugInfoDiv = document.getElementById('debugInfo');
+            debugInfoDiv.innerHTML = `
+                <div class="missing-info">
+                    <h4>🌐 Сравнение с сайтом:</h4>
+                    <p>На сайте <a href="https://guitarstrings.com.ua/electro/ernie-ball-electric?limit=150" target="_blank">guitarstrings.com.ua</a> показано <strong>112 товаров</strong> Ernie Ball.</p>
+                    <p>В нашем API найдено <strong>111 товаров</strong>.</p>
+                    <p><strong>Возможные причины пропуска:</strong></p>
+                    <ul>
+                        <li>Товар попал в категорию "навигационных элементов"</li>
+                        <li>Ошибка в функции валидации товара</li>
+                        <li>Проблема с HTML селекторами</li>
+                        <li>Товар был удален как дубликат</li>
+                    </ul>
+                </div>
+            `;
+        }
+        
+        function clearResults() {
+            document.getElementById('results').style.display = 'none';
+        }
+        
+        // Автоматически запускаем анализ при загрузке страницы
+        window.addEventListener('load', () => {
+            console.log('🔍 Страница анализа загружена. Нажмите кнопку для поиска пропущенного товара.');
+        });
+    </script>
+</body>
+</html>

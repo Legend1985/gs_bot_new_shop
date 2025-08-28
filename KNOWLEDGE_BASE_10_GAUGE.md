@@ -1,0 +1,113 @@
+## Категория: 10 калибр (электрогитара)
+
+Источник: https://guitarstrings.com.ua/electro/10-electric
+
+- Orphee RX17 Nickel Alloy Normal Light 10-46
+- Musicians Gear MG10-46 Nickel-Plated Electric Guitar Strings 10-46
+- GHS Boomers GBLXL Light/Extra Light 10-38
+- GHS Boomers GB-DGF David Gilmour 10-48
+- GHS Boomers GBL 10-46 Regular
+- GHS Boomers GBTNT Thin/Thick 10-52
+- Ernie Ball 2246 Custom Gauge Stainless Steel 10-46
+- GHS Boomers GB-DGG David Gilmour 10.5-50
+- DAddario EXL110-10P Nickel Wound Regular Light 10-46 1 set
+- DAddario EXL110 Nickel Wound Regular Light 10-46
+- DAddario EXL110+ Nickel Wound Regular Light Plus 10.5-48
+- Dunlop 3PDEN1046 Nickel Wound 10-46 Light 1 set
+- Ernie Ball 2213 Mega Slinky 10.5-48
+- Ernie Ball 2215 Skinny Top Heavy Bottom 10-52
+- Ernie Ball 2221 Regular Slinky 10-46
+- Dunlop DEN1046 Nickel Wound Light 10-46
+- Dunlop DEN1052 Nickel Wound Light/Heavy 10-52
+- Ernie Ball 2211 Mondo Slinky 10.5-52
+- DR MT-10 Tite-Fit Nickel Plated Electric Guitar Strings Meduim 10-46
+- Dunlop DHCN1048 Heavy Core 10-48
+- Fender 250R-3 Nickel-Plated Steel 10-46 Regular 1 set
+- DAddario EXL140-10P Nickel Wound Light Top Heavy Bottom 10-52 1 set
+- Fender 250RH Nickel Plated Steel 10-52 Regular/Heavy
+- GHS Boomers GBZW Heavy Bottom Zakk Wylde 10-60
+- Fender 250R Nickel-Plated Steel 10-46 Regular
+- Ernie Ball 2227 Ultra Slinky 10-48
+- DAddario EXL140 Nickel Wound Light Top Heavy Bottom 10-52
+- Ernie Ball 2240 RPS Regular Slinky 10-46
+- DAddario EXL110-E Nickel Wound Regular Light 1-st Extra String 10-46
+- Rotosound R10 Roto Yellows 10-46
+- Rotosound RH10 Roto Blues 10-52
+- Dunlop KKN1052 Kerry King Signature Medium 10-52
+- Ernie Ball 2251 Pure Nickel Regular Slinky 10-46
+- Dunlop RWN1046 Rev. Willy Mexican Lottery Billy Gibbons 10-46
+- DAddario EPN110 Pure Nickel Wound Regular Light 10-45
+- GHS BCL Big Core Nickel Rockers Pure Nickel 10.5-48 Light
+- Dean Markley 2556 Blue Steel Regular 10-46
+- Dunlop ZWEN1046 String Lab Zakk Wylde Signature Medium 10-46
+- Dunlop ZWEN1052 String Lab Zakk Wylde Signature Light/Heavy 10-52
+- DAddario NYXL1046 Nickel Wound Carbon Core Regular Light 10-46
+- Ernie Ball 3818 Silver Slinky John Mayer Signature 1-Pack 10.5-47
+- Ernie Ball 2721 Cobalt Slinky 10-46
+- DAddario XTE1046 XT Extended Life Regular Light 10-46
+- DAddario XTE1052 XT Extended Life Light Top Heavy Bottom 10-52
+- Dunlop TVMN1052 Trivium Heavy Core Custom Set 10-52
+- Rotosound UM10 Ultramag Type 52 Alloy 10-46
+- DAddario NYXL1052 Nickel Wound Carbon Core LTHB 10-52
+- Ernie Ball 2715 Cobalt Slinky 10-52
+- Ernie Ball 2218 Silver Slinky John Mayer Signature 10.5-47
+- Fender 3250R Super Bullets Nickel Plated Steel 10-46 Regular
+- Ernie Ball 3115 Titanium S.T.H.B. Slinky 10-52
+- Ernie Ball 3121 Titanium Regular Slinky 10-46
+- Ernie Ball 2717 Cobalt Ultra Slinky 10-48
+- Elixir 16542 Nanoweb Light 10-46 1 set
+- DR NGE-10 Hi-Def Neon Green K3 Coated Medium 10-46
+- DAddario XSE1046 XS Coated Nickel Plated Regular Light 10-46
+- DAddario XSE1052 XS Coated Nickel Plated Light Top Heavy Bottom 10-52
+- Elixir 16552 Optiweb Nickel Plated Steel Light 10-46 1 set
+- Elixir 12052 Nanoweb Light 10-46
+- Gibson SEG-BWR10 Brite Wire Reinforced Nickel Plated 10-46 Light
+- Elixir 12077 Nanoweb Light-Heavy 10-52
+- Ernie Ball 2015 Paradigm Skinny Top Heavy Bottom 10-52
+- Ernie Ball 2017 Paradigm Ultra Slinky 10-48
+- Ernie Ball 2021 Paradigm Regular Slinky 10-46
+- Elixir 19052 Optiweb Nickel Plated Steel Light 10-46
+- Elixir 19077 Optiweb Nickel Plated Steel Light Heavy 10-52
+- Ernie Ball 2921 M-Steel Regular Slinky 10-46
+- Ernie Ball 2915 M-Steel STHB Slinky 10-52
+- DAddario ECG23-3D Chromes Flat Wound 10-48 1 set
+- DAddario EXL110-3D Nickel Wound Regular Light 10-46 3 sets
+- Dunlop 3PDEN1046 Nickel Wound 10-46 Light 3 sets
+- Ernie Ball 3213 Mega Slinky 10.5-48 3 Pack
+- DAddario EXL140-3D Nickel Wound 10-52 3 sets
+- Fender 250R-3 Nickel-Plated Steel 10-46 Regular 3-Pack
+- Ernie Ball Synyster Gates Signature Stainless Steel RPS Strings 10-52
+- Ernie Ball 2591 Flatwound Cobalt Regular Slinky 10-46
+- Elixir 16552 Optiweb Nickel Plated Steel Light 10-46 3 sets
+- Ernie Ball 3818 Silver Slinky John Mayer Signature 3-Pack Tin 10.5-47
+- DAddario ECG23-3D Chromes Flat Wound 10-48 3 sets
+- DAddario NYXL1046 Nickel Wound Carbon Core Regular 10-46 5 Pack
+- Ernie Ball 2721 Cobalt Slinky 10-46 6 sets
+- Ernie Ball 2715 Cobalt Slinky 10-52 6 sets
+- GHS Boomers GBL 10-46 Regular 10 sets
+- Ernie Ball 3818 Silver Slinky John Mayer Signature 6-Pack 10.5-47
+- DAddario EXL110-10P Nickel Wound Regular Light 10-46 10 sets
+- DAddario EXL140-10P Nickel Wound Light Top Heavy Bottom 10-52 10 sets
+- GHS Boomers GB-DGF 10-48 David Gilmour 12 sets
+- GHS Boomers GB-DGG 10.5-50 David Gilmour 12 sets
+- Ernie Ball 2215 Skinny Top Heavy Bottom 10-52 12 sets
+- Ernie Ball 2221 Regular Slinky 10-46 12 sets
+- Ernie Ball 2251 Pure Nickel Regular Slinky 10-46 12 sets
+- Elixir 12052 Nanoweb Light 10-46 12 sets
+- GHS Boomers GBL 10-46 Regular 1 set
+- Dunlop DHCN1060-6 Heavy Core 10-60
+- La Bella HRS-R Hard Rockin Steel Nickel-Plated Regular 10-46
+- Pyramid R451 100 Pure Nickel Classics Round Core 10-46 Regular
+- Elixir 16542 Nanoweb Light 10-46 3 Sets
+- GHS Boomers GBL-6P 10-46 Regular 6 sets
+- Cleartone 9520 10-52 Light Top Heavy Bottom Nickel-Plated Monster
+- Pyramid R451 100 Pure Nickel Classics Round Core 10-46 15 sets
+- Dean Markley 2503 Nickel Steel 10-46 Signature
+- Dean Markley 2504 Nickel Steel 10-52 Signature
+- Dean Markley 2558 Blue Steel LTHB 10-52
+
+Интеграция в UI:
+- Баннер: кнопка с data-category="10-gauge" — по клику фильтр 10 калибра (функция searchGauge10ElectricProducts()).
+- Карточки: бейдж «10 калибр электро» (класс .product-gauge10), по клику показываются все карточки 10‑калибра.
+- API: используется /api/products; фильтрация 10‑калибра реализована на фронтенде.
+

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест количества товаров Ernie Ball</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        .test-button:hover {
+            background: #0056b3;
+        }
+        .results {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border-left: 4px solid #007bff;
+        }
+        .product-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            margin: 5px 0;
+        }
+        .product-name {
+            font-weight: bold;
+            color: #333;
+        }
+        .product-price {
+            color: #666;
+            font-size: 14px;
+        }
+        .count-info {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+            border-left: 4px solid #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Тест количества товаров Ernie Ball</h1>
+        
+        <div class="count-info">
+            <h3>📊 Цель теста:</h3>
+            <p>Проверить, сколько товаров бренда Ernie Ball отображается при нажатии на кнопку "Ernie Ball" в большом баннере.</p>
+        </div>
+        
+        <div>
+            <button class="test-button" onclick="testErnieBallSearch()">🔍 Тест поиска Ernie Ball</button>
+            <button class="test-button" onclick="clearResults()">🗑️ Очистить результаты</button>
+        </div>
+        
+        <div id="results" class="results" style="display: none;">
+            <h3>📋 Результаты теста:</h3>
+            <div id="countInfo"></div>
+            <div id="productList"></div>
+        </div>
+    </div>
+
+    <script>
+        async function testErnieBallSearch() {
+            const resultsDiv = document.getElementById('results');
+            const countInfoDiv = document.getElementById('countInfo');
+            const productListDiv = document.getElementById('productList');
+            
+            resultsDiv.style.display = 'block';
+            countInfoDiv.innerHTML = '<p>⏳ Выполняем поиск товаров Ernie Ball...</p>';
+            productListDiv.innerHTML = '';
+            
+            try {
+                // Выполняем поиск по API
+                const response = await fetch('http://localhost:8000/api/products?search=ernie%20ball&start=0&limit=1000');
+                const data = await response.json();
+                
+                if (data.success && data.products) {
+                    const products = data.products;
+                    const ernieBallProducts = products.filter(product => 
+                        product.name.toLowerCase().includes('ernie ball')
+                    );
+                    
+                    // Отображаем информацию о количестве
+                    countInfoDiv.innerHTML = `
+                        <div class="count-info">
+                            <h4>📈 Статистика:</h4>
+                            <p><strong>Всего товаров в API:</strong> ${products.length}</p>
+                            <p><strong>Товаров Ernie Ball:</strong> <span style="color: #007bff; font-weight: bold; font-size: 18px;">${ernieBallProducts.length}</span></p>
+                            <p><strong>Процент Ernie Ball:</strong> ${((ernieBallProducts.length / products.length) * 100).toFixed(1)}%</p>
+                        </div>
+                    `;
+                    
+                    // Отображаем список товаров
+                    if (ernieBallProducts.length > 0) {
+                        productListDiv.innerHTML = '<h4>🎸 Список товаров Ernie Ball:</h4>';
+                        ernieBallProducts.forEach((product, index) => {
+                            const productDiv = document.createElement('div');
+                            productDiv.className = 'product-item';
+                            productDiv.innerHTML = `
+                                <div class="product-name">${index + 1}. ${product.name}</div>
+                                <div class="product-price">
+                                    Цена: ${product.newPrice} грн | 
+                                    Статус: ${product.status} | 
+                                    Рейтинг: ${product.rating}
+                                </div>
+                            `;
+                            productListDiv.appendChild(productDiv);
+                        });
+                    } else {
+                        productListDiv.innerHTML = '<p style="color: #dc3545;">❌ Товары Ernie Ball не найдены!</p>';
+                    }
+                    
+                } else {
+                    countInfoDiv.innerHTML = '<p style="color: #dc3545;">❌ Ошибка API: ' + (data.error || 'Неизвестная ошибка') + '</p>';
+                }
+                
+            } catch (error) {
+                countInfoDiv.innerHTML = '<p style="color: #dc3545;">❌ Ошибка соединения: ' + error.message + '</p>';
+                console.error('Ошибка теста:', error);
+            }
+        }
+        
+        function clearResults() {
+            document.getElementById('results').style.display = 'none';
+        }
+        
+        // Автоматически запускаем тест при загрузке страницы
+        window.addEventListener('load', () => {
+            console.log('🧪 Тестовая страница загружена. Нажмите кнопку для проверки товаров Ernie Ball.');
+        });
+    </script>
+</body>
+</html>

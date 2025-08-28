@@ -60,14 +60,24 @@ const translations = {
         eightString: "8 струн для електрогітари",
         nineString: "9 струн для електрогітари",
         flatwound: "Струни електро з плоскою обмоткою",
+        nickelPlated: "Nickel Plated Electric Strings",
+        nickelPlatedInfo: "Nickel Plated",
+        nickelPlatedShowAll: "Показати всі Nickel Plated",
         gauge09: "09 для електрогітари",
         gauge10: "10 для електрогітари",
         gauge11: "11 для електрогітари",
-        nickelPlated: "Nickel Plated Electric Strings",
         pureNickel: "Pure Nickel Electric Strings",
+        pureNickelInfo: "Pure Nickel",
+        pureNickelShowAll: "Показати всі Pure Nickel",
         stainlessSteel: "Stainless Steel Electric Strings",
+        stainlessSteelInfo: "Stainless Steel",
+        stainlessSteelShowAll: "Показати всі Stainless Steel",
         cobalt: "Cobalt Electric Strings",
+        cobaltInfo: "Cobalt",
+        cobaltShowAll: "Показати всі Cobalt",
         colored: "Colored Electric Strings",
+        coloredInfo: "Colored Strings",
+        coloredShowAll: "Показати всі Colored Strings",
         
         // Навигация внизу
         products: "Товари",
@@ -94,6 +104,21 @@ const translations = {
         
         // 7-струнная информация
         sevenStringInfo: "7 струн для електрогітари",
+        // 8-струнная информация
+        eightStringInfo: "8 струн для електрогітари",
+        // 9-струнная информация
+        nineStringInfo: "9 струн для електрогітари",
+        // Плоская обмотка электро
+        flatwoundInfo: "Плоска обмотка електро",
+        nickelPlatedInfo: "Nickel Plated",
+        nickelPlatedShowAll: "Показати всі Nickel Plated",
+        // 09 калибр электро (бейдж в карточке)
+        gauge09Info: "09 калібр електро",
+        gauge09ShowAll: "Показати всі 09 калібр електро",
+        gauge10Info: "10 калібр електро",
+        gauge10ShowAll: "Показати всі 10 калібр електро",
+        gauge11Info: "11 калібр електро",
+        gauge11ShowAll: "Показати всі 11 калібр електро",
         
         // Попапы товаров
         discontinuedTitle: "Товар знято з виробництва",
@@ -337,14 +362,24 @@ const translations = {
         eightString: "8 струн для электрогитары",
         nineString: "9 струн для электрогитары",
         flatwound: "Струны электро с плоской обмоткой",
+        nickelPlated: "Nickel Plated Electric Strings",
+        nickelPlatedInfo: "Nickel Plated",
+        nickelPlatedShowAll: "Показать все Nickel Plated",
         gauge09: "09 для электрогитары",
         gauge10: "10 для электрогитары",
         gauge11: "11 для электрогитары",
-        nickelPlated: "Nickel Plated Electric Strings",
         pureNickel: "Pure Nickel Electric Strings",
+        pureNickelInfo: "Pure Nickel",
+        pureNickelShowAll: "Показать все Pure Nickel",
         stainlessSteel: "Stainless Steel Electric Strings",
+        stainlessSteelInfo: "Stainless Steel",
+        stainlessSteelShowAll: "Показать все Stainless Steel",
         cobalt: "Cobalt Electric Strings",
+        cobaltInfo: "Cobalt",
+        cobaltShowAll: "Показать все Cobalt",
         colored: "Colored Electric Strings",
+        coloredInfo: "Colored Strings",
+        coloredShowAll: "Показать все Colored Strings",
         
         // Навигация внизу
         products: "Товары",
@@ -371,6 +406,21 @@ const translations = {
         
         // 7-струнная информация
         sevenStringInfo: "7 струн для электрогитары",
+        // 8-струнная информация
+        eightStringInfo: "8 струн для электрогитары",
+        // 9-струнная информация
+        nineStringInfo: "9 струн для электрогитары",
+        // Плоская обмотка электро
+        flatwoundInfo: "Плоская обмотка электро",
+        nickelPlatedInfo: "Nickel Plated",
+        nickelPlatedShowAll: "Показать все Nickel Plated",
+        // 09 калибр электро (бейдж в карточке)
+        gauge09Info: "09 калибр электро",
+        gauge09ShowAll: "Показать все 09 калибр электро",
+        gauge10Info: "10 калибр электро",
+        gauge10ShowAll: "Показать все 10 калибр электро",
+        gauge11Info: "11 калибр электро",
+        gauge11ShowAll: "Показать все 11 калибр электро",
         
         // Попапы товаров
         discontinuedTitle: "Товар снят с производства",
@@ -643,14 +693,24 @@ const translations = {
         eightString: "8-string electric guitar",
         nineString: "9-string electric guitar",
         flatwound: "Electric strings with flat winding",
+        nickelPlated: "Nickel Plated Electric Strings",
+        nickelPlatedInfo: "Nickel Plated",
+        nickelPlatedShowAll: "Show all Nickel Plated",
         gauge09: "09 for electric guitar",
         gauge10: "10 for electric guitar",
         gauge11: "11 for electric guitar",
-        nickelPlated: "Nickel Plated Electric Strings",
         pureNickel: "Pure Nickel Electric Strings",
+        pureNickelInfo: "Pure Nickel",
+        pureNickelShowAll: "Show all Pure Nickel",
         stainlessSteel: "Stainless Steel Electric Strings",
+        stainlessSteelInfo: "Stainless Steel",
+        stainlessSteelShowAll: "Show all Stainless Steel",
         cobalt: "Cobalt Electric Strings",
+        cobaltInfo: "Cobalt",
+        cobaltShowAll: "Show all Cobalt",
         colored: "Colored Electric Strings",
+        coloredInfo: "Colored Strings",
+        coloredShowAll: "Show all Colored Strings",
         
         // Bottom navigation
         products: "Products",
@@ -677,6 +737,21 @@ const translations = {
         
         // 7-string information
         sevenStringInfo: "7 strings for electric guitar",
+        // 8-string information
+        eightStringInfo: "8 strings for electric guitar",
+        // 9-string information
+        nineStringInfo: "9 strings for electric guitar",
+        // Electric flatwound
+        flatwoundInfo: "Electric flatwound",
+        nickelPlatedInfo: "Nickel Plated",
+        nickelPlatedShowAll: "Show all Nickel Plated",
+        // 09 gauge electric (badge in card)
+        gauge09Info: "09 gauge electric",
+        gauge09ShowAll: "Show all 09 gauge electric",
+        gauge10Info: "10 gauge electric",
+        gauge10ShowAll: "Show all 10 gauge electric",
+        gauge11Info: "11 gauge electric",
+        gauge11ShowAll: "Show all 11 gauge electric",
         
         // Product popups
         discontinuedTitle: "Product discontinued",

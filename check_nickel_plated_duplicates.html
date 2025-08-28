@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Проверка дубликатов — Nickel Plated</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; margin: 16px; }
+        h1 { font-size: 18px; margin: 0 0 10px; }
+        .controls { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+        button { padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; background: #fff; cursor: pointer; }
+        button:hover { background: #fafafa; }
+        .row { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 10px; }
+        .card { border: 1px solid #eee; border-radius: 8px; padding: 12px; background: #fff; }
+        .stats { color: #333; }
+        .ok { color: #2e7d32; }
+        .warn { color: #d32f2f; }
+        textarea { width: 100%; min-height: 180px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
+        .list { white-space: pre-wrap; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
+        iframe { width: 100%; height: 70vh; border: 1px solid #eee; border-radius: 8px; background: #fff; }
+        .note { font-size: 12px; color: #666; }
+    </style>
+    <script>
+        function normalizeLoose(value){
+            return (value||'')
+                .toLowerCase()
+                .normalize('NFKD')
+                .replace(/[\u2000-\u206F\u2E00-\u2E7F`'"’“”.,:;!~_*+\-—–·•()\[\]{}<>/\\|@#%^&?=]+/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function getFrame(){
+            const iframe = document.getElementById('appFrame');
+            return { win: iframe.contentWindow, doc: iframe.contentDocument || iframe.contentWindow.document };
+        }
+
+        function reloadFrame(){
+            const iframe = document.getElementById('appFrame');
+            iframe.src = 'index.html?v=' + Date.now();
+            document.getElementById('status').textContent = 'Перезагрузка витрины…';
+        }
+
+        async function runNickelPlatedFilter(){
+            const { win, doc } = getFrame();
+            document.getElementById('status').textContent = 'Активирую фильтр Nickel Plated…';
+            try {
+                if (typeof win.filterProductsByCategory === 'function') {
+                    win.filterProductsByCategory('nickel-plated', true);
+                }
+            } catch(e) {}
+            // Ждём дорисовку карточек
+            await new Promise(r => setTimeout(r, 1200));
+            await checkDuplicates();
+        }
+
+        function collectVisibleNames(){
+            const { doc } = getFrame();
+            const cards = Array.from(doc.querySelectorAll('.product-card'));
+            const visible = cards.filter(c => (c.style.display || '').toLowerCase() !== 'none');
+            const names = visible.map(c => {
+                const t = c.querySelector('.product-title');
+                return t ? t.textContent.trim().replace(/\s+/g, ' ') : '';
+            }).filter(Boolean);
+            return { totalCards: cards.length, totalVisible: visible.length, names };
+        }
+
+        async function checkDuplicates(){
+            const statusEl = document.getElementById('status');
+            const listEl = document.getElementById('list');
+            const dupsEl = document.getElementById('dups');
+            const outEl = document.getElementById('out');
+
+            const { totalCards, totalVisible, names } = collectVisibleNames();
+            const seen = new Map();
+            const order = [];
+            names.forEach(n => {
+                const k = normalizeLoose(n);
+                if (!seen.has(k)) { seen.set(k, [n]); order.push(k); }
+                else seen.get(k).push(n);
+            });
+            const unique = order.map(k => seen.get(k)[0]);
+            const dupLines = [];
+            seen.forEach((vals, k) => { if (vals.length > 1) dupLines.push(`×${vals.length}: ${vals.join(' | ')}`); });
+
+            statusEl.innerHTML = `Карточек в витрине: <b>${totalCards}</b> · Видимых (Nickel Plated): <b>${totalVisible}</b> · Уникальных: <b>${unique.length}</b> · Дубликатов групп: <b>${dupLines.length}</b>`;
+            outEl.value = unique.join('\n');
+            listEl.textContent = names.join('\n');
+            dupsEl.innerHTML = dupLines.length ? `<div class="list">${dupLines.join('\n')}</div>` : '<span class="ok">Дубликатов не обнаружено</span>';
+        }
+
+        async function copyOut(){
+            try { await navigator.clipboard.writeText(document.getElementById('out').value); alert('Скопировано'); }
+            catch(e){ alert('Не удалось скопировать автоматически'); }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('reloadBtn').addEventListener('click', reloadFrame);
+            document.getElementById('runBtn').addEventListener('click', runNickelPlatedFilter);
+            document.getElementById('checkBtn').addEventListener('click', checkDuplicates);
+            document.getElementById('copyBtn').addEventListener('click', copyOut);
+        });
+    </script>
+</head>
+<body>
+    <h1>Проверка дубликатов — Nickel Plated</h1>
+    <div class="controls">
+        <button id="reloadBtn">Перезагрузить витрину</button>
+        <button id="runBtn">Открыть фильтр Nickel Plated</button>
+        <button id="checkBtn">Проверить дубликаты</button>
+        <button id="copyBtn">Скопировать уникальный список</button>
+        <span class="note">Алгоритм: берём видимые карточки после фильтра и ищем повторы по “loose” имени.</span>
+    </div>
+    <div class="card stats" id="status">Готово к проверке.</div>
+    <div class="row">
+        <div class="card">
+            <div><b>Список уникальных позиций (для копирования):</b></div>
+            <textarea id="out" spellcheck="false"></textarea>
+        </div>
+        <div class="card">
+            <div><b>Все видимые позиции (в порядке отображения):</b></div>
+            <div class="list" id="list"></div>
+        </div>
+        <div class="card">
+            <div><b>Дубликаты (группы):</b></div>
+            <div id="dups"></div>
+        </div>
+    </div>
+    <div class="row" style="margin-top:14px;">
+        <iframe id="appFrame" src="index.html?v="></iframe>
+    </div>
+</body>
+</html>
+
+
