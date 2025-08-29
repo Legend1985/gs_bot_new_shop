@@ -1692,8 +1692,6 @@ function displayProducts(products) {
     console.log('displayProducts: Количество товаров:', products.length);
     // На всякий случай убираем оверлей загрузки
     try { const old = document.getElementById('loading-overlay'); if (old) old.remove(); } catch (e) {}
-    // Фиксируем текущее представление как товары
-    try { localStorage.setItem('currentView', 'products'); } catch (e) {}
     const container = ensureProductsContainer();
     if (!container) {
         console.error('displayProducts: Контейнер #productsContainer не найден и не удалось создать');
@@ -1884,6 +1882,35 @@ function displayProducts(products) {
     } catch (e) {}
     
     console.log('displayProducts: Все карточки добавлены. Количество элементов в контейнере:', container.children.length);
+
+    // Синхронизируем видимость баннера/поиска по фактическому состоянию кабинета
+    try {
+        const account = document.getElementById('account-section');
+        const isAccountVisible = !!(account && account.offsetParent !== null && window.getComputedStyle(account).display !== 'none' && window.getComputedStyle(account).visibility !== 'hidden');
+        const banner = document.querySelector('.main-banner');
+        const brands = document.querySelector('.brand-logos');
+        const search = document.querySelector('.search-section');
+        const inner = document.querySelector('.inner');
+
+        if (isAccountVisible) {
+            if (banner) banner.style.setProperty('display', 'none', 'important');
+            if (brands) brands.style.setProperty('display', 'none', 'important');
+            if (search) search.style.setProperty('display', 'none', 'important');
+        } else {
+            if (banner) banner.style.removeProperty('display');
+            if (brands) brands.style.removeProperty('display');
+            if (search) search.style.removeProperty('display');
+            if (inner) {
+                Array.from(inner.children).forEach(child => {
+                    if (child.id !== 'account-section') {
+                        child.style.removeProperty('display');
+                        child.style.removeProperty('visibility');
+                        child.style.removeProperty('opacity');
+                    }
+                });
+            }
+        }
+    } catch (e) {}
 }
 
 // Функция показа уведомления о добавлении в корзину
