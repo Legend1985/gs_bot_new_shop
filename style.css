@@ -3355,3 +3355,32 @@ body::before {
     text-align: justify;
 }
 
+/* Компактный кабинет (под Telegram и не только) */
+#account-section .account-header { gap:8px; }
+#account-section .account-title-block h2 { font-size:16px; }
+#account-section .account-actions { gap:6px; }
+#account-section .account-action-btn { padding:6px 10px; font-size:13px; border-radius:16px; }
+#account-section .account-lang-btn { padding:6px 10px; font-size:13px; border-radius:16px; }
+
+#account-section .account-summary { gap:12px; padding:8px 0; }
+#account-section .account-summary div { font-size:13px; }
+
+#account-section .account-orders { width:100%; }
+#account-section .orders-table-header, #account-section .orders-table-row {
+    grid-template-columns: 0.9fr 0.9fr 1.6fr 0.8fr 0.9fr;
+    gap:6px; padding:8px 6px; font-size:13px;
+}
+#account-section .orders-table-header div,
+#account-section .orders-table-row div { white-space: nowrap; overflow:hidden; text-overflow: ellipsis; }
+#account-section .orders-table-header div { font-size:13px; }
+#account-section .orders-table-row div { font-size:13px; }
+
+/* Дополнительно: в Telegram делаем еще компактней */
+body.is-telegram #account-section .account-title-block h2 { font-size:15px; }
+body.is-telegram #account-section .account-action-btn,
+body.is-telegram #account-section .account-lang-btn { padding:5px 9px; font-size:12px; }
+body.is-telegram #account-section .orders-table-header,
+body.is-telegram #account-section .orders-table-row { gap:5px; padding:7px 5px; font-size:12px; }
+
+/* Баннер/фильтры скрываем/показываем только через JS, без жёстких CSS-правил */
+

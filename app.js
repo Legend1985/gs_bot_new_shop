@@ -2614,6 +2614,15 @@ function updateLanguageButtons(activeLang) {
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM загружен, инициализируем приложение');
     
+    // Маркируем окружение Telegram WebApp
+    try {
+        if (window.Telegram && window.Telegram.WebApp) {
+            document.body.classList.add('is-telegram');
+        } else {
+            document.body.classList.remove('is-telegram');
+        }
+    } catch (e) {}
+
     // Инициализируем язык
     initializeLanguage();
     
@@ -4309,7 +4318,21 @@ function showProductsView() {
         account.style.opacity = '';
     }
     const inner = document.querySelector('.inner');
-    if (inner) inner.style.display = '';
+    if (inner) {
+        inner.style.display = '';
+        // Восстанавливаем видимость всех секций, кроме кабинета
+        try {
+            Array.from(inner.children).forEach(child => {
+                if (child.id === 'account-section') {
+                    child.style.display = 'none';
+                } else {
+                    child.style.display = '';
+                    child.style.visibility = '';
+                    child.style.opacity = '';
+                }
+            });
+        } catch (e) {}
+    }
     const pc = document.getElementById('productsContainer');
     if (pc) {
         pc.style.display = '';
@@ -4320,6 +4343,17 @@ function showProductsView() {
     if (li) li.style.display = '';
     // Запоминаем текущий вид
     try { localStorage.setItem('currentView', 'products'); } catch (e) {}
+
+    // Показываем баннер/фильтры на странице товаров
+    try {
+        const banner = document.querySelector('.main-banner');
+        if (banner) banner.style.removeProperty('display');
+        const brands = document.querySelector('.brand-logos');
+        if (brands) brands.style.removeProperty('display');
+        // Показываем строку поиска
+        const search = document.querySelector('.search-section');
+        if (search) search.style.removeProperty('display');
+    } catch (e) {}
 }
 
 async function showAccountView() {
@@ -4359,6 +4393,17 @@ async function showAccountView() {
     if (pc) { pc.style.display = 'none'; pc.style.visibility = 'hidden'; pc.style.opacity = '0'; }
     const li = document.getElementById('loading-indicator');
     if (li) li.style.display = 'none';
+
+    // Скрываем главный баннер/фильтры при входе в кабинет
+    try {
+        const banner = document.querySelector('.main-banner');
+        if (banner) banner.style.setProperty('display','none','important');
+        const brands = document.querySelector('.brand-logos');
+        if (brands) brands.style.setProperty('display','none','important');
+        // Скрываем строку поиска
+        const search = document.querySelector('.search-section');
+        if (search) search.style.setProperty('display','none','important');
+    } catch (e) {}
 
     // Применяем язык к только что добавленным узлам и настраиваем выпадающий список
     const lang = getCurrentLanguage();
