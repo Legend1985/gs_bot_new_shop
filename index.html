@@ -348,10 +348,54 @@
     <div class="container">
         <div class="inner">
             <!-- Товары будут загружены динамически -->
+            <div id="productsContainer"></div>
             
             <!-- Индикатор загрузки для бесконечной прокрутки -->
             <div id="loading-indicator">
                 <div class="loading-spinner-small"></div>
+            </div>
+
+            <!-- Кабинет пользователя -->
+            <div id="account-section" style="display: none;">
+                <div class="account-header">
+                    <div class="account-user">
+                        <img id="accountAvatar" class="account-avatar" src="" alt="Avatar" style="display:none;">
+                        <div class="account-title-block">
+                            <h2 id="accountUserName">—</h2>
+                            <div class="account-bonuses" id="accountBonuses" data-translate="bonusInfo">Кол-во бонусов: 100</div>
+                        </div>
+                    </div>
+                    <div class="account-actions">
+                        <div class="account-action-btn" data-action="orders" data-translate="ordersList">Список заказов</div>
+                        <div class="account-action-btn" data-action="addresses" data-translate="myAddresses">Мои адреса</div>
+                        <div class="account-action-btn" data-action="accountData" data-translate="accountData">Данные аккаунта</div>
+                        <div class="account-lang">
+                            <button class="account-lang-btn">UA</button>
+                            <div class="account-lang-dropdown">
+                                <div class="lang-option" data-lang="uk">UA</div>
+                                <div class="lang-option" data-lang="ru">RU</div>
+                                <div class="lang-option" data-lang="en">EN</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="account-summary">
+                    <div><span data-translate="totalOrdersLabel">Всего заказов:</span> <strong id="accTotalOrders">0</strong></div>
+                    <div><span data-translate="bonusesLabel">Кол-во бонусов:</span> <strong id="accBonuses">0</strong></div>
+                    <div><span data-translate="totalAmountLabel">Общая сумма:</span> <strong id="accTotalAmount">0 грн</strong></div>
+                </div>
+
+                <div class="account-orders">
+                    <div class="orders-table-header">
+                        <div data-translate="orderNumber">Номер заказа</div>
+                        <div data-translate="orderDate">Дата</div>
+                        <div data-translate="deliveryAddress">Адрес доставки</div>
+                        <div data-translate="orderAmount">Сумма</div>
+                        <div data-translate="orderStatus">Статус заказа</div>
+                    </div>
+                    <div id="ordersTableBody" class="orders-table-body"></div>
+                </div>
             </div>
         </div>
     </div>

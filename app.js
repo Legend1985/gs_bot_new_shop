@@ -32,7 +32,7 @@ function normalizeLooseName(value) {
         // сначала убираем апострофы/кавычки без добавления пробела, чтобы d'addario → daddario
         .replace(/[`'’]/g, '')
         // прочую пунктуацию заменяем на пробелы
-        .replace(/[\u2000-\u206F\u2E00-\u2E7F"“”.,:;!~_*+\-—–·•()\[\]{}<>/\\|@#%^&?=]+/g, ' ')
+        .replace(/[\u2000-\u206F\u2E00-\u2E7F"“".,:;!~_*+\-—–·•()\[\]{}<>/\\|@#%^&?=]+/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
     // правка известных брендов: d addario → daddario
@@ -1592,8 +1592,11 @@ async function loadProducts(page = 0, append = false) {
                 loadingText = 'Loading goods...';
             }
             
+            // Удаляем предыдущий оверлей если остался
+            try { const old = document.getElementById('loading-overlay'); if (old) old.remove(); } catch (e) {}
+            
             container.innerHTML = `
-                <div style="
+                <div id="loading-overlay" style="
                     position: fixed;
                     top: 50%;
                     left: 50%;
@@ -1650,16 +1653,17 @@ async function loadProducts(page = 0, append = false) {
         hasMoreProducts = false;
     } finally {
         isLoading = false;
+        // Удаляем оверлей загрузки
+        try { const old = document.getElementById('loading-overlay'); if (old) old.remove(); } catch (e) {}
     }
 }
 
 // Функция добавления товаров к существующим
 function appendProducts(products) {
     console.log('appendProducts: Добавляем', products.length, 'товаров');
-    
-    const container = document.querySelector('.inner');
+    const container = ensureProductsContainer();
     if (!container) {
-        console.error('appendProducts: Контейнер .inner не найден');
+        console.error('appendProducts: Контейнер #productsContainer не найден и не удалось создать');
         return;
     }
     
@@ -1686,13 +1690,15 @@ function appendProducts(products) {
 function displayProducts(products) {
     console.log('displayProducts: Отображаем товары');
     console.log('displayProducts: Количество товаров:', products.length);
-    
-    const container = document.querySelector('.inner');
+    // На всякий случай убираем оверлей загрузки
+    try { const old = document.getElementById('loading-overlay'); if (old) old.remove(); } catch (e) {}
+    // Фиксируем текущее представление как товары
+    try { localStorage.setItem('currentView', 'products'); } catch (e) {}
+    const container = ensureProductsContainer();
     if (!container) {
-        console.error('displayProducts: Контейнер .inner не найден');
+        console.error('displayProducts: Контейнер #productsContainer не найден и не удалось создать');
         return;
     }
-    
     console.log('displayProducts: Контейнер найден, очищаем содержимое');
     container.innerHTML = '';
     
@@ -2471,6 +2477,10 @@ function switchLanguage(lang) {
     updateOnlineStatus();
     
     console.log('switchLanguage: Язык переключен на:', lang);
+	// Синхронизуем кнопку языка в кабинете
+	try { updateAccountLangButton(lang); } catch (e) {}
+    // Обновляем валюту и статусы заказов в кабинете
+    try { if (typeof updateAccountOrdersLocale === 'function') updateAccountOrdersLocale(); } catch (e) {}
 }
 
 // Функция инициализации языка
@@ -2564,15 +2574,15 @@ function updateLanguageButtons(activeLang) {
     // Убираем активное состояние со всех кнопок
     if (ukButton) {
         ukButton.classList.remove('active');
-        console.log('updateLanguageButtons: Убран класс active с украинской кнопки');
+        console.log('updateLanguageButtons: Убран класс active с украинской кнопке');
     }
     if (ruButton) {
         ruButton.classList.remove('active');
-        console.log('updateLanguageButtons: Убран класс active с русской кнопки');
+        console.log('updateLanguageButtons: Убран класс active с русской кнопке');
     }
     if (enButton) {
         enButton.classList.remove('active');
-        console.log('updateLanguageButtons: Убран класс active с английской кнопки');
+        console.log('updateLanguageButtons: Убран класс active с английской кнопке');
     }
     
     // Добавляем активное состояние к выбранной кнопке
@@ -2615,17 +2625,53 @@ document.addEventListener('DOMContentLoaded', function() {
     hasMoreProducts = true;
     loadedProductNames.clear();
     
-    // Автоматически загружаем товары
-    loadProducts(0, false).then(() => {
-        // Настраиваем обработчики событий после загрузки товаров
+    // Определяем сохранённый вид
+    let savedView = 'products';
+    try { savedView = localStorage.getItem('currentView') || 'products'; } catch (e) {}
+    if (savedView === 'account') {
+        // Настраиваем обработчики и открываем кабинет без загрузки товаров
         setupEventHandlers();
-    });
+        setupCabinetNav();
+        showAccountView();
+    } else {
+        // Если сохранён фильтр категории — сразу применяем его вместо первичной загрузки 30 товаров
+        let savedCategory = '';
+        try { savedCategory = localStorage.getItem('currentCategory') || ''; } catch (e) {}
+        if (savedCategory) {
+            try { localStorage.setItem('currentView', 'products'); } catch (e) {}
+            setupEventHandlers();
+            setupCabinetNav();
+            try {
+                isCategoryFilterActive = true;
+                currentCategory = savedCategory;
+                lastCategorySearch = '';
+            } catch (e) {}
+            filterProductsByCategory(savedCategory, true);
+        } else {
+            // Сразу фиксируем, что стартуем в товарах
+            try { localStorage.setItem('currentView', 'products'); } catch (e) {}
+            // Автоматически загружаем товары
+            loadProducts(0, false).then(() => {
+                // Настраиваем обработчики событий после загрузки товаров
+                setupEventHandlers();
+                setupCabinetNav();
+            });
+        }
+    }
     
     // Обновляем онлайн статус
     updateOnlineStatus();
     
     // Обновляем статус каждую минуту
     setInterval(updateOnlineStatus, 60000);
+
+    // Перед перезагрузкой сохраняем фактический видимый раздел
+    window.addEventListener('beforeunload', function() {
+        try {
+            const view = getVisibleView();
+            localStorage.setItem('currentView', view);
+        } catch (e) {}
+    });
 });
 
 // Функция настройки обработчиков событий
@@ -2918,21 +2964,27 @@ function setupEventHandlers() {
     
          // Обработчик прокрутки для бесконечной загрузки
      window.addEventListener('scroll', function() {
-         if (isLoading || !hasMoreProducts || isSearchActive || isCategoryFilterActive) {
-             console.log('setupEventHandlers: Прокрутка заблокирована - isLoading:', isLoading, 'hasMoreProducts:', hasMoreProducts, 'isSearchActive:', isSearchActive, 'isCategoryFilterActive:', isCategoryFilterActive);
-             return;
-         }
-         
-         const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-         const windowHeight = window.innerHeight;
-         const documentHeight = document.documentElement.scrollHeight;
-         
-         // Загружаем следующую страницу когда пользователь приближается к концу страницы
-         if (scrollTop + windowHeight >= documentHeight - 100) {
-             console.log('setupEventHandlers: Достигнут конец страницы, загружаем следующую страницу');
-             loadNextPage();
-         }
-     });
+        // Если открыт кабинет — не подгружаем товары
+        const account = document.getElementById('account-section');
+        if (account && account.style.display === 'block') {
+            console.log('setupEventHandlers: Прокрутка — кабинет открыт, подгрузка отключена');
+            return;
+        }
+        if (isLoading || !hasMoreProducts || isSearchActive || isCategoryFilterActive) {
+            console.log('setupEventHandlers: Прокрутка заблокирована - isLoading:', isLoading, 'hasMoreProducts:', hasMoreProducts, 'isSearchActive:', isSearchActive, 'isCategoryFilterActive:', isCategoryFilterActive);
+            return;
+        }
+        
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const windowHeight = window.innerHeight;
+        const documentHeight = document.documentElement.scrollHeight;
+        
+        // Загружаем следующую страницу когда пользователь приближается к концу страницы
+        if (scrollTop + windowHeight >= documentHeight - 100) {
+            console.log('setupEventHandlers: Достигнут конец страницы, загружаем следующую страницу');
+            loadNextPage();
+        }
+    }, { passive: true });
      
                   // Обработчик изменения способа доставки
        const deliveryMethodSelect = document.getElementById('deliveryMethodSelect');
@@ -3054,17 +3106,27 @@ function setupEventHandlers() {
          }
         
         if (navItems.length > 0) {
-            // Устанавливаем первую кнопку как активную по умолчанию
-            navItems[0].classList.add('active');
-            console.log('setupEventHandlers: Первая кнопка установлена как активная');
-            
-            navItems.forEach((navItem, index) => {
-                // Удаляем предыдущий обработчик, если он есть
-                if (navItem._clickHandler) {
-                    navItem.removeEventListener('click', navItem._clickHandler);
-                }
-                
-                                 // Создаем новый обработчик
+            // Устанавливаем активную кнопку в соответствии с сохранённым видом
+            try {
+                const savedView = localStorage.getItem('currentView') || 'products';
+                navItems.forEach(item => item.classList.remove('active'));
+                navItems.forEach(item => {
+                    const txt = item.querySelector('span')?.textContent || '';
+                    if (savedView === 'account' && (txt.includes('Кабинет') || txt.includes('Cabinet') || txt.includes('Кабінет'))) {
+                        item.classList.add('active');
+                    } else if (savedView !== 'account' && (txt.includes('Товары') || txt.includes('Products'))) {
+                        item.classList.add('active');
+                    }
+                });
+            } catch (e) {}
+             
+             navItems.forEach((navItem, index) => {
+                 // Удаляем предыдущий обработчик, если он есть
+                 if (navItem._clickHandler) {
+                     navItem.removeEventListener('click', navItem._clickHandler);
+                 }
+                 
+                                  // Создаем новый обработчик
                  navItem._clickHandler = (e) => {
                      console.log(`setupEventHandlers: Клик по nav-item ${index + 1}`);
                      
@@ -3091,6 +3153,11 @@ function setupEventHandlers() {
                          // Показываем все товары (категория Струны для электрогитары)
                          console.log('setupEventHandlers: Открываем категорию Товары (Струны для электрогитары)');
                          clearCategoryFilter();
+                         if (typeof showProductsView === 'function') showProductsView();
+                         try { localStorage.setItem('currentView', 'products'); } catch (e) {}
+                     } else if (navText.includes('Кабинет') || navText.includes('Cabinet') || navText.includes('Кабінет')) {
+                         if (typeof showAccountView === 'function') showAccountView();
+                         try { localStorage.setItem('currentView', 'account'); } catch (e) {}
                      } else if (navText.includes('Корзина') || navText.includes('Cart')) {
                          showCartPopup();
                      } else if (navText.includes('Контакты') || navText.includes('Contacts')) {
@@ -3102,11 +3169,11 @@ function setupEventHandlers() {
                      // Возвращаем false для предотвращения дальнейшего распространения события
                      return false;
                  };
-                
-                // Добавляем обработчик
-                navItem.addEventListener('click', navItem._clickHandler);
-                console.log(`setupEventHandlers: Обработчик для nav-item ${index + 1} настроен`);
-            });
+                 
+                 // Добавляем обработчик
+                 navItem.addEventListener('click', navItem._clickHandler);
+                 console.log(`setupEventHandlers: Обработчик для nav-item ${index + 1} настроен`);
+             });
         }
         
         // Обработчик кликов по элементам меню
@@ -3162,6 +3229,10 @@ function filterProductsByCategory(category, force = false) {
         return;
     }
     
+    // Сохраняем активную категорию для восстановления после F5
+    try { localStorage.setItem('currentCategory', category); } catch (e) {}
+    try { localStorage.setItem('currentView', 'products'); } catch (e) {}
+
     // Очищаем предыдущий таймаут
     if (categorySearchTimeout) {
         clearTimeout(categorySearchTimeout);
@@ -4212,7 +4283,7 @@ console.log('Для принудительной очистки кэша вып�
 
 // Функции для индикатора загрузки
 function showLoadingIndicator() {
-    const container = document.getElementById('productsContainer');
+    const container = ensureProductsContainer();
     if (container) {
         container.innerHTML = `
             <div style="display: flex; justify-content: center; align-items: center; padding: 40px; grid-column: 1 / -1;">
@@ -4227,4 +4298,369 @@ function showLoadingIndicator() {
 
 function hideLoadingIndicator() {
     // Индикатор скрывается автоматически при отображении товаров
+}
+
+// Вспомогательные функции для переключения между товарами и кабинетом
+function showProductsView() {
+    const account = document.getElementById('account-section');
+    if (account) {
+        account.style.display = 'none';
+        account.style.visibility = '';
+        account.style.opacity = '';
+    }
+    const inner = document.querySelector('.inner');
+    if (inner) inner.style.display = '';
+    const pc = document.getElementById('productsContainer');
+    if (pc) {
+        pc.style.display = '';
+        pc.style.visibility = '';
+        pc.style.opacity = '';
+    }
+    const li = document.getElementById('loading-indicator');
+    if (li) li.style.display = '';
+    // Запоминаем текущий вид
+    try { localStorage.setItem('currentView', 'products'); } catch (e) {}
+}
+
+async function showAccountView() {
+    try { console.log('showAccountView: Открываем кабинет'); } catch (e) {}
+    // Сброс активных поисков/фильтров
+    try {
+        isSearchActive = false;
+        isCategoryFilterActive = false;
+        searchTerm = '';
+        currentCategory = '';
+        lastCategorySearch = '';
+        if (typeof searchTimeout !== 'undefined' && searchTimeout) {
+            clearTimeout(searchTimeout);
+            searchTimeout = null;
+        }
+    } catch (e) {}
+    // Запоминаем текущий вид
+    try { localStorage.setItem('currentView', 'account'); } catch (e) {}
+
+    // Гарантируем наличие секции
+    const acc = ensureAccountSection();
+
+    const inner = document.querySelector('.inner');
+    if (inner) {
+        Array.from(inner.children).forEach(child => {
+            if (child.id === 'account-section') {
+                child.style.display = 'block';
+                child.style.visibility = 'visible';
+                child.style.opacity = '1';
+            } else {
+                child.style.display = 'none';
+            }
+        });
+    }
+    // Дополнительно прячем контейнер товаров и индикатор
+    const pc = document.getElementById('productsContainer');
+    if (pc) { pc.style.display = 'none'; pc.style.visibility = 'hidden'; pc.style.opacity = '0'; }
+    const li = document.getElementById('loading-indicator');
+    if (li) li.style.display = 'none';
+
+    // Применяем язык к только что добавленным узлам и настраиваем выпадающий список
+    const lang = getCurrentLanguage();
+    if (typeof switchLanguage === 'function') switchLanguage(lang);
+    setupAccountLanguageDropdown();
+
+    try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {}
+    console.log('showAccountView: вызываем renderAccountPage');
+    await renderAccountPage();
+    console.log('showAccountView: renderAccountPage завершён');
+}
+
+function setupCabinetNav() {
+    // резервный обработчик по нижней навигации (если нужен)
+}
+
+async function renderAccountPage() {
+    try {
+        console.log('renderAccountPage: start');
+        // Телеграм-данные если доступны
+        const tg = window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe;
+        const params = new URLSearchParams();
+        if (tg && tg.user) {
+            if (tg.user.id) params.set('tg_id', tg.user.id);
+            if (tg.user.username) params.set('tg_username', tg.user.username);
+            if (tg.user.first_name) params.set('tg_first_name', tg.user.first_name);
+            if (tg.user.last_name) params.set('tg_last_name', tg.user.last_name);
+            if (tg.user.photo_url) params.set('tg_photo_url', tg.user.photo_url);
+        }
+        const profileResp = await fetch('http://localhost:8000/api/user_profile' + (params.toString() ? ('?' + params.toString()) : ''));
+        const profile = await profileResp.json().catch(() => ({ success:false }));
+        const ordersResp = await fetch('http://localhost:8000/api/user_orders');
+        const orders = await ordersResp.json().catch(() => ({ success:false, orders:[], summary:{ totalOrders:0, bonuses:0, totalAmount:0 } }));
+        console.log('renderAccountPage: data loaded', { hasProfile: !!profile, ordersCount: (orders.orders||[]).length });
+        // Обновляем шапку аккаунта
+        const nameEl = document.getElementById('accountUserName');
+        const bonusTopEl = document.getElementById('accountBonuses');
+        const avatarEl = document.getElementById('accountAvatar');
+        if (nameEl) nameEl.textContent = profile.displayName || 'Guest';
+        // Не заполняем bonusTopEl, чтобы не дублировать
+        if (avatarEl) {
+            if (profile.photoUrl) {
+                avatarEl.src = profile.photoUrl;
+                avatarEl.style.display = 'block';
+            } else {
+                avatarEl.style.display = 'none';
+            }
+        }
+        // Сводка
+        const totalOrdersEl = document.getElementById('accTotalOrders');
+        const accBonusesEl = document.getElementById('accBonuses');
+        const totalAmountEl = document.getElementById('accTotalAmount');
+        if (totalOrdersEl) totalOrdersEl.textContent = orders.summary?.totalOrders ?? 0;
+        if (accBonusesEl) accBonusesEl.textContent = orders.summary?.bonuses ?? 0;
+        if (totalAmountEl) totalAmountEl.textContent = `${(orders.summary?.totalAmount ?? 0)} ${getCurrencyWithDot()}`;
+        // Таблица заказов
+        const body = document.getElementById('ordersTableBody');
+        if (body) {
+            body.innerHTML = '';
+            (orders.orders || []).forEach(o => {
+                const row = document.createElement('div');
+                row.className = 'orders-table-row';
+                const statusText = getOrderStatusText(o.status);
+                const amountVal = (o.amount || 0);
+                row.innerHTML = `
+                    <div>${o.orderId || ''}</div>
+                    <div>${o.date || ''}</div>
+                    <div>${o.address || ''}</div>
+                    <div class="order-amount" data-amount="${amountVal}">${amountVal} ${getCurrencyWithDot()}</div>
+                    <div class="order-status" data-original-status="${o.status || ''}">${statusText}</div>
+                `;
+                body.appendChild(row);
+            });
+        }
+        console.log('renderAccountPage: DOM updated');
+        // Гарантируем, что кабинет виден, а товары скрыты
+        const acc2 = document.getElementById('account-section');
+        if (acc2) { acc2.style.display = 'block'; acc2.style.visibility = 'visible'; acc2.style.opacity = '1'; }
+        const pc2 = document.getElementById('productsContainer');
+        if (pc2) { pc2.style.display = 'none'; }
+        console.log('renderAccountPage: visibility enforced');
+        // Дополнительно синхронизируем локализацию сумм и статусов
+        try { updateAccountOrdersLocale(); } catch (e) {}
+    } catch (e) {
+        console.error('renderAccountPage error', e);
+    }
+}
+
+// Локализует суммы и статусы заказов в кабинете без повторного запроса
+function updateAccountOrdersLocale() {
+    try {
+        const totalAmountEl = document.getElementById('accTotalAmount');
+        if (totalAmountEl) {
+            const numeric = parseFloat((totalAmountEl.textContent || '').replace(/[^\d.]/g, '')) || 0;
+            totalAmountEl.textContent = `${numeric} ${getCurrencyWithDot()}`;
+        }
+        const container = document.getElementById('ordersTableBody');
+        if (!container) return;
+        const rows = container.querySelectorAll('.orders-table-row');
+        rows.forEach(row => {
+            const amountEl = row.querySelector('.order-amount');
+            const statusEl = row.querySelector('.order-status');
+            if (amountEl) {
+                const num = parseFloat(amountEl.getAttribute('data-amount') || '0') || 0;
+                amountEl.textContent = `${num} ${getCurrencyWithDot()}`;
+            }
+            if (statusEl) {
+                const original = statusEl.getAttribute('data-original-status') || statusEl.textContent;
+                statusEl.textContent = getOrderStatusText(original);
+            }
+        });
+    } catch (e) {
+        console.warn('updateAccountOrdersLocale error', e);
+    }
+}
+
+// Гарантирует наличие контейнера для карточек товаров
+function ensureProductsContainer() {
+    let container = document.getElementById('productsContainer');
+    if (!container) {
+        const inner = document.querySelector('.inner');
+        if (!inner) return null;
+        container = document.createElement('div');
+        container.id = 'productsContainer';
+        // Вставляем перед индикатором загрузки, если он есть
+        const loading = document.getElementById('loading-indicator');
+        if (loading && loading.parentNode === inner) {
+            inner.insertBefore(container, loading);
+        } else {
+            inner.insertBefore(container, inner.firstChild);
+        }
+        console.log('ensureProductsContainer: Создан контейнер #productsContainer');
+    }
+    return container;
+}
+
+// Создаёт секцию кабинета, если она отсутствует
+function ensureAccountSection() {
+    let acc = document.getElementById('account-section');
+    if (acc) return acc;
+    const inner = document.querySelector('.inner');
+    if (!inner) return null;
+    acc = document.createElement('div');
+    acc.id = 'account-section';
+    acc.style.display = 'none';
+    acc.innerHTML = `
+        <div class="account-header">
+            <div class="account-user">
+                <img id="accountAvatar" class="account-avatar" src="" alt="Avatar" style="display:none;">
+                <div class="account-title-block">
+                    <h2 id="accountUserName">—</h2>
+                    <div class="account-bonuses" id="accountBonuses" data-translate="bonusInfo">Кол-во бонусов: 100</div>
+                </div>
+            </div>
+            <div class="account-actions">
+                <div class="account-action-btn" data-action="orders" data-translate="ordersList">Список заказов</div>
+                <div class="account-action-btn" data-action="addresses" data-translate="myAddresses">Мои адреса</div>
+                <div class="account-action-btn" data-action="accountData" data-translate="accountData">Данные аккаунта</div>
+                <div class="account-lang">
+                    <button class="account-lang-btn">UA</button>
+                    <div class="account-lang-dropdown">
+                        <div class="lang-option" data-lang="uk">UA</div>
+                        <div class="lang-option" data-lang="ru">RU</div>
+                        <div class="lang-option" data-lang="en">EN</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="account-summary">
+            <div><span data-translate="totalOrdersLabel">Всего заказов:</span> <strong id="accTotalOrders">0</strong></div>
+            <div><span data-translate="bonusesLabel">Кол-во бонусов:</span> <strong id="accBonuses">0</strong></div>
+            <div><span data-translate="totalAmountLabel">Общая сумма:</span> <strong id="accTotalAmount">0 грн</strong></div>
+        </div>
+        <div class="account-orders">
+            <div class="orders-table-header">
+                <div data-translate="orderNumber">Номер заказа</div>
+                <div data-translate="orderDate">Дата</div>
+                <div data-translate="deliveryAddress">Адрес доставки</div>
+                <div data-translate="orderAmount">Сумма</div>
+                <div data-translate="orderStatus">Статус заказа</div>
+            </div>
+            <div id="ordersTableBody" class="orders-table-body"></div>
+        </div>
+    `;
+    // Вставляем после productsContainer, если он есть
+    const pc = document.getElementById('productsContainer');
+    if (pc && pc.parentNode === inner) {
+        inner.insertBefore(acc, pc.nextSibling);
+    } else {
+        inner.appendChild(acc);
+    }
+    console.log('ensureAccountSection: Создан блок #account-section');
+    return acc;
+}
+
+function getCurrentLanguage() {
+	try {
+		return localStorage.getItem('selectedLanguage') || 'uk';
+	} catch (e) {
+		return 'uk';
+	}
+}
+
+function updateAccountLangButton(lang) {
+	const btn = document.querySelector('.account-lang-btn');
+	if (!btn) return;
+	if (lang === 'uk') btn.textContent = 'UA';
+	else if (lang === 'ru') btn.textContent = 'RU';
+	else if (lang === 'en') btn.textContent = 'EN';
+	else btn.textContent = lang.toUpperCase();
+	// Подсветка выбранного языка на кнопке по умолчанию
+	btn.classList.add('selected');
+}
+
+function setupAccountLanguageDropdown() {
+	const acc = document.getElementById('account-section');
+	if (!acc) return;
+	const container = acc.querySelector('.account-lang');
+	const options = acc.querySelectorAll('.account-lang-dropdown .lang-option');
+	const btn = acc.querySelector('.account-lang-btn');
+	// Инициализация кнопки текущим языком
+	const currentLang = getCurrentLanguage();
+	updateAccountLangButton(currentLang);
+	// Убираем фиксированную подсветку пунктов (active не используем)
+	options.forEach(opt => opt.classList.remove('active'));
+	options.forEach(opt => {
+		if (opt._langHandler) opt.removeEventListener('click', opt._langHandler);
+		opt._langHandler = function() {
+			const lang = this.getAttribute('data-lang');
+			try { localStorage.setItem('selectedLanguage', lang); } catch (e) {}
+			if (typeof switchLanguage === 'function') switchLanguage(lang);
+			if (typeof updateLanguageButtons === 'function') updateLanguageButtons(lang);
+			updateAccountLangButton(lang);
+			// Возвращаем подсветку кнопки после выбора
+			if (btn) btn.classList.add('selected');
+			// Закрываем список сразу после выбора
+			if (container) {
+				container.classList.remove('open');
+				container.classList.add('force-closed');
+			}
+		};
+		opt.addEventListener('click', opt._langHandler);
+	});
+	if (btn && container) {
+		if (btn._langBtnInit) return;
+		btn._langBtnInit = true;
+		btn.addEventListener('click', function(e) {
+			e.stopPropagation();
+			container.classList.toggle('open');
+			container.classList.remove('force-closed');
+			// На время открытого дропдауна гасим подсветку кнопки
+			if (container.classList.contains('open')) btn.classList.remove('selected');
+			else btn.classList.add('selected');
+		});
+		// Закрытие при клике вне
+		document.addEventListener('click', function(ev) {
+			if (!container.contains(ev.target)) {
+				container.classList.remove('open');
+				// Возвращаем подсветку кнопки при закрытии без выбора
+				if (btn) btn.classList.add('selected');
+			}
+		});
+		// Удаляем автозакрытие по mouseleave и снятие selected на hover
+		// (оставляем только клик-управление и выбор пункта)
+	}
+}
+
+// Перевод статуса заказа по текущему языку
+function getOrderStatusText(originalStatus) {
+	const lang = getCurrentLanguage();
+	const s = (originalStatus || '').toString().trim().toLowerCase();
+	// Базовые маппинги
+	let code = 'paid';
+	if (s.includes('оплач')) code = 'paid';
+	else if (s.includes('paid')) code = 'paid';
+	else if (s.includes('processing') || s.includes('обработ')) code = 'processing';
+	else if (s.includes('отмен') || s.includes('cancel')) code = 'cancelled';
+	// Локализация
+	if (lang === 'uk') {
+		if (code === 'paid') return 'Сплачено';
+		if (code === 'processing') return 'Обробляється';
+		if (code === 'cancelled') return 'Скасовано';
+		return 'Статус';
+	} else if (lang === 'ru') {
+		if (code === 'paid') return 'Оплачено';
+		if (code === 'processing') return 'В обработке';
+		if (code === 'cancelled') return 'Отменён';
+		return 'Статус';
+	} else {
+		if (code === 'paid') return 'Paid';
+		if (code === 'processing') return 'Processing';
+		if (code === 'cancelled') return 'Cancelled';
+		return 'Status';
+	}
+}
+
+function getVisibleView() {
+    try {
+        const acc = document.getElementById('account-section');
+        if (acc && acc.style.display === 'block') return 'account';
+        const pc = document.getElementById('productsContainer');
+        if (pc && pc.style.display !== 'none') return 'products';
+    } catch (e) {}
+    return 'products';
 }

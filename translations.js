@@ -79,6 +79,19 @@ const translations = {
         coloredInfo: "Colored Strings",
         coloredShowAll: "Показати всі Colored Strings",
         
+        // Кабинет / аккаунт
+        ordersList: "Список замовлень",
+        myAddresses: "Мої адреси",
+        accountData: "Дані акаунта",
+        totalOrdersLabel: "Всього замовлень:",
+        bonusesLabel: "Кількість бонусів:",
+        totalAmountLabel: "Загальна сума:",
+        orderNumber: "Номер замовлення",
+        orderDate: "Дата",
+        deliveryAddress: "Адреса доставки",
+        orderAmount: "Сума",
+        orderStatus: "Статус замовлення",
+        
         // Навигация внизу
         products: "Товари",
         cabinet: "Кабінет",
@@ -380,6 +393,19 @@ const translations = {
         colored: "Colored Electric Strings",
         coloredInfo: "Colored Strings",
         coloredShowAll: "Показать все Colored Strings",
+        
+        // Кабинет / аккаунт
+        ordersList: "Список заказов",
+        myAddresses: "Мои адреса",
+        accountData: "Данные аккаунта",
+        totalOrdersLabel: "Всего заказов:",
+        bonusesLabel: "Кол-во бонусов:",
+        totalAmountLabel: "Общая сумма:",
+        orderNumber: "Номер заказа",
+        orderDate: "Дата",
+        deliveryAddress: "Адрес доставки",
+        orderAmount: "Сумма",
+        orderStatus: "Статус заказа",
         
         // Навигация внизу
         products: "Товары",
@@ -711,6 +737,19 @@ const translations = {
         colored: "Colored Electric Strings",
         coloredInfo: "Colored Strings",
         coloredShowAll: "Show all Colored Strings",
+        
+        // Cabinet / account
+        ordersList: "Order list",
+        myAddresses: "My addresses",
+        accountData: "Account data",
+        totalOrdersLabel: "Total orders:",
+        bonusesLabel: "Bonuses:",
+        totalAmountLabel: "Total amount:",
+        orderNumber: "Order #",
+        orderDate: "Date",
+        deliveryAddress: "Delivery address",
+        orderAmount: "Amount",
+        orderStatus: "Order status",
         
         // Bottom navigation
         products: "Products",

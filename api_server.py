@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup
 import re
 import os
 import mimetypes
+from datetime import datetime
 
 app = Flask(__name__)
 CORS(app)
@@ -12,6 +13,10 @@ CORS(app)
 # Global cache for all scraped products
 ALL_PRODUCTS_CACHE = None
 CACHE_TIMESTAMP = None
+# Preprocessed lightweight JSON cache for fast API responses
+PROCESSED_PRODUCTS_CACHE = None
+# Verbose server-side debug (turn off for speed)
+DEBUG = False
 
 def scrape_all_pages():
     """Scrape all pages from guitarstrings.com.ua/electro and return combined product list"""
@@ -79,8 +84,149 @@ def scrape_all_pages():
     # Cache the results
     ALL_PRODUCTS_CACHE = all_product_items
     CACHE_TIMESTAMP = current_time
+    # Build processed JSON cache for fast responses
+    try:
+        build_processed_products()
+    except Exception as e:
+        print(f"Warning: could not build processed products cache: {e}")
     
     return all_product_items
+
+# Build a lightweight list of product dicts from cached BeautifulSoup items
+def build_processed_products():
+    global PROCESSED_PRODUCTS_CACHE, ALL_PRODUCTS_CACHE
+    items = ALL_PRODUCTS_CACHE or []
+    processed = []
+
+    def extract_number(text):
+        import re
+        m = re.search(r"(\d+(?:\.\d+)?)", (text or '').replace('грн', '').replace('₴', '').replace(' ', ''))
+        return float(m.group(1)) if m else 0.0
+
+    for item in items:
+        try:
+            # name
+            name_elem = item.find('h3', class_='product-title') or item.find('h3', class_='title') or item.find('h3') or item.find('h2') or item.find('a', class_='title')
+            name = name_elem.get_text(strip=True) if name_elem else "Unknown Product"
+
+            # image
+            img_elem = item.find('img')
+            img_src = ""
+            if img_elem:
+                img_src = img_elem.get('src') or img_elem.get('data-src') or img_elem.get('data-original')
+                if img_src and not img_src.startswith('http'):
+                    img_src = 'https://guitarstrings.com.ua' + img_src
+            if not img_src:
+                img_src = 'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg'
+
+            # prices
+            new_price = 0.0
+            old_price = 0.0
+            price_container = item.find('div', class_='vm3pr-2')
+            if price_container:
+                sales_price_elem = price_container.find('span', class_='PricesalesPrice')
+                if sales_price_elem:
+                    new_price = extract_number(sales_price_elem.get_text(strip=True))
+                base_price_div = price_container.find('div', class_='PricebasePrice')
+                if base_price_div:
+                    base_price_elem = base_price_div.find('span', class_='PricebasePrice')
+                    if base_price_elem:
+                        old_price = extract_number(base_price_elem.get_text(strip=True))
+                if old_price == 0.0:
+                    base_price_elem = price_container.find('span', class_='PricebasePrice')
+                    if base_price_elem:
+                        old_price = extract_number(base_price_elem.get_text(strip=True))
+            if new_price == 0.0:
+                price_elem = item.find('span', class_='Price') or item.find('span', class_='price') or item.find('div', class_='price')
+                if price_elem:
+                    new_price = extract_number(price_elem.get_text(strip=True))
+            if new_price == 0.0:
+                new_price = 350.0
+
+            # availability
+            availability = None
+            availability_elem = item.find('div', class_='availability')
+            if availability_elem:
+                status_elem = availability_elem.find('span')
+                if status_elem:
+                    status_text = status_elem.get_text(strip=True).lower()
+                    if any(w in status_text for w in ['снят с производства', 'знятий з виробництва', 'discontinued', 'знято з виробництва']):
+                        availability = 'Снят с производства'
+                    elif any(w in status_text for w in ['доступно под заказ', 'под заказ', 'заказ', 'по заказу', 'під замовлення']):
+                        availability = 'Под заказ'
+                    elif any(w in status_text for w in ['ожидается', 'скоро', 'предзаказ', 'очікується']):
+                        availability = 'Ожидается'
+                    elif any(w in status_text for w in ['нет в наличии', 'отсутствует', 'недоступен', 'немає в наявності', 'немає']):
+                        availability = 'Нет в наличии'
+                    elif any(w in status_text for w in ['в наличии', 'есть', 'доступен', 'в наявності', 'в одессе']):
+                        availability = 'В наличии'
+            if availability is None:
+                status_icon = item.find('span', class_='vmicon')
+                if status_icon:
+                    icon_class = status_icon.get('class', [])
+                    if 'vm2-nostock' in icon_class:
+                        availability = 'Снят с производства'
+            if availability is None:
+                availability = 'В наличии'
+
+            # subtitle
+            subtitle_elem = item.find('div', class_='subtitle') or item.find('span', class_='subtitle') or item.find('p', class_='subtitle')
+            subtitle = subtitle_elem.get_text(strip=True) if subtitle_elem else ''
+
+            # rating
+            rating_str = 'Нет рейтинга'
+            try:
+                rating_elem = item.find('span', class_='vrvote-count')
+                if rating_elem:
+                    rating_text = rating_elem.get_text(strip=True)
+                    # pattern like "4.3 - 10 голосов"
+                    m = re.search(r'(\d+\.?\d*)\s*-\s*\d+\s*голос', rating_text)
+                    if not m:
+                        # fallback: first number in text
+                        m = re.search(r'(\d+\.?\d*)', rating_text)
+                    if m:
+                        val = float(m.group(1))
+                        if 0 <= val <= 5:
+                            # round to nearest 0.5 like earlier logic
+                            if val >= 4.75:
+                                rating_str = '5.0'
+                            elif val >= 4.25:
+                                rating_str = '4.5'
+                            elif val >= 3.75:
+                                rating_str = '4.0'
+                            elif val >= 3.25:
+                                rating_str = '3.5'
+                            elif val >= 2.75:
+                                rating_str = '3.0'
+                            elif val >= 2.25:
+                                rating_str = '2.5'
+                            elif val >= 1.75:
+                                rating_str = '2.0'
+                            elif val >= 1.25:
+                                rating_str = '1.5'
+                            else:
+                                rating_str = '1.0'
+            except Exception:
+                pass
+
+            processed.append({
+                'name': name,
+                'image': img_src,
+                'newPrice': f"{int(new_price)}",
+                'oldPrice': f"{int(old_price)}" if old_price > 0 else None,
+                'availability': availability,
+                'rating': rating_str,
+                'subtitle': subtitle,
+                'status': availability
+            })
+        except Exception as e:
+            if DEBUG:
+                print(f"Process item error: {e}")
+            continue
+
+    PROCESSED_PRODUCTS_CACHE = processed
+    if DEBUG:
+        print(f"Processed products cache built: {len(PROCESSED_PRODUCTS_CACHE)} items")
 
 # Serve static files from the current directory
 @app.route('/')
@@ -151,65 +297,49 @@ def api_products():
     start = request.args.get('start', 0, type=int)
     limit = request.args.get('limit', 60, type=int)
     search = request.args.get('search', '').lower().strip()
-    
-    print(f"API Products: start={start}, limit={limit}, search='{search}'")
+    if DEBUG:
+        print(f"API Products: start={start}, limit={limit}, search='{search}'")
     
     try:
-        # Get all products from cache (don't re-scrape on every request)
-        global ALL_PRODUCTS_CACHE, CACHE_TIMESTAMP
-        
-        # Check if cache is valid
+        # Ensure caches
+        global ALL_PRODUCTS_CACHE, CACHE_TIMESTAMP, PROCESSED_PRODUCTS_CACHE
         import time
         current_time = time.time()
         if ALL_PRODUCTS_CACHE is None or CACHE_TIMESTAMP is None or (current_time - CACHE_TIMESTAMP >= 1800):
-            print("Cache expired or missing, refreshing...")
-            product_items = scrape_all_pages()
-        else:
-            print(f"Using cached products: {len(ALL_PRODUCTS_CACHE)} items")
-            product_items = ALL_PRODUCTS_CACHE
-        
-        print(f"Debug: Total products available: {len(product_items)}")
-        
-        # Если есть поисковый запрос, фильтруем товары
+            if DEBUG:
+                print("Cache expired or missing, refreshing...")
+            scrape_all_pages()
+        if PROCESSED_PRODUCTS_CACHE is None:
+            build_processed_products()
+
+        # Work with lightweight processed cache
+        product_dicts = PROCESSED_PRODUCTS_CACHE or []
+
+        # Search filtering (by name/subtitle)
         if search:
-            print(f"Debug: Filtering products for search term: '{search}'")
-            filtered_items = []
-            for item in product_items:
-                try:
-                    # Извлекаем название товара для поиска
-                    name_elem = item.find('h3', class_='product-title') or item.find('h3', class_='title') or item.find('h3') or item.find('h2') or item.find('a', class_='title')
-                    name = name_elem.get_text(strip=True) if name_elem else ""
-                    
-                    # Ищем в названии товара (частичное совпадение)
-                    if search in name.lower() or any(word in name.lower() for word in search.split()):
-                        filtered_items.append(item)
-                        continue
-                    
-                    # Также можно искать в описании, если оно есть
-                    desc_elem = item.find('div', class_='product-description') or item.find('p', class_='description') or item.find('div', class_='desc')
-                    if desc_elem:
-                        description = desc_elem.get_text(strip=True)
-                        if search in description.lower() or any(word in description.lower() for word in search.split()):
-                            filtered_items.append(item)
-                            continue
-                            
-                except Exception as e:
-                    print(f"Error filtering product: {e}")
-                    continue
-            
-            product_items = filtered_items
-            print(f"Debug: After filtering, {len(product_items)} products match search term")
-        
-        # Apply pagination to the combined product list
-        print(f"Debug: Pagination - start: {start}, limit: {limit}, total products: {len(product_items)}")
-        
-        if start >= len(product_items):
+            tokens = [t for t in search.split() if t]
+            def matches(p):
+                name = (p.get('name') or '').lower()
+                subtitle = (p.get('subtitle') or '').lower()
+                if not tokens:
+                    return True
+                return any((t in name) or (t in subtitle) for t in tokens)
+            product_dicts = [p for p in product_dicts if matches(p)]
+            if DEBUG:
+                print(f"Debug: After filtering, {len(product_dicts)} products match search term")
+
+        total_products = len(product_dicts)
+        if DEBUG:
+            print(f"Debug: Pagination - start: {start}, limit: {limit}, total products: {total_products}")
+
+        if start >= total_products:
             # If start is beyond available products, return empty list
-            print(f"Debug: start ({start}) >= total products ({len(product_items)}), returning empty list")
+            if DEBUG:
+                print(f"Debug: start ({start}) >= total products ({total_products}), returning empty list")
             return jsonify({
                 'success': True,
                 'products': [],
-                'total': len(product_items),
+                'total': total_products,
                 'start': start,
                 'limit': limit,
                 'hasMore': False
@@ -221,300 +351,16 @@ def api_products():
                 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
                 'Access-Control-Allow-Headers': 'Content-Type'
             }
-        
-        end_index = min(start + limit, len(product_items))
-        paginated_items = product_items[start:end_index]
-        print(f"Debug: Pagination result - start: {start}, end: {end_index}, items to process: {len(paginated_items)}")
-        
-        products = []
-        for item in paginated_items:
-            try:
-                # Extract product name - try different selectors
-                name_elem = item.find('h3', class_='product-title') or item.find('h3', class_='title') or item.find('h3') or item.find('h2') or item.find('a', class_='title')
-                name = name_elem.get_text(strip=True) if name_elem else "Unknown Product"
-                
-                # Extract image URL - try different selectors
-                img_elem = item.find('img')
-                img_src = ""
-                if img_elem:
-                    img_src = img_elem.get('src') or img_elem.get('data-src') or img_elem.get('data-original')
-                    if img_src and not img_src.startswith('http'):
-                        img_src = 'https://guitarstrings.com.ua' + img_src
-                
-                # Fallback на локальные изображения, если внешние недоступны
-                if not img_src or img_src == "":
-                    img_src = 'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg'
-                
-                # Extract price - try different selectors based on actual HTML structure
-                price_elem = None
-                new_price = 0
-                old_price = 0
-                
-                # Ищем цены в правильной структуре HTML
-                price_container = item.find('div', class_='vm3pr-2')
-                if price_container:
-                    # Ищем новую цену (акционную) - исправленная логика
-                    sales_price_elem = price_container.find('span', class_='PricesalesPrice')
-                    if sales_price_elem:
-                        price_text = sales_price_elem.get_text(strip=True)
-                        price_match = re.search(r'(\d+(?:\.\d+)?)', price_text.replace('грн', '').replace('₴', '').replace(' ', ''))
-                        if price_match:
-                            new_price = float(price_match.group(1))
-                            print(f"Found sales price: {new_price} for product: {name}")
-                    
-                    # Ищем старую цену (зачеркнутую) - исправленная логика
-                    # Сначала ищем span внутри div с классом PricebasePrice
-                    base_price_div = price_container.find('div', class_='PricebasePrice')
-                    if base_price_div:
-                        base_price_elem = base_price_div.find('span', class_='PricebasePrice')
-                        if base_price_elem:
-                            price_text = base_price_elem.get_text(strip=True)
-                            price_match = re.search(r'(\d+(?:\.\d+)?)', price_text.replace('грн', '').replace('₴', '').replace(' ', ''))
-                            if price_match:
-                                old_price = float(price_match.group(1))
-                                print(f"Found base price: {old_price} for product: {name}")
-                    
-                    # Если не нашли в div, ищем span напрямую (fallback)
-                    if old_price == 0:
-                        base_price_elem = price_container.find('span', class_='PricebasePrice')
-                        if base_price_elem:
-                            price_text = base_price_elem.get_text(strip=True)
-                            price_match = re.search(r'(\d+(?:\.\d+)?)', price_text.replace('грн', '').replace('₴', '').replace(' ', ''))
-                            if price_match:
-                                old_price = float(price_match.group(1))
-                                print(f"Found base price (fallback): {old_price} for product: {name}")
-                
-                # Если не нашли цены в vm3pr-2, ищем в других местах
-                if new_price == 0:
-                    # Ищем любую цену
-                    price_elem = item.find('span', class_='Price') or item.find('span', class_='price') or item.find('div', class_='price')
-                    if price_elem:
-                        price_text = price_elem.get_text(strip=True)
-                        price_match = re.search(r'(\d+(?:\.\d+)?)', price_text.replace('грн', '').replace('₴', '').replace(' ', ''))
-                        if price_match:
-                            new_price = float(price_match.group(1))
-                            print(f"Found fallback price: {new_price} for product: {name}")
-                
-                # Если все еще нет цены, устанавливаем дефолтную
-                if new_price == 0:
-                    new_price = 350
-                    print(f"Using default price: {new_price} for product: {name}")
-                
-                # Extract availability status - исправленная логика
-                availability = None
-                status_found = False
-                
-                # Сначала проверяем текст статуса в div.availability - это приоритетный источник
-                availability_elem = item.find('div', class_='availability')
-                if availability_elem:
-                    status_elem = availability_elem.find('span')
-                    if status_elem:
-                        status_text = status_elem.get_text(strip=True).lower()
-                        print(f"Found status text: '{status_text}' for product: {name}")
-                        
-                        # Определяем статус по тексту - расширенная логика
-                        if any(word in status_text for word in ['снят с производства', 'знятий з виробництва', 'discontinued', 'знято з виробництва']):
-                            availability = "Снят с производства"
-                            status_found = True
-                            print(f"Set status to 'Снят с производства' for product: {name}")
-                        elif any(word in status_text for word in ['доступно под заказ', 'под заказ', 'заказ', 'по заказу', 'під замовлення']):
-                            availability = "Под заказ"
-                            status_found = True
-                            print(f"Set status to 'Под заказ' for product: {name}")
-                        elif any(word in status_text for word in ['ожидается', 'скоро', 'предзаказ', 'очікується']):
-                            availability = "Ожидается"
-                            status_found = True
-                            print(f"Set status to 'Ожидается' for product: {name}")
-                        elif any(word in status_text for word in ['нет в наличии', 'отсутствует', 'недоступен', 'немає в наявності', 'немає']):
-                            availability = "Нет в наличии"
-                            status_found = True
-                            print(f"Set status to 'Нет в наличии' for product: {name}")
-                        elif any(word in status_text for word in ['в наличии', 'есть', 'доступен', 'в наявності', 'в одессе']):
-                            # По новому правилу: "В наличии в Одессе" всегда отображается как "В наличии" (зеленый)
-                            availability = "В наличии"
-                            print(f"Set status to 'В наличии' for product: {name}")
-                            status_found = True
-                
-                # Если статус не найден по тексту, проверяем иконку vm2-nostock
-                if not status_found:
-                    status_icon = item.find('span', class_='vmicon')
-                    if status_icon:
-                        icon_class = status_icon.get('class', [])
-                        if 'vm2-nostock' in icon_class:
-                            # Проверяем title атрибут иконки для более точного определения
-                            icon_title = status_icon.get('title', '').lower()
-                            print(f"Found vm2-nostock icon with title: '{icon_title}' for product: {name}")
-                            
-                            # ИСПРАВЛЕНИЕ: vm2-nostock иконка означает "Снят с производства"
-                            availability = "Снят с производства"
-                            print(f"Found 'Снят с производства' from vm2-nostock icon for product: {name}")
-                            status_found = True
-                
-                # Если статус не найден по тексту, проверяем иконку vm2-nostock (дублирующаяся логика убрана)
-                
-                # Если статус все еще не найден, ищем по ключевым словам в любом тексте элемента
-                if not status_found:
-                    print(f"Status not found with selectors for product: {name}, searching in all text...")
-                    all_text = item.get_text().lower()
-                    
-                    # Проверяем наличие ключевых слов в любом тексте
-                    if any(word in all_text for word in ['снят с производства', 'знятий з виробництва', 'discontinued', 'знято з виробництва']):
-                        availability = "Снят с производства"
-                        print(f"Found 'Снят с производства' in text for product: {name}")
-                    elif any(word in all_text for word in ['нет в наличии', 'немає в наявності', 'немає']):
-                        availability = "Нет в наличии"
-                        print(f"Found 'Нет в наличии' in text for product: {name}")
-                    elif any(word in all_text for word in ['ожидается', 'очікується']):
-                        availability = "Ожидается"
-                        print(f"Found 'Ожидается' in text for product: {name}")
-                    elif any(word in all_text for word in ['под заказ', 'під замовлення']):
-                        availability = "Под заказ"
-                        print(f"Found 'Под заказ' in text for product: {name}")
-                
-                # Если статус не найден, устанавливаем "В наличии" по умолчанию
-                if availability is None:
-                    availability = "В наличии"
-                    print(f"Status not found, using default: {availability} for product: {name}")
-                
-                print(f"Final availability for '{name}': {availability}")
-                
-                # Отладочная информация только для проблемных товаров
-                if availability != "В наличии":
-                    print(f"=== DEBUG: Product '{name}' ===")
-                    print(f"Final availability: {availability}")
-                    print(f"Status found: {status_found}")
-                    print(f"=== END DEBUG ===")
-                
-                # Специальная отладка для конкретного товара
-                if "Dean Markley 2558A" in name:
-                    print(f"=== SPECIAL DEBUG: Dean Markley 2558A product found ===")
-                    print(f"Product name: {name}")
-                    print(f"Final availability: {availability}")
-                    print(f"Raw HTML for this product:")
-                    print(item.prettify()[:2000])  # Первые 2000 символов HTML
-                    print(f"=== END SPECIAL DEBUG ===")
-                
-                # Специальная отладка для товаров La Bella с проблемными ценами
-                if "La Bella" in name and ("HRS-XL" in name or "HRS-R" in name):
-                    print(f"=== SPECIAL DEBUG: La Bella product found ===")
-                    print(f"Product name: {name}")
-                    print(f"New price: {new_price}")
-                    print(f"Old price: {old_price}")
-                    print(f"Price container HTML:")
-                    if price_container:
-                        print(price_container.prettify())
-                    else:
-                        print("No price container found")
-                    print(f"=== END SPECIAL DEBUG ===")
-                
-                # Extract rating - исправленная логика с правильным округлением
-                rating = None  # Убираем дефолтный рейтинг
-                rating_found = False
-                
-                # Ищем рейтинг в рамках текущего товара
-                rating_elem = item.find('span', class_='vrvote-count')
-                if rating_elem:
-                    rating_text = rating_elem.get_text(strip=True)
-                    print(f"Found rating text: '{rating_text}' for product: {name}")
-                    
-                    # Извлекаем числовой рейтинг - улучшенная логика
-                    # Ищем паттерн типа "4.3 - 10 голосов" или "5 - 1 голос"
-                    rating_match = re.search(r'(\d+\.?\d*)\s*-\s*\d+\s*голос', rating_text)
-                    if rating_match:
-                        rating_value = float(rating_match.group(1))
-                        if 0 <= rating_value <= 5:
-                            # Правильное округление рейтингов до ближайших 0.5
-                            if rating_value >= 4.75:
-                                rating = "5.0"
-                            elif rating_value >= 4.25:
-                                rating = "4.5"
-                            elif rating_value >= 3.75:
-                                rating = "4.0"
-                            elif rating_value >= 3.25:
-                                rating = "3.5"
-                            elif rating_value >= 2.75:
-                                rating = "3.0"
-                            elif rating_value >= 2.25:
-                                rating = "2.5"
-                            elif rating_value >= 1.75:
-                                rating = "2.0"
-                            elif rating_value >= 1.25:
-                                rating = "1.5"
-                            else:
-                                rating = "1.0"
-                            rating_found = True
-                            print(f"Extracted and rounded rating: {rating} from {rating_value} for product: {name}")
-                    
-                    # Если не нашли по первому паттерну, ищем просто число
-                    if not rating_found:
-                        rating_match = re.search(r'(\d+\.?\d*)', rating_text)
-                        if rating_match:
-                            rating_value = float(rating_match.group(1))
-                            if 0 <= rating_value <= 5:
-                                # Правильное округление рейтингов до ближайших 0.5
-                                if rating_value >= 4.75:
-                                    rating = "5.0"
-                                elif rating_value >= 4.25:
-                                    rating = "4.5"
-                                elif rating_value >= 3.75:
-                                    rating = "4.0"
-                                elif rating_value >= 3.25:
-                                    rating = "3.5"
-                                elif rating_value >= 2.75:
-                                    rating = "3.0"
-                                elif rating_value >= 2.25:
-                                    rating = "2.5"
-                                elif rating_value >= 1.75:
-                                    rating = "2.0"
-                                elif rating_value >= 1.25:
-                                    rating = "1.5"
-                                else:
-                                    rating = "1.0"
-                                rating_found = True
-                                print(f"Extracted and rounded rating: {rating} from {rating_value} for product: {name}")
-                
-                # Если рейтинг не найден, устанавливаем "Нет рейтинга"
-                if not rating_found:
-                    rating = "Нет рейтинга"
-                    print(f"No rating found, setting to 'Нет рейтинга' for product: {name}")
-                
-                # Extract subtitle if available
-                subtitle_elem = item.find('div', class_='subtitle') or item.find('span', class_='subtitle') or item.find('p', class_='subtitle')
-                subtitle = subtitle_elem.get_text(strip=True) if subtitle_elem else ""
-                
-                product = {
-                    'name': name,
-                    'image': img_src,
-                    'newPrice': f"{int(new_price)}",
-                    'oldPrice': f"{int(old_price)}" if old_price > 0 else None,
-                    'availability': availability,
-                    'rating': rating,
-                    'subtitle': subtitle,
-                    'status': availability
-                }
-                
-                products.append(product)
-                
-            except Exception as e:
-                print(f"Error processing product item: {e}")
-                continue
-        
-        # Determine if there are more products available
-        # Check if we've reached the end of the total product list
-        has_more = (start + limit) < len(product_items)
-        
-        print(f"Debug: total products available: {len(product_items)}")
-        print(f"Debug: start: {start}, limit: {limit}")
-        print(f"Debug: products returned: {len(products)}")
-        print(f"Debug: hasMore calculation: start+limit={start+limit}, total_items={len(product_items)}, hasMore={has_more}")
-        print(f"Debug: start + products = {start + len(products)}")
-        print(f"Debug: total field in response: {len(product_items)}")
-        print(f"Debug: hasMore field in response: {has_more}")
-        
+        end_index = min(start + limit, total_products)
+        products = product_dicts[start:end_index]
+        has_more = (start + limit) < total_products
+        if DEBUG:
+            print(f"Debug: products returned: {len(products)}, hasMore={has_more}")
+
         return jsonify({
             'success': True,
             'products': products,
-            'total': len(product_items),  # ИСПРАВЛЕНИЕ: Общее количество всех товаров, а не на текущей странице
+            'total': total_products,  # Общее количество всех товаров
             'start': start,
             'limit': limit,
             'hasMore': has_more  # Есть ли еще товары после текущей страницы
@@ -580,6 +426,98 @@ def proxy_fetch():
             'Content-Type': 'text/plain; charset=utf-8',
             'Access-Control-Allow-Origin': '*'
         }
+
+# =======================
+# Account API (mock)
+# =======================
+
+@app.route('/api/user_profile')
+def api_user_profile():
+    """Возвращает данные профиля пользователя.
+    Если фронтенд передает Telegram-поля, можем проксировать их обратно.
+    Параметры (query):
+      - tg_id, tg_username, tg_first_name, tg_last_name, tg_photo_url
+    """
+    try:
+        tg_id = request.args.get('tg_id')
+        username = request.args.get('tg_username')
+        first_name = request.args.get('tg_first_name')
+        last_name = request.args.get('tg_last_name')
+        photo_url = request.args.get('tg_photo_url')
+
+        # Если не пришло с фронта — используем значения по умолчанию
+        display_name = (f"{first_name or ''} {last_name or ''}" ).strip() or username or "Guest"
+
+        profile = {
+            'success': True,
+            'userId': tg_id or 'local-guest',
+            'displayName': display_name,
+            'username': username,
+            'bonuses': 100,
+            'photoUrl': photo_url,
+            'language': 'uk'
+        }
+        return jsonify(profile), 200, {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+            'Access-Control-Allow-Origin': '*'
+        }
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/user_orders')
+def api_user_orders():
+    """Возвращает список заказов пользователя и сводку. Демо-данные."""
+    try:
+        # Можно фильтровать по tg_id, если будет использоваться
+        # tg_id = request.args.get('tg_id')
+
+        demo_orders = [
+            {
+                'orderId': '13346',
+                'date': '2025-02-03',
+                'address': 'Одесса, НП №1',
+                'amount': 680,
+                'status': 'Оплачен'
+            },
+            {
+                'orderId': '10547',
+                'date': '2022-12-13',
+                'address': 'Одесса, НП №1',
+                'amount': 1140,
+                'status': 'Оплачен'
+            },
+            {
+                'orderId': '7158',
+                'date': '2020-12-02',
+                'address': 'Одесса, НП №1',
+                'amount': 1,
+                'status': 'Оплачен'
+            }
+        ]
+
+        total_orders = len(demo_orders)
+        total_amount = sum(o.get('amount', 0) for o in demo_orders)
+
+        payload = {
+            'success': True,
+            'summary': {
+                'totalOrders': total_orders,
+                'bonuses': 100,
+                'totalAmount': total_amount
+            },
+            'orders': demo_orders
+        }
+        return jsonify(payload), 200, {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+            'Access-Control-Allow-Origin': '*'
+        }
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e), 'orders': [], 'summary': {'totalOrders': 0, 'bonuses': 0, 'totalAmount': 0}}), 500
 
 if __name__ == '__main__':
     print("Starting server... (версия 13.02 - исправление цен La Bella)")
