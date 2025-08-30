@@ -4380,6 +4380,9 @@ function showProductsView() {
         // Показываем строку поиска
         const search = document.querySelector('.search-section');
         if (search) search.style.removeProperty('display');
+        // Возвращаем отображение строки бонусов в верхнем хедере
+        const headerBonus = document.querySelector('.bonus-info');
+        if (headerBonus) headerBonus.style.removeProperty('display');
     } catch (e) {}
 }
 
@@ -4430,6 +4433,9 @@ async function showAccountView() {
         // Скрываем строку поиска
         const search = document.querySelector('.search-section');
         if (search) search.style.setProperty('display','none','important');
+        // Дополнительно скрываем строку бонусов в верхнем хедере, чтобы не дублировать в кабинете
+        const headerBonus = document.querySelector('.bonus-info');
+        if (headerBonus) headerBonus.style.setProperty('display','none','important');
     } catch (e) {}
 
     // Применяем язык к только что добавленным узлам и настраиваем выпадающий список
@@ -4479,6 +4485,18 @@ async function renderAccountPage() {
                 avatarEl.style.display = 'none';
             }
         }
+        // Дублируем аватар в правый верхний угол хедера, если доступен
+        try {
+            const headerImg = document.getElementById('profile-image');
+            const headerSvg = document.getElementById('profile-svg');
+            const headerIcon = document.getElementById('profile-icon');
+            if (headerImg && profile.photoUrl) {
+                headerImg.src = profile.photoUrl;
+                headerImg.style.display = 'block';
+                if (headerSvg) headerSvg.style.display = 'none';
+                if (headerIcon) headerIcon.style.display = 'none';
+            }
+        } catch (e) {}
         // Сводка
         const totalOrdersEl = document.getElementById('accTotalOrders');
         const accBonusesEl = document.getElementById('accBonuses');

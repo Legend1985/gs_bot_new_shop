@@ -6,6 +6,7 @@ import re
 import os
 import mimetypes
 from datetime import datetime
+import threading
 
 app = Flask(__name__)
 CORS(app)
@@ -15,6 +16,9 @@ ALL_PRODUCTS_CACHE = None
 CACHE_TIMESTAMP = None
 # Preprocessed lightweight JSON cache for fast API responses
 PROCESSED_PRODUCTS_CACHE = None
+# Concurrency guards
+CACHE_LOCK = None  # lazy init to avoid issues at import time
+CACHE_REFRESH_IN_PROGRESS = False
 # Verbose server-side debug (turn off for speed)
 DEBUG = False
 
@@ -228,6 +232,59 @@ def build_processed_products():
     if DEBUG:
         print(f"Processed products cache built: {len(PROCESSED_PRODUCTS_CACHE)} items")
 
+
+def ensure_lock():
+    global CACHE_LOCK
+    if CACHE_LOCK is None:
+        import threading
+        CACHE_LOCK = threading.Lock()
+
+
+def scrape_initial_page():
+    """Quickly fetch the first catalog page to populate cache for fast initial response."""
+    global ALL_PRODUCTS_CACHE, CACHE_TIMESTAMP
+    ensure_lock()
+    with CACHE_LOCK:
+        try:
+            print("Quick preload: scraping first page...")
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3',
+                'Accept-Encoding': 'gzip, deflate',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+            }
+            url = "https://guitarstrings.com.ua/electro"
+            r = requests.get(url, headers=headers, timeout=10)
+            r.raise_for_status()
+            soup = BeautifulSoup(r.content, 'html.parser')
+            items = soup.find_all('div', class_='spacer') or soup.find_all('div', class_='product-item') or soup.find_all('div', class_='item') or []
+            import time
+            ALL_PRODUCTS_CACHE = items
+            CACHE_TIMESTAMP = time.time()
+            build_processed_products()
+            print(f"Quick preload ready: {len(items)} items")
+        except Exception as e:
+            print(f"Quick preload failed: {e}")
+
+
+def trigger_background_refresh():
+    """Start full refresh in background if not already running."""
+    global CACHE_REFRESH_IN_PROGRESS
+    ensure_lock()
+    if CACHE_REFRESH_IN_PROGRESS:
+        return
+    import threading
+    def _refresh():
+        global CACHE_REFRESH_IN_PROGRESS
+        CACHE_REFRESH_IN_PROGRESS = True
+        try:
+            scrape_all_pages()
+        finally:
+            CACHE_REFRESH_IN_PROGRESS = False
+    threading.Thread(target=_refresh, daemon=True).start()
+
 # Serve static files from the current directory
 @app.route('/')
 def index():
@@ -301,14 +358,17 @@ def api_products():
         print(f"API Products: start={start}, limit={limit}, search='{search}'")
     
     try:
-        # Ensure caches
+        # Ensure caches without blocking request: quick trigger only
         global ALL_PRODUCTS_CACHE, CACHE_TIMESTAMP, PROCESSED_PRODUCTS_CACHE
         import time
         current_time = time.time()
-        if ALL_PRODUCTS_CACHE is None or CACHE_TIMESTAMP is None or (current_time - CACHE_TIMESTAMP >= 1800):
-            if DEBUG:
-                print("Cache expired or missing, refreshing...")
-            scrape_all_pages()
+        if ALL_PRODUCTS_CACHE is None or CACHE_TIMESTAMP is None:
+            # No cache yet → trigger async quick preload and full refresh
+            scrape_initial_page()
+            trigger_background_refresh()
+        elif (current_time - CACHE_TIMESTAMP >= 1800):
+            # Cache stale → serve stale, refresh in background
+            trigger_background_refresh()
         if PROCESSED_PRODUCTS_CACHE is None:
             build_processed_products()
 
@@ -519,15 +579,23 @@ def api_user_orders():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e), 'orders': [], 'summary': {'totalOrders': 0, 'bonuses': 0, 'totalAmount': 0}}), 500
 
+def preload_cache_async():
+    """Kick off product cache build in a background thread without blocking server startup."""
+    def _worker():
+        try:
+            print("Pre-loading product cache in background...")
+            scrape_all_pages()
+            print("Cache pre-loaded successfully!")
+        except Exception as e:
+            print(f"Warning: Could not pre-load cache: {e}")
+
+    t = threading.Thread(target=_worker, daemon=True)
+    t.start()
+
+
 if __name__ == '__main__':
     print("Starting server... (версия 13.02 - исправление цен La Bella)")
-    print("Pre-loading product cache...")
-    try:
-        # Pre-load cache on startup
-        scrape_all_pages()
-        print("Cache pre-loaded successfully!")
-    except Exception as e:
-        print(f"Warning: Could not pre-load cache: {e}")
-    
+    # Do not block startup; build cache in the background
+    preload_cache_async()
     print("Starting Flask server on port 8000...")
-    app.run(host='0.0.0.0', port=8000, debug=True) 
+    app.run(host='0.0.0.0', port=8000, debug=True)

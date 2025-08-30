@@ -421,9 +421,9 @@ body::before {
 .account-summary div { font-size:14px; color:#333; }
 
 .account-orders { width:100%; }
-.orders-table-header, .orders-table-row { display:grid; grid-template-columns: 1fr 1fr 2fr 1fr 1fr; gap:8px; padding:10px 8px; }
-.orders-table-header { font-weight:600; color:#666; border-bottom:1px solid #eee; }
-.orders-table-row { border-bottom:1px solid #f1f1f1; align-items:center; }
+.orders-table-header, .orders-table-row { display:grid; grid-template-columns: 1fr 1fr 2fr 1fr 1fr; gap:6px; padding:8px 6px; }
+.orders-table-header { font-weight:600; color:#666; border-bottom:1px solid #eee; font-size:13px; }
+.orders-table-row { border-bottom:1px solid #f1f1f1; align-items:center; font-size:13px; }
 .orders-table-row:nth-child(even) { background:#fafafa; }
 
 /* Плейсхолдер для товаров во время загрузки */
@@ -3368,7 +3368,7 @@ body::before {
 #account-section .account-orders { width:100%; }
 #account-section .orders-table-header, #account-section .orders-table-row {
     grid-template-columns: 0.9fr 0.9fr 1.6fr 0.8fr 0.9fr;
-    gap:6px; padding:8px 6px; font-size:13px;
+    gap:5px; padding:7px 5px; font-size:12px;
 }
 #account-section .orders-table-header div,
 #account-section .orders-table-row div { white-space: nowrap; overflow:hidden; text-overflow: ellipsis; }
