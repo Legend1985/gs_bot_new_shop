@@ -402,6 +402,7 @@ body::before {
 .account-bonuses { color:#666; font-size:14px; display:none; }
 .account-actions { display:flex; align-items:center; justify-content:flex-start; gap:8px; flex-wrap:wrap; }
 .account-action-btn { padding:8px 12px; border:1px solid #ddd; border-radius:20px; background:#fff; cursor:pointer; transition:transform .06s ease, box-shadow .2s ease; }
+.header-right .account-action-btn { font-size:12px; padding:6px 10px; border-radius:16px; }
 .account-action-btn:hover { box-shadow:0 2px 8px rgba(0,0,0,0.08); }
 .account-action-btn:active { transform:scale(0.98); }
 .account-lang { position:relative; padding-bottom:0; }
@@ -1237,6 +1238,17 @@ body::before {
     display: none;
     margin-top: 5px;
 }
+
+/* Форма логина в выпадающем меню профиля */
+.login-form { width: 100%; padding: 10px; }
+.login-form .form-row { display:flex; flex-direction:column; gap:6px; margin-bottom:8px; }
+.login-form label { font-size:12px; color: var(--text-secondary); }
+.login-form input { padding:8px 10px; border:1px solid var(--border-color); border-radius:8px; font-size:14px; }
+.login-form input:focus { outline:none; border-color: var(--primary-color); box-shadow: 0 0 0 2px rgba(248,168,24,0.15); }
+.login-form .form-actions { display:flex; justify-content:space-between; align-items:center; margin-top:6px; }
+.login-form .remember { font-size:12px; color: var(--text-secondary); display:flex; align-items:center; gap:6px; }
+.login-form .btn { padding:8px 12px; border-radius:8px; }
+.login-form .form-message { margin-top:6px; font-size:12px; min-height:16px; }
 
 .avatar-dropdown.show {
     display: block;

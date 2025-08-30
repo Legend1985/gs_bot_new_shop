@@ -55,9 +55,25 @@
                     <i class="fas fa-cog"></i>
                     <span data-translate="settings">Настройки</span>
                 </div>
-                <div class="dropdown-item">
-                    <i class="fas fa-sign-out-alt"></i>
-                    <span data-translate="logout">Выйти</span>
+                <div class="dropdown-item" id="dropdownLoginSection" style="display:block;">
+                    <form id="loginForm" class="login-form" onsubmit="return false;">
+                        <div class="form-row">
+                            <label for="loginUsername">E-mail или логин</label>
+                            <input type="text" id="loginUsername" autocomplete="username" required>
+                        </div>
+                        <div class="form-row">
+                            <label for="loginPassword">Пароль</label>
+                            <input type="password" id="loginPassword" autocomplete="current-password" required>
+                        </div>
+                        <div class="form-actions">
+                            <label class="remember"><input type="checkbox" id="loginRemember"> Запомнить</label>
+                            <button type="submit" id="loginSubmit" class="btn btn-primary">Войти</button>
+                        </div>
+                        <div class="form-message" id="loginMessage" aria-live="polite"></div>
+                    </form>
+                </div>
+                <div class="dropdown-item" id="dropdownLogoutSection" style="display:none;">
+                    <button id="dropdownLogoutBtn" class="btn btn-secondary" style="width:100%;">Выйти</button>
                 </div>
             </div>
         </div>

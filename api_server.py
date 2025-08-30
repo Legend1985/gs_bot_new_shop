@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory, session
 from flask_cors import CORS
 import requests
 from bs4 import BeautifulSoup
@@ -9,7 +9,8 @@ from datetime import datetime
 import threading
 
 app = Flask(__name__)
-CORS(app)
+app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key')
+CORS(app, supports_credentials=True)
 
 # Global cache for all scraped products
 ALL_PRODUCTS_CACHE = None
@@ -416,7 +417,7 @@ def api_products():
         has_more = (start + limit) < total_products
         if DEBUG:
             print(f"Debug: products returned: {len(products)}, hasMore={has_more}")
-
+        
         return jsonify({
             'success': True,
             'products': products,
@@ -499,6 +500,25 @@ def api_user_profile():
       - tg_id, tg_username, tg_first_name, tg_last_name, tg_photo_url
     """
     try:
+        # 1) Если пользователь уже залогинен через сессию браузера — возвращаем его
+        user = session.get('user')
+        if user:
+            profile = {
+                'success': True,
+                'userId': user.get('userId', 'session-user'),
+                'displayName': user.get('displayName') or user.get('username') or 'User',
+                'username': user.get('username'),
+                'bonuses': 100,
+                'photoUrl': user.get('photoUrl'),
+                'language': user.get('language', 'uk')
+            }
+            return jsonify(profile), 200, {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0',
+                'Access-Control-Allow-Origin': '*'
+            }
+
         tg_id = request.args.get('tg_id')
         username = request.args.get('tg_username')
         first_name = request.args.get('tg_first_name')
@@ -579,6 +599,49 @@ def api_user_orders():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e), 'orders': [], 'summary': {'totalOrders': 0, 'bonuses': 0, 'totalAmount': 0}}), 500
 
+
+@app.route('/api/login', methods=['POST'])
+def api_login():
+    """Примитивный логин для браузера: сохраняем данные пользователя в сессию."""
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        display_name = (data.get('displayName') or '').strip()
+        username = (data.get('username') or '').strip() or display_name
+        photo_url = (data.get('photoUrl') or '').strip() or data.get('avatarUrl') or data.get('image')
+        if not display_name and not username:
+            return jsonify({'success': False, 'error': 'Missing displayName/username'}), 400
+        # Simple validation demo: password length >= 4
+        password = (data.get('password') or '').strip()
+        if password and len(password) < 4:
+            return jsonify({'success': False, 'error': 'Пароль слишком короткий'}), 400
+
+        session['user'] = {
+            'userId': username or 'session-user',
+            'displayName': display_name or username,
+            'username': username,
+            'photoUrl': photo_url,
+            'language': 'uk'
+        }
+        # Remember: увеличить срок жизни сессии (простая имитация)
+        remember = data.get('remember') in (True, 'true', '1', 1)
+        if remember:
+            session.permanent = True
+            from datetime import timedelta
+            app.permanent_session_lifetime = timedelta(days=14)
+        return jsonify({'success': True, 'profile': session['user']}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/logout', methods=['POST', 'GET'])
+def api_logout():
+    """Выход из кабинета: очищаем сессию браузера."""
+    try:
+        session.pop('user', None)
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 def preload_cache_async():
     """Kick off product cache build in a background thread without blocking server startup."""
     def _worker():
@@ -588,7 +651,7 @@ def preload_cache_async():
             print("Cache pre-loaded successfully!")
         except Exception as e:
             print(f"Warning: Could not pre-load cache: {e}")
-
+    
     t = threading.Thread(target=_worker, daemon=True)
     t.start()
 
@@ -598,4 +661,4 @@ if __name__ == '__main__':
     # Do not block startup; build cache in the background
     preload_cache_async()
     print("Starting Flask server on port 8000...")
-    app.run(host='0.0.0.0', port=8000, debug=True)
+    app.run(host='0.0.0.0', port=8000, debug=True) 

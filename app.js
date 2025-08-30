@@ -2756,6 +2756,59 @@ function setupEventHandlers() {
     
     // Обработчик переключения языков
     setupLanguageSwitchers();
+    // Логика формы логина в выпадающем меню профиля
+    try {
+        const loginForm = document.getElementById('loginForm');
+        const loginMessage = document.getElementById('loginMessage');
+        const dropdownLoginSection = document.getElementById('dropdownLoginSection');
+        const dropdownLogoutSection = document.getElementById('dropdownLogoutSection');
+        const dropdownLogoutBtn = document.getElementById('dropdownLogoutBtn');
+
+        if (loginForm && dropdownLogoutBtn && dropdownLoginSection && dropdownLogoutSection) {
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const username = (document.getElementById('loginUsername').value || '').trim();
+                const password = (document.getElementById('loginPassword').value || '').trim();
+                const remember = document.getElementById('loginRemember').checked;
+                loginMessage.textContent = '';
+                if (!username || !password) {
+                    loginMessage.textContent = 'Введите логин и пароль';
+                    return;
+                }
+                try {
+                    const resp = await fetch('http://localhost:8000/api/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ displayName: username, username, remember })
+                    });
+                    const data = await resp.json();
+                    if (!data.success) {
+                        loginMessage.textContent = data.error || 'Ошибка входа';
+                        return;
+                    }
+                    // Переключаем на логаут
+                    dropdownLoginSection.style.display = 'none';
+                    dropdownLogoutSection.style.display = 'block';
+                    // Открываем кабинет
+                    showAccountView();
+                } catch (err) {
+                    loginMessage.textContent = 'Сервер недоступен';
+                    console.error(err);
+                }
+            });
+
+            dropdownLogoutBtn.addEventListener('click', async () => {
+                try {
+                    await fetch('http://localhost:8000/api/logout', { method: 'POST', credentials: 'include' });
+                } catch (e) {}
+                // UI
+                dropdownLogoutSection.style.display = 'none';
+                dropdownLoginSection.style.display = 'block';
+                showProductsView();
+            });
+        }
+    } catch (e) {}
     
     // Дополнительно обновляем активное состояние кнопок языка после настройки обработчиков
     const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
