@@ -20,7 +20,7 @@
     <meta name="theme-color" content="#ffffff">
     <link rel="manifest" href="images/favicon_v016/site.webmanifest">
     
-            <link rel="stylesheet" href="style.css?v=11.37">
+            <link rel="stylesheet" href="style.css?v=11.45">
         <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
         <script src="translations.js?v=10.65"></script>
         <script src="app.js?v=13.21"></script>
@@ -65,11 +65,55 @@
                             <label for="loginPassword">Пароль</label>
                             <input type="password" id="loginPassword" autocomplete="current-password" required>
                         </div>
+                        <div class="form-row" id="loginCaptchaRow" style="display:none;">
+                            <label id="loginCaptchaQuestion">Проверка: —</label>
+                            <div style="display:flex; gap:8px; align-items:center;">
+                                <input type="text" id="loginCaptchaAnswer" placeholder="Ответ" inputmode="numeric" style="flex:1;">
+                                <button type="button" id="loginCaptchaRefresh" class="btn btn-secondary">↻</button>
+                            </div>
+                        </div>
                         <div class="form-actions">
                             <label class="remember"><input type="checkbox" id="loginRemember"> Запомнить</label>
                             <button type="submit" id="loginSubmit" class="btn btn-primary">Войти</button>
                         </div>
                         <div class="form-message" id="loginMessage" aria-live="polite"></div>
+                        <div class="form-row" style="text-align:center; margin-top:6px;">
+                            <a href="#" id="showRegisterLink">Создать аккаунт</a>
+                        </div>
+                    </form>
+                </div>
+                <div class="dropdown-item" id="dropdownRegisterSection" style="display:none;">
+                    <form id="registerForm" class="login-form" onsubmit="return false;">
+                        <div class="form-row">
+                            <label for="registerEmail">E-mail</label>
+                            <input type="email" id="registerEmail" autocomplete="email" required>
+                        </div>
+                        <div class="form-row">
+                            <label for="registerUsername">Логин</label>
+                            <input type="text" id="registerUsername" autocomplete="username" required>
+                        </div>
+                        <div class="form-row">
+                            <label for="registerPassword">Пароль</label>
+                            <input type="password" id="registerPassword" autocomplete="new-password" required>
+                        </div>
+                        <div class="form-row">
+                            <label for="registerPassword2">Повторите пароль</label>
+                            <input type="password" id="registerPassword2" autocomplete="new-password" required>
+                        </div>
+                        <div class="form-row" id="registerCaptchaRow" style="display:none;">
+                            <label id="registerCaptchaQuestion">Проверка: —</label>
+                            <div style="display:flex; gap:8px; align-items:center;">
+                                <input type="text" id="registerCaptchaAnswer" placeholder="Ответ" inputmode="numeric" style="flex:1;">
+                                <button type="button" id="registerCaptchaRefresh" class="btn btn-secondary">↻</button>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" id="registerSubmit" class="btn btn-primary">Зарегистрироваться</button>
+                        </div>
+                        <div class="form-message" id="registerMessage" aria-live="polite"></div>
+                        <div class="form-row" style="text-align:center; margin-top:6px;">
+                            <a href="#" id="showLoginLink">У меня уже есть аккаунт</a>
+                        </div>
                     </form>
                 </div>
                 <div class="dropdown-item" id="dropdownLogoutSection" style="display:none;">

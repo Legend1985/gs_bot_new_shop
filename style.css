@@ -379,6 +379,7 @@ body::before {
     will-change: scroll-position; /* Оптимизация для браузеров */
     transform: translateZ(0); /* Включаем аппаратное ускорение */
     backface-visibility: hidden; /* Улучшает производительность */
+    z-index: auto; /* Возвращаем нормальный слой, чтобы футер был поверх */
 }
 
 /* Новый контейнер для карточек товаров (внутри .inner) */
@@ -392,6 +393,8 @@ body::before {
 /* Секция кабинета должна занимать всю ширину сетки */
 #account-section {
     grid-column: 1 / -1;
+    position: relative;
+    z-index: auto; /* Возвращаем нормальный слой для корректного наложения футера */
 }
 
 /* Account section */
@@ -399,23 +402,30 @@ body::before {
 .account-user { display:flex; align-items:center; gap:12px; }
 .account-avatar { width:48px; height:48px; border-radius:50%; box-shadow: 0 2px 6px rgba(0,0,0,0.15); object-fit:cover; }
 .account-title-block h2 { margin:0; font-size:18px; }
-.account-bonuses { color:#666; font-size:14px; display:none; }
-.account-actions { display:flex; align-items:center; justify-content:flex-start; gap:8px; flex-wrap:wrap; }
+.account-bonuses { color:#666; font-size:14px; display:none !important; }
+/* Дополнительная защита от показа бонусов под ником */
+#account-section .account-title-block #accountBonuses { display:none !important; }
+.account-actions { display:flex; align-items:center; justify-content:flex-start; gap:8px; flex-wrap:wrap; overflow: visible; }
 .account-action-btn { padding:8px 12px; border:1px solid #ddd; border-radius:20px; background:#fff; cursor:pointer; transition:transform .06s ease, box-shadow .2s ease; }
 .header-right .account-action-btn { font-size:12px; padding:6px 10px; border-radius:16px; }
 .account-action-btn:hover { box-shadow:0 2px 8px rgba(0,0,0,0.08); }
 .account-action-btn:active { transform:scale(0.98); }
-.account-lang { position:relative; padding-bottom:0; }
+.account-lang { position:relative; padding-bottom:0; z-index: 3000; }
 .account-lang-btn { padding:8px 12px; border:1px solid #ddd; border-radius:20px; background:#fff; cursor:pointer; }
 .account-lang-btn.selected { background: var(--primary-color); color:#fff; border-color: var(--primary-color); }
-.account-lang-dropdown { position:absolute; top:calc(100% - 1px); right:0; margin-top:0; background:#fff; border:1px solid #e5e5e5; border-radius:10px; box-shadow:0 6px 18px rgba(0,0,0,0.12); display:none; overflow:hidden; z-index:1000; }
-.account-lang:hover .account-lang-dropdown { display:block; }
+.account-lang-btn:not(.selected):hover, .account-lang-btn:not(.selected):focus { background:#fff; outline:none; }
+.account-lang-dropdown { position:absolute; top:calc(100% - 1px); right:0; margin-top:0; background:#fff; border:1px solid #e5e5e5; border-radius:10px; box-shadow:0 6px 18px rgba(0,0,0,0.12); display:none; overflow:visible; z-index:2147483647; padding:0; }
+/* Отключаем автопоказ по hover: управляем через JS */
+.account-lang:hover .account-lang-dropdown { display:none; }
 /* Открытие по клику */
 .account-lang.open .account-lang-dropdown { display:block; }
 /* Принудительное закрытие (после выбора) */
 .account-lang.force-closed .account-lang-dropdown { display:none !important; }
-.account-lang-dropdown .lang-option { padding:8px 12px; cursor:pointer; white-space:nowrap; transition:background-color .15s ease, color .15s ease; }
+.account-lang-dropdown .lang-option { padding:10px 12px; cursor:pointer; white-space:nowrap; transition:background-color .15s ease, color .15s ease; display:flex; align-items:center; justify-content:center; width:100%; box-sizing:border-box; margin:0; border-radius:0; text-align:center; }
 .account-lang-dropdown .lang-option:hover { background:var(--primary-color); color:#fff; }
+.account-lang-dropdown .lang-option.active { background:var(--primary-color); color:#fff; }
+.account-lang-dropdown .lang-option:first-child { border-top-left-radius:10px; border-top-right-radius:10px; }
+.account-lang-dropdown .lang-option:last-child { border-bottom-left-radius:10px; border-bottom-right-radius:10px; }
 .account-lang-dropdown .lang-option.active { background:transparent; color:inherit; }
 
 .account-summary { display:flex; gap:16px; padding:12px 0; border-top:1px solid #eee; border-bottom:1px solid #eee; margin-bottom:12px; }
@@ -426,6 +436,18 @@ body::before {
 .orders-table-header { font-weight:600; color:#666; border-bottom:1px solid #eee; font-size:13px; }
 .orders-table-row { border-bottom:1px solid #f1f1f1; align-items:center; font-size:13px; }
 .orders-table-row:nth-child(even) { background:#fafafa; }
+
+/* Телеграм-режим: компактные отступы и отсутствие переполнения по ширине */
+body.is-telegram { overflow-x: hidden; }
+body.is-telegram .container { padding: 0 8px; }
+body.is-telegram .inner,
+body.is-telegram #productsContainer { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+body.is-telegram .product-card { padding: 8px; }
+body.is-telegram #account-section .account-user { display: none; }
+body.is-telegram .account-actions { flex-wrap: nowrap; gap: 6px; overflow-x: auto; overflow-y: visible; align-items: center; position: relative; z-index: 2000; }
+body.is-telegram .account-lang { margin-left: auto; z-index: 99999; }
+body.is-telegram .account-actions .account-action-btn { white-space: nowrap; }
+body.is-telegram .account-actions .account-lang { margin-left: auto; }
 
 /* Плейсхолдер для товаров во время загрузки */
 .inner::before {

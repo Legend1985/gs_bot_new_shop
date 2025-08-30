@@ -7,6 +7,8 @@ import os
 import mimetypes
 from datetime import datetime
 import threading
+import time
+import hashlib
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key')
@@ -22,6 +24,48 @@ CACHE_LOCK = None  # lazy init to avoid issues at import time
 CACHE_REFRESH_IN_PROGRESS = False
 # Verbose server-side debug (turn off for speed)
 DEBUG = False
+
+# In-memory demo stores (not for production)
+REGISTERED_USERS = {}
+CAPTCHA_STORE = {}
+
+def _generate_captcha():
+    a = int(time.time() * 1000) % 10
+    b = (int(time.time()) * 7) % 10
+    if a < 3: a = a + 3
+    if b < 3: b = b + 2
+    question = f"Сколько будет {a} + {b}?"
+    answer = str(a + b)
+    captcha_id = hashlib.sha256(f"{time.time()}:{a}:{b}".encode('utf-8')).hexdigest()[:16]
+    CAPTCHA_STORE[captcha_id] = { 'answer': answer, 'expires': time.time() + 300 }
+    return captcha_id, question
+
+def _verify_and_consume_captcha(captcha_id: str, user_answer: str) -> bool:
+    entry = CAPTCHA_STORE.get(captcha_id)
+    if not entry:
+        return False
+    if time.time() > entry['expires']:
+        CAPTCHA_STORE.pop(captcha_id, None)
+        return False
+    ok = (str(entry['answer']).strip() == str(user_answer).strip())
+    CAPTCHA_STORE.pop(captcha_id, None)
+    return ok
+
+def _hash_password(password: str) -> str:
+    return hashlib.sha256(password.encode('utf-8')).hexdigest()
+
+@app.route('/api/captcha')
+def api_captcha():
+    try:
+        cid, question = _generate_captcha()
+        return jsonify({'success': True, 'captchaId': cid, 'question': question}), 200, {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+            'Access-Control-Allow-Origin': '*'
+        }
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 def scrape_all_pages():
     """Scrape all pages from guitarstrings.com.ua/electro and return combined product list"""
@@ -610,10 +654,24 @@ def api_login():
         photo_url = (data.get('photoUrl') or '').strip() or data.get('avatarUrl') or data.get('image')
         if not display_name and not username:
             return jsonify({'success': False, 'error': 'Missing displayName/username'}), 400
-        # Simple validation demo: password length >= 4
+        # Проверка капчи
+        captcha_id = (data.get('captchaId') or '').strip()
+        captcha_answer = (data.get('captchaAnswer') or '').strip()
+        if not _verify_and_consume_captcha(captcha_id, captcha_answer):
+            return jsonify({'success': False, 'error': 'Неверная капча'}), 400
+        # Проверка пароля, если пользователь зарегистрирован
         password = (data.get('password') or '').strip()
-        if password and len(password) < 4:
-            return jsonify({'success': False, 'error': 'Пароль слишком короткий'}), 400
+        if username in REGISTERED_USERS:
+            if not password:
+                return jsonify({'success': False, 'error': 'Требуется пароль'}), 400
+            if REGISTERED_USERS[username]['passwordHash'] != _hash_password(password):
+                return jsonify({'success': False, 'error': 'Неверный логин или пароль'}), 401
+            display_name = REGISTERED_USERS[username].get('displayName') or username
+            photo_url = REGISTERED_USERS[username].get('photoUrl') or photo_url
+        else:
+            # Demo: разрешаем вход без регистрации, если указан пароль длиной >= 4
+            if password and len(password) < 4:
+                return jsonify({'success': False, 'error': 'Пароль слишком короткий'}), 400
 
         session['user'] = {
             'userId': username or 'session-user',
@@ -639,6 +697,48 @@ def api_logout():
     try:
         session.pop('user', None)
         return jsonify({'success': True}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/register', methods=['POST'])
+def api_register():
+    """Регистрация пользователя (демо, без БД)."""
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        email = (data.get('email') or '').strip().lower()
+        username = (data.get('username') or '').strip()
+        password = (data.get('password') or '').strip()
+        captcha_id = (data.get('captchaId') or '').strip()
+        captcha_answer = (data.get('captchaAnswer') or '').strip()
+
+        if not email or not username or not password:
+            return jsonify({'success': False, 'error': 'Заполните все поля'}), 400
+        if '@' not in email:
+            return jsonify({'success': False, 'error': 'Некорректный email'}), 400
+        if len(username) < 3:
+            return jsonify({'success': False, 'error': 'Логин слишком короткий'}), 400
+        if len(password) < 6:
+            return jsonify({'success': False, 'error': 'Пароль слишком короткий'}), 400
+        if not _verify_and_consume_captcha(captcha_id, captcha_answer):
+            return jsonify({'success': False, 'error': 'Неверная капча'}), 400
+        if username in REGISTERED_USERS:
+            return jsonify({'success': False, 'error': 'Логин уже занят'}), 409
+
+        REGISTERED_USERS[username] = {
+            'email': email,
+            'passwordHash': _hash_password(password),
+            'displayName': username,
+            'createdAt': time.time()
+        }
+
+        session['user'] = {
+            'userId': username,
+            'displayName': username,
+            'username': username,
+            'photoUrl': None,
+            'language': 'uk'
+        }
+        return jsonify({'success': True, 'profile': session['user']}), 200
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 

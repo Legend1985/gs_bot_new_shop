@@ -2756,20 +2756,74 @@ function setupEventHandlers() {
     
     // Обработчик переключения языков
     setupLanguageSwitchers();
-    // Логика формы логина в выпадающем меню профиля
+    // Логика форм логина/регистрации + капча
     try {
         const loginForm = document.getElementById('loginForm');
         const loginMessage = document.getElementById('loginMessage');
         const dropdownLoginSection = document.getElementById('dropdownLoginSection');
         const dropdownLogoutSection = document.getElementById('dropdownLogoutSection');
         const dropdownLogoutBtn = document.getElementById('dropdownLogoutBtn');
+        const showRegisterLink = document.getElementById('showRegisterLink');
+        const showLoginLink = document.getElementById('showLoginLink');
+        const registerForm = document.getElementById('registerForm');
+        const registerMessage = document.getElementById('registerMessage');
+
+        // Состояние капчи
+        let loginCaptchaId = null;
+        let registerCaptchaId = null;
+
+        async function fetchCaptcha(target) {
+            try {
+                const resp = await fetch('http://localhost:8000/api/captcha');
+                const data = await resp.json();
+                if (!data.success) return;
+                if (target === 'login') {
+                    loginCaptchaId = data.captchaId;
+                    const row = document.getElementById('loginCaptchaRow');
+                    const label = document.getElementById('loginCaptchaQuestion');
+                    if (row && label) { row.style.display = 'block'; label.textContent = `Проверка: ${data.question}`; }
+                } else if (target === 'register') {
+                    registerCaptchaId = data.captchaId;
+                    const row = document.getElementById('registerCaptchaRow');
+                    const label = document.getElementById('registerCaptchaQuestion');
+                    if (row && label) { row.style.display = 'block'; label.textContent = `Проверка: ${data.question}`; }
+                }
+            } catch (e) { /* ignore */ }
+        }
+
+        // Переключение UI
+        if (showRegisterLink && showLoginLink) {
+            showRegisterLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                document.getElementById('dropdownLoginSection').style.display = 'none';
+                document.getElementById('dropdownRegisterSection').style.display = 'block';
+                registerMessage.textContent = '';
+                fetchCaptcha('register');
+            });
+            showLoginLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                document.getElementById('dropdownRegisterSection').style.display = 'none';
+                document.getElementById('dropdownLoginSection').style.display = 'block';
+                loginMessage.textContent = '';
+                fetchCaptcha('login');
+            });
+        }
+
+        // Кнопки обновления капчи
+        const loginCaptchaRefresh = document.getElementById('loginCaptchaRefresh');
+        const registerCaptchaRefresh = document.getElementById('registerCaptchaRefresh');
+        if (loginCaptchaRefresh) loginCaptchaRefresh.addEventListener('click', () => fetchCaptcha('login'));
+        if (registerCaptchaRefresh) registerCaptchaRefresh.addEventListener('click', () => fetchCaptcha('register'));
 
         if (loginForm && dropdownLogoutBtn && dropdownLoginSection && dropdownLogoutSection) {
+            // Подгружаем капчу при открытии меню (первый показ)
+            fetchCaptcha('login');
             loginForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const username = (document.getElementById('loginUsername').value || '').trim();
                 const password = (document.getElementById('loginPassword').value || '').trim();
                 const remember = document.getElementById('loginRemember').checked;
+                const captchaAnswer = (document.getElementById('loginCaptchaAnswer').value || '').trim();
                 loginMessage.textContent = '';
                 if (!username || !password) {
                     loginMessage.textContent = 'Введите логин и пароль';
@@ -2780,11 +2834,13 @@ function setupEventHandlers() {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         credentials: 'include',
-                        body: JSON.stringify({ displayName: username, username, remember })
+                        body: JSON.stringify({ displayName: username, username, password, remember, captchaId: loginCaptchaId, captchaAnswer })
                     });
                     const data = await resp.json();
                     if (!data.success) {
                         loginMessage.textContent = data.error || 'Ошибка входа';
+                        // Обновим капчу при ошибке
+                        fetchCaptcha('login');
                         return;
                     }
                     // Переключаем на логаут
@@ -2806,6 +2862,48 @@ function setupEventHandlers() {
                 dropdownLogoutSection.style.display = 'none';
                 dropdownLoginSection.style.display = 'block';
                 showProductsView();
+            });
+        }
+        // Регистрация
+        if (registerForm) {
+            registerForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = (document.getElementById('registerEmail').value || '').trim();
+                const username = (document.getElementById('registerUsername').value || '').trim();
+                const password = (document.getElementById('registerPassword').value || '').trim();
+                const password2 = (document.getElementById('registerPassword2').value || '').trim();
+                const captchaAnswer = (document.getElementById('registerCaptchaAnswer').value || '').trim();
+                registerMessage.textContent = '';
+                if (!email || !username || !password || !password2) {
+                    registerMessage.textContent = 'Заполните все поля';
+                    return;
+                }
+                if (password !== password2) {
+                    registerMessage.textContent = 'Пароли не совпадают';
+                    return;
+                }
+                try {
+                    const resp = await fetch('http://localhost:8000/api/register', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ email, username, password, captchaId: registerCaptchaId, captchaAnswer })
+                    });
+                    const data = await resp.json();
+                    if (!data.success) {
+                        registerMessage.textContent = data.error || 'Ошибка регистрации';
+                        fetchCaptcha('register');
+                        return;
+                    }
+                    // Успех: переключаемся на кабинет и закрываем регистрацию
+                    document.getElementById('dropdownRegisterSection').style.display = 'none';
+                    dropdownLoginSection.style.display = 'none';
+                    dropdownLogoutSection.style.display = 'block';
+                    showAccountView();
+                } catch (err) {
+                    registerMessage.textContent = 'Сервер недоступен';
+                    console.error(err);
+                }
             });
         }
     } catch (e) {}
@@ -4495,9 +4593,8 @@ async function showAccountView() {
         // Скрываем строку поиска
         const search = document.querySelector('.search-section');
         if (search) search.style.setProperty('display','none','important');
-        // Дополнительно скрываем строку бонусов в верхнем хедере, чтобы не дублировать в кабинете
-        const headerBonus = document.querySelector('.bonus-info');
-        if (headerBonus) headerBonus.style.setProperty('display','none','important');
+        // Раньше скрывали строку бонусов в хедере в кабинете, чтобы избежать дублей.
+        // Теперь оставляем её видимой везде (в т.ч. в Telegram WebApp), по запросу пользователя.
     } catch (e) {}
 
     // Применяем язык к только что добавленным узлам и настраиваем выпадающий список
@@ -4743,6 +4840,7 @@ function setupAccountLanguageDropdown() {
 	const container = acc.querySelector('.account-lang');
 	const options = acc.querySelectorAll('.account-lang-dropdown .lang-option');
 	const btn = acc.querySelector('.account-lang-btn');
+	const dropdown = acc.querySelector('.account-lang-dropdown');
 	// Инициализация кнопки текущим языком
 	const currentLang = getCurrentLanguage();
 	updateAccountLangButton(currentLang);
@@ -4758,35 +4856,118 @@ function setupAccountLanguageDropdown() {
 			updateAccountLangButton(lang);
 			// Возвращаем подсветку кнопки после выбора
 			if (btn) btn.classList.add('selected');
+			// Переставляем подсветку активного пункта
+			options.forEach(o => o.classList.remove('active'));
+			this.classList.add('active');
 			// Закрываем список сразу после выбора
 			if (container) {
 				container.classList.remove('open');
 				container.classList.add('force-closed');
 			}
+			// Закрываем портальный dropdown
+			if (dropdown) {
+				dropdown.style.display = 'none';
+				if (dropdown._restoreParent && dropdown._restoreNext) {
+					dropdown._restoreParent.insertBefore(dropdown, dropdown._restoreNext);
+				}
+			}
 		};
 		opt.addEventListener('click', opt._langHandler);
 	});
-	if (btn && container) {
+	if (btn && container && dropdown) {
 		if (btn._langBtnInit) return;
 		btn._langBtnInit = true;
+		function openPortaledDropdown() {
+			try {
+				const rect = btn.getBoundingClientRect();
+				// Сохраняем исходное положение
+				dropdown._restoreParent = dropdown.parentNode;
+				dropdown._restoreNext = dropdown.nextSibling;
+				// Переносим в body поверх всех слоёв
+				document.body.appendChild(dropdown);
+				dropdown.style.position = 'fixed';
+				dropdown.style.zIndex = '2147483647';
+				// Под кнопкой, выравнивание по левой границе, ширина как у кнопки
+				const width = Math.round(rect.width);
+				const viewportPadding = 8;
+				let left = Math.round(rect.left);
+				left = Math.max(viewportPadding, Math.min(left, window.innerWidth - width - viewportPadding));
+				dropdown.style.top = Math.round(rect.bottom) + 'px';
+				dropdown.style.left = left + 'px';
+				dropdown.style.right = '';
+				dropdown.style.width = width + 'px';
+				dropdown.style.minWidth = width + 'px';
+				dropdown.style.display = 'block';
+			} catch (e) {}
+		}
+		function closePortaledDropdown(restore = true) {
+			try {
+				dropdown.style.display = 'none';
+				if (restore && dropdown._restoreParent) {
+					dropdown._restoreParent.insertBefore(dropdown, dropdown._restoreNext);
+				}
+			} catch (e) {}
+		}
 		btn.addEventListener('click', function(e) {
 			e.stopPropagation();
-			container.classList.toggle('open');
-			container.classList.remove('force-closed');
-			// На время открытого дропдауна гасим подсветку кнопки
-			if (container.classList.contains('open')) btn.classList.remove('selected');
-			else btn.classList.add('selected');
+			const willOpen = dropdown.style.display !== 'block';
+			if (willOpen) {
+				openPortaledDropdown();
+				container.classList.add('open');
+				container.classList.remove('force-closed');
+			} else {
+				closePortaledDropdown();
+				container.classList.remove('open');
+			}
 		});
+
+		// Гарантируем, что текст на кнопке всегда соответствует текущему языку
+		btn.addEventListener('mouseenter', () => {
+			updateAccountLangButton(getCurrentLanguage());
+		});
+
+		// Открытие по наведению (только для устройств с поддержкой hover)
+		try {
+			const canHover = (window.matchMedia && window.matchMedia('(hover: hover)').matches) && !('ontouchstart' in window);
+			let closeHoverTimeout = null;
+			if (canHover) {
+				btn.addEventListener('mouseenter', () => {
+					if (closeHoverTimeout) { clearTimeout(closeHoverTimeout); closeHoverTimeout = null; }
+					openPortaledDropdown();
+					container.classList.add('open');
+					container.classList.remove('force-closed');
+				});
+				btn.addEventListener('mouseleave', () => {
+					closeHoverTimeout = setTimeout(() => {
+						closePortaledDropdown();
+						container.classList.remove('open');
+					}, 120);
+				});
+				dropdown.addEventListener('mouseenter', () => {
+					if (closeHoverTimeout) { clearTimeout(closeHoverTimeout); closeHoverTimeout = null; }
+				});
+				dropdown.addEventListener('mouseleave', () => {
+					closeHoverTimeout = setTimeout(() => {
+						closePortaledDropdown();
+						container.classList.remove('open');
+					}, 120);
+				});
+			}
+		} catch (e) {}
 		// Закрытие при клике вне
 		document.addEventListener('click', function(ev) {
-			if (!container.contains(ev.target)) {
+			if (dropdown.style.display === 'block' && ev.target !== btn && !dropdown.contains(ev.target)) {
+				closePortaledDropdown();
 				container.classList.remove('open');
-				// Возвращаем подсветку кнопки при закрытии без выбора
 				if (btn) btn.classList.add('selected');
 			}
 		});
-		// Удаляем автозакрытие по mouseleave и снятие selected на hover
-		// (оставляем только клик-управление и выбор пункта)
+		// При ресайзе пере-позиционируем
+		window.addEventListener('resize', () => {
+			if (dropdown.style.display === 'block') {
+				openPortaledDropdown();
+			}
+		});
 	}
 }
 
