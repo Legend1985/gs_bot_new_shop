@@ -4383,6 +4383,15 @@ function showProductsView() {
         // Возвращаем отображение строки бонусов в верхнем хедере
         const headerBonus = document.querySelector('.bonus-info');
         if (headerBonus) headerBonus.style.removeProperty('display');
+        // Возвращаем исходный заголовок приложения
+        const appTitleEl = document.querySelector('.app-title');
+        if (appTitleEl) {
+            const original = appTitleEl.getAttribute('data-original-title');
+            if (original) {
+                appTitleEl.textContent = original;
+                appTitleEl.removeAttribute('data-original-title');
+            }
+        }
     } catch (e) {}
 }
 
@@ -4446,6 +4455,18 @@ async function showAccountView() {
     try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {}
     console.log('showAccountView: вызываем renderAccountPage');
     await renderAccountPage();
+    try {
+        // В шапке кабинета показываем имя пользователя вместо названия
+        const nameEl = document.getElementById('accountUserName');
+        const appTitleEl = document.querySelector('.app-title');
+        if (nameEl && appTitleEl) {
+            const username = (nameEl.textContent || '').trim();
+            if (username) {
+                appTitleEl.setAttribute('data-original-title', appTitleEl.textContent || '');
+                appTitleEl.textContent = username;
+            }
+        }
+    } catch (e) {}
     console.log('showAccountView: renderAccountPage завершён');
 }
 

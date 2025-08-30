@@ -395,12 +395,12 @@ body::before {
 }
 
 /* Account section */
-.account-header { display:flex; justify-content: space-between; align-items: center; margin: 16px 0; }
+.account-header { display:flex; flex-direction: column; align-items: flex-start; gap:8px; margin: 16px 0; }
 .account-user { display:flex; align-items:center; gap:12px; }
 .account-avatar { width:48px; height:48px; border-radius:50%; box-shadow: 0 2px 6px rgba(0,0,0,0.15); object-fit:cover; }
 .account-title-block h2 { margin:0; font-size:18px; }
 .account-bonuses { color:#666; font-size:14px; display:none; }
-.account-actions { display:flex; align-items:center; gap:8px; }
+.account-actions { display:flex; align-items:center; justify-content:flex-start; gap:8px; flex-wrap:wrap; }
 .account-action-btn { padding:8px 12px; border:1px solid #ddd; border-radius:20px; background:#fff; cursor:pointer; transition:transform .06s ease, box-shadow .2s ease; }
 .account-action-btn:hover { box-shadow:0 2px 8px rgba(0,0,0,0.08); }
 .account-action-btn:active { transform:scale(0.98); }
