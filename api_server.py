@@ -9,6 +9,9 @@ from datetime import datetime
 import threading
 import time
 import hashlib
+import json
+from pathlib import Path
+import random
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key')
@@ -28,6 +31,133 @@ DEBUG = False
 # In-memory demo stores (not for production)
 REGISTERED_USERS = {}
 CAPTCHA_STORE = {}
+USERS_DB_FILE = Path('users.db.json')
+
+# SMS one-time codes store (not production; replace with persistent/redis in real env)
+SMS_CODE_STORE = {}
+
+# TurboSMS configuration via environment variables
+TURBOSMS_LOGIN = os.environ.get('TURBOSMS_LOGIN', 'guitarstrings2')
+TURBOSMS_PASSWORD = os.environ.get('TURBOSMS_PASSWORD')  # may be None until provided
+TURBOSMS_SENDER = os.environ.get('TURBOSMS_SENDER', 'String&Pick')
+TURBOSMS_AUTH_URL = os.environ.get('TURBOSMS_AUTH_URL', 'https://api.turbosms.ua/auth/login')
+TURBOSMS_SEND_URL = os.environ.get('TURBOSMS_SEND_URL', 'https://api.turbosms.ua/message/send')
+_TURBOSMS_TOKEN = None
+_TURBOSMS_TOKEN_TS = 0
+
+# =======================
+# SMS helpers
+# =======================
+
+SMS_CODE_TTL_SECONDS = 5 * 60
+SMS_RESEND_MIN_INTERVAL = 60  # seconds
+SMS_MAX_ATTEMPTS = 5
+SMS_MAX_PER_HOUR = 5
+
+def _normalize_phone_international_ua(raw: str) -> str:
+    """Return phone in +380XXXXXXXXX format or raise ValueError."""
+    if not raw:
+        raise ValueError('empty phone')
+    digits = re.sub(r'\D+', '', raw)
+    if digits.startswith('380') and len(digits) == 12:
+        return '+' + digits
+    if digits.startswith('0') and len(digits) == 10:
+        return '+38' + digits
+    if digits.startswith('80') and len(digits) == 11:
+        return '+3' + digits
+    if digits.startswith('38') and len(digits) == 11:
+        return '+' + digits
+    # As a fallback, accept already +380...
+    if raw.startswith('+') and len(digits) == 12 and digits.startswith('380'):
+        return '+' + digits
+    raise ValueError('Некорректный номер. Используйте формат +380XXXXXXXXX')
+
+
+def _generate_sms_code() -> str:
+    return f"{random.randint(100000, 999999)}"
+
+
+def _turbosms_get_token() -> str:
+    global _TURBOSMS_TOKEN, _TURBOSMS_TOKEN_TS
+    if not TURBOSMS_LOGIN or not TURBOSMS_PASSWORD:
+        return None
+    now = time.time()
+    # Refresh token every 25 minutes
+    if _TURBOSMS_TOKEN and (now - _TURBOSMS_TOKEN_TS) < (25 * 60):
+        return _TURBOSMS_TOKEN
+    try:
+        r = requests.post(TURBOSMS_AUTH_URL, json={
+            'login': TURBOSMS_LOGIN,
+            'password': TURBOSMS_PASSWORD,
+        }, timeout=10)
+        r.raise_for_status()
+        data = r.json()
+        token = data.get('token') or data.get('access_token')
+        if token:
+            _TURBOSMS_TOKEN = token
+            _TURBOSMS_TOKEN_TS = now
+            return token
+    except Exception as e:
+        print(f"TurboSMS auth failed: {e}")
+    return None
+
+
+def _turbosms_send_sms(phone: str, text: str) -> bool:
+    token = _turbosms_get_token()
+    if not token:
+        # dev fallback — считаем отправленным, но пишем лог
+        print(f"[DEV SMS] {phone}: {text}")
+        return True
+    try:
+        headers = { 'Authorization': f'Bearer {token}' }
+        payload = {
+            'recipients': [phone],
+            'sms': {
+                'sender': TURBOSMS_SENDER or 'GuitarStr',
+                'text': text
+            }
+        }
+        r = requests.post(TURBOSMS_SEND_URL, json=payload, headers=headers, timeout=10)
+        r.raise_for_status()
+        data = r.json()
+        # TurboSMS returns status per recipient; assume ok if no error
+        return True
+    except Exception as e:
+        print(f"TurboSMS send failed: {e}")
+        return False
+
+
+def _format_otp_message(lang: str, code: str) -> str:
+    lang = (lang or 'uk').lower()
+    if lang == 'ru':
+        return f'Код для входа: {code}. Никому не сообщайте его.'
+    if lang == 'en':
+        return f'Login code: {code}. Do not share it.'
+    # default uk
+    return f'Код для входу: {code}. Нікому не повідомляйте його.'
+
+def _load_users_from_disk() -> None:
+    global REGISTERED_USERS
+    try:
+        if USERS_DB_FILE.exists():
+            with USERS_DB_FILE.open('r', encoding='utf-8') as f:
+                data = json.load(f)
+            # basic validation
+            if isinstance(data, dict):
+                REGISTERED_USERS = data
+            else:
+                REGISTERED_USERS = {}
+        else:
+            REGISTERED_USERS = {}
+    except Exception:
+        REGISTERED_USERS = {}
+
+def _save_users_to_disk() -> None:
+    try:
+        with USERS_DB_FILE.open('w', encoding='utf-8') as f:
+            json.dump(REGISTERED_USERS, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
 
 def _generate_captcha():
     a = int(time.time() * 1000) % 10
@@ -399,8 +529,8 @@ def api_products():
     start = request.args.get('start', 0, type=int)
     limit = request.args.get('limit', 60, type=int)
     search = request.args.get('search', '').lower().strip()
-    if DEBUG:
-        print(f"API Products: start={start}, limit={limit}, search='{search}'")
+    # if DEBUG:
+    #     print(f"API Products: start={start}, limit={limit}, search='{search}'")
     
     try:
         # Ensure caches without blocking request: quick trigger only
@@ -659,19 +789,32 @@ def api_login():
         captcha_answer = (data.get('captchaAnswer') or '').strip()
         if not _verify_and_consume_captcha(captcha_id, captcha_answer):
             return jsonify({'success': False, 'error': 'Неверная капча'}), 400
-        # Проверка пароля, если пользователь зарегистрирован
+        # Проверка пароля: допускаем вход ТОЛЬКО для зарегистрированных пользователей
         password = (data.get('password') or '').strip()
-        if username in REGISTERED_USERS:
-            if not password:
-                return jsonify({'success': False, 'error': 'Требуется пароль'}), 400
-            if REGISTERED_USERS[username]['passwordHash'] != _hash_password(password):
-                return jsonify({'success': False, 'error': 'Неверный логин или пароль'}), 401
-            display_name = REGISTERED_USERS[username].get('displayName') or username
-            photo_url = REGISTERED_USERS[username].get('photoUrl') or photo_url
-        else:
-            # Demo: разрешаем вход без регистрации, если указан пароль длиной >= 4
-            if password and len(password) < 4:
-                return jsonify({'success': False, 'error': 'Пароль слишком короткий'}), 400
+        if not password:
+            return jsonify({'success': False, 'error': 'Требуется пароль'}), 400
+
+        # Поддержка входа по логину или email
+        user_record = REGISTERED_USERS.get(username)
+        found_by_email = False
+        if not user_record:
+            # поиск по email
+            for uname, record in REGISTERED_USERS.items():
+                if record.get('email') and record['email'].lower() == username.lower():
+                    user_record = record
+                    username = uname
+                    found_by_email = True
+                    break
+
+        if not user_record:
+            return jsonify({'success': False, 'error': 'Пользователь не зарегистрирован'}), 404
+
+        # Если нашли по email, но пароль не совпал — сообщаем именно про пароль
+        if user_record.get('passwordHash') != _hash_password(password):
+            return jsonify({'success': False, 'error': 'Неверный пароль'}), 401
+
+        display_name = user_record.get('displayName') or username
+        photo_url = user_record.get('photoUrl') or photo_url
 
         session['user'] = {
             'userId': username or 'session-user',
@@ -724,12 +867,23 @@ def api_register():
         if username in REGISTERED_USERS:
             return jsonify({'success': False, 'error': 'Логин уже занят'}), 409
 
+        # Уникальность e-mail (вне зависимости от регистра)
+        for existing_username, record in REGISTERED_USERS.items():
+            try:
+                if (record.get('email') or '').lower() == email.lower():
+                    return jsonify({'success': False, 'error': 'E-mail уже используется'}), 409
+            except Exception:
+                continue
+
         REGISTERED_USERS[username] = {
             'email': email,
             'passwordHash': _hash_password(password),
             'displayName': username,
-            'createdAt': time.time()
+            'createdAt': time.time(),
+            'photoUrl': None
         }
+
+        _save_users_to_disk()
 
         session['user'] = {
             'userId': username,
@@ -742,6 +896,112 @@ def api_register():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/sms/request_code', methods=['POST'])
+def sms_request_code():
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        raw_phone = (data.get('phone') or '').strip()
+        lang = (data.get('lang') or 'uk').strip().lower()
+        if not raw_phone:
+            return jsonify({'success': False, 'error': 'Укажите номер телефона'}), 400
+        try:
+            phone = _normalize_phone_international_ua(raw_phone)
+        except ValueError as e:
+            return jsonify({'success': False, 'error': str(e)}), 400
+
+        now = time.time()
+        rec = SMS_CODE_STORE.get(phone)
+        if rec:
+            # rate limit: minimal resend interval
+            if (now - rec.get('last_sent', 0)) < SMS_RESEND_MIN_INTERVAL:
+                return jsonify({'success': False, 'error': 'Слишком часто. Повторите позже'}), 429
+            # hourly limit
+            hourly = [t for t in rec.get('history', []) if (now - t) < 3600]
+            if len(hourly) >= SMS_MAX_PER_HOUR:
+                return jsonify({'success': False, 'error': 'Лимит SMS исчерпан. Попробуйте позже'}), 429
+
+        code = _generate_sms_code()
+        SMS_CODE_STORE[phone] = {
+            'code': code,
+            'expires': now + SMS_CODE_TTL_SECONDS,
+            'attempts': 0,
+            'last_sent': now,
+            'history': (rec.get('history') if rec else []) + [now]
+        }
+
+        text = _format_otp_message(lang, code)
+        ok = _turbosms_send_sms(phone, text)
+        if not ok:
+            return jsonify({'success': False, 'error': 'Не удалось отправить SMS'}), 502
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/sms/confirm', methods=['POST'])
+def sms_confirm():
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        raw_phone = (data.get('phone') or '').strip()
+        code = (data.get('code') or '').strip()
+        lang = (data.get('lang') or 'uk').strip().lower()
+        tg_phone_raw = (data.get('tg_phone') or '').strip()
+        tg_photo_url = (data.get('tg_photo_url') or '').strip() or None
+        if not raw_phone or not code:
+            return jsonify({'success': False, 'error': 'Телефон и код обязательны'}), 400
+        try:
+            phone = _normalize_phone_international_ua(raw_phone)
+        except ValueError as e:
+            return jsonify({'success': False, 'error': str(e)}), 400
+
+        rec = SMS_CODE_STORE.get(phone)
+        now = time.time()
+        if not rec:
+            return jsonify({'success': False, 'error': 'Код не запрошен'}), 400
+        if now > rec.get('expires', 0):
+            SMS_CODE_STORE.pop(phone, None)
+            return jsonify({'success': False, 'error': 'Код просрочен'}), 400
+        if rec.get('attempts', 0) >= SMS_MAX_ATTEMPTS:
+            SMS_CODE_STORE.pop(phone, None)
+            return jsonify({'success': False, 'error': 'Слишком много попыток'}), 429
+        rec['attempts'] = rec.get('attempts', 0) + 1
+
+        if code != rec.get('code'):
+            return jsonify({'success': False, 'error': 'Неверный код'}), 401
+
+        # success — consume code
+        SMS_CODE_STORE.pop(phone, None)
+
+        # Upsert a lightweight user by phone
+        username = f"user_{hashlib.sha1(phone.encode('utf-8')).hexdigest()[:8]}"
+        if username not in REGISTERED_USERS:
+            REGISTERED_USERS[username] = {
+                'email': None,
+                'passwordHash': None,
+                'displayName': phone,
+                'createdAt': now,
+                'photoUrl': None,
+                'phone': phone
+            }
+            _save_users_to_disk()
+
+        # Optional: verify that Telegram phone matches
+        try:
+            tg_phone_norm = _normalize_phone_international_ua(tg_phone_raw) if tg_phone_raw else None
+        except Exception:
+            tg_phone_norm = None
+
+        session['user'] = {
+            'userId': username,
+            'displayName': phone,
+            'username': username,
+            'photoUrl': tg_photo_url if tg_phone_norm and tg_phone_norm == phone else None,
+            'language': lang,
+            'phone': phone
+        }
+        return jsonify({'success': True, 'profile': session['user']}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 def preload_cache_async():
     """Kick off product cache build in a background thread without blocking server startup."""
     def _worker():
@@ -758,6 +1018,8 @@ def preload_cache_async():
 
 if __name__ == '__main__':
     print("Starting server... (версия 13.02 - исправление цен La Bella)")
+    # Load users DB from disk
+    _load_users_from_disk()
     # Do not block startup; build cache in the background
     preload_cache_async()
     print("Starting Flask server on port 8000...")

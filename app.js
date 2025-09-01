@@ -6,6 +6,47 @@ console.log('app.js загружен');
 // Инициализация корзины
 let cart = [];
 let cartItemCount = 0;
+// Глобальный кэш состояния авторизации (устранение гонок показа формы/логаута)
+window.__authState = window.__authState || { isAuthenticated: false, profile: null };
+// Определение авторизованности из различных форматов ответа API
+function isAuthenticatedData(data) {
+    try {
+        if (!data) return false;
+        let obj = data;
+        if (typeof data === 'object' && 'success' in data && 'profile' in data) {
+            obj = data.profile || {};
+        }
+        if (obj && obj.authenticated === true) return true;
+        const name = (obj.displayName || obj.username || '').toString().trim();
+        const email = (obj.email || '').toString().trim();
+        const phone = (obj.phone || '').toString().trim();
+        if (name && name.toLowerCase() !== 'guest') return true;
+        if (email) return true;
+        if (phone) return true;
+        return false;
+    } catch (_) {
+        return false;
+    }
+}
+
+// Возвращает строку Telegram-параметров для запроса профиля (если доступно)
+function getTelegramQueryString() {
+    try {
+        const tg = window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe;
+        const params = new URLSearchParams();
+        if (tg && tg.user) {
+            if (tg.user.id) params.set('tg_id', tg.user.id);
+            if (tg.user.username) params.set('tg_username', tg.user.username);
+            if (tg.user.first_name) params.set('tg_first_name', tg.user.first_name);
+            if (tg.user.last_name) params.set('tg_last_name', tg.user.last_name);
+            if (tg.user.photo_url) params.set('tg_photo_url', tg.user.photo_url);
+        }
+        const qs = params.toString();
+        return qs ? ('?' + qs) : '';
+    } catch (e) {
+        return '';
+    }
+}
 
 // Переменные для поиска
 let searchTerm = '';
@@ -302,7 +343,6 @@ const GAUGE_11_ELECTRIC = new Set([
     'Ernie Ball 2720 Cobalt Slinky 11-48 6 sets',
     'Dean Markley 2505 Nickel Steel 11-52 Signature'
 ].map(s => s.toLowerCase()));
-
 // Список Nickel Plated Electric Strings (эталонные названия)
 const NICKEL_PLATED_ELECTRIC = new Set([
     'Orphee RX19 Nickel Alloy Medium 11-50',
@@ -771,7 +811,6 @@ function changeQuantity(index, change) {
         }
     }
 }
-
 // Функция обновления расчетов корзины
 function updateCartCalculations() {
     console.log('updateCartCalculations: Обновляем расчеты корзины');
@@ -1205,19 +1244,112 @@ function toggleMenu() {
         menu.classList.toggle('active');
     }
 }
-
 // Функция переключения аватара
 function toggleAvatarMenu() {
     console.log('toggleAvatarMenu: Переключаем меню аватара');
     const avatarMenu = document.querySelector('.avatar-dropdown');
-    if (avatarMenu) {
-        avatarMenu.classList.toggle('show');
-        console.log('toggleAvatarMenu: Меню аватара переключено');
+    const profilePic = document.querySelector('.profile-pic');
+    if (!avatarMenu || !profilePic) {
+        console.error('toggleAvatarMenu: Элементы не найдены');
+        return;
+    }
+    const isOpen = avatarMenu.dataset.portaled === '1' && avatarMenu.style.display === 'block' || avatarMenu.classList.contains('show');
+    if (isOpen) {
+        // close and restore
+        avatarMenu.style.display = 'none';
+        avatarMenu.classList.remove('show');
+        if (avatarMenu.dataset.portaled === '1' && avatarMenu._restoreParent) {
+            avatarMenu._restoreParent.insertBefore(avatarMenu, avatarMenu._restoreNext);
+        }
+        avatarMenu.dataset.portaled = '0';
+        return;
+    }
+
+    // Перед показом — синхронизируем UI сессии (сначала по кэшу, затем подтверждаем по серверу)
+    try {
+        const loginSection = document.getElementById('dropdownLoginSection');
+        const logoutSection = document.getElementById('dropdownLogoutSection');
+        // Скрываем обе секции, чтобы избежать мерцания неправильного состояния
+        if (loginSection) loginSection.style.display = 'none';
+        if (logoutSection) logoutSection.style.display = 'none';
+
+        const applyAuthUi = (state) => {
+            if (state && state.isAuthenticated) {
+                if (loginSection) loginSection.style.display = 'none';
+                if (logoutSection) logoutSection.style.display = 'block';
     } else {
-        console.error('toggleAvatarMenu: Выпадающее меню аватара не найдено');
+                if (logoutSection) logoutSection.style.display = 'none';
+                if (loginSection) loginSection.style.display = 'block';
+            }
+        };
+
+        // Мгновенно выставляем по локальному кэшу, если уже знаем состояние
+        if (window.__authState && (window.__authState.isAuthenticated === true || window.__authState.isAuthenticated === false)) {
+            applyAuthUi(window.__authState);
+        }
+
+        // Подтверждаем состояние у сервера (относительный путь), добавляем Telegram-параметры если есть
+        const tgQs1 = getTelegramQueryString();
+        fetch('/api/user_profile' + tgQs1, { credentials: 'include' })
+            .then(r => r.ok ? r.json() : { success: false })
+            .then(data => {
+                const authed = isAuthenticatedData(data);
+                window.__authState = { isAuthenticated: authed, profile: authed ? data.profile : null };
+                applyAuthUi(window.__authState);
+            })
+            .catch(() => {});
+    } catch (e) {}
+
+    // Open: portal into body and position fixed under avatar
+    const rect = profilePic.getBoundingClientRect();
+    avatarMenu._restoreParent = avatarMenu.parentNode;
+    avatarMenu._restoreNext = avatarMenu.nextSibling;
+    document.body.appendChild(avatarMenu);
+    avatarMenu.style.position = 'fixed';
+    avatarMenu.style.top = Math.round(rect.bottom + 8) + 'px';
+    // align right edges
+    const width = Math.max(260, avatarMenu.offsetWidth || 260);
+    let left = Math.round(rect.right - width);
+    const pad = 8;
+    left = Math.max(pad, Math.min(left, window.innerWidth - width - pad));
+    avatarMenu.style.left = left + 'px';
+    avatarMenu.style.width = width + 'px';
+    avatarMenu.style.zIndex = '2147483647';
+    avatarMenu.style.display = 'block';
+    avatarMenu.dataset.portaled = '1';
+
+    // Close on resize
+    const _reposition = () => {
+        if (avatarMenu.style.display === 'block') {
+            const r = profilePic.getBoundingClientRect();
+            let l = Math.round(r.right - width);
+            l = Math.max(pad, Math.min(l, window.innerWidth - width - pad));
+            avatarMenu.style.top = Math.round(r.bottom + 8) + 'px';
+            avatarMenu.style.left = l + 'px';
+        }
+    };
+    if (!avatarMenu._rsz) {
+        avatarMenu._rsz = true;
+        window.addEventListener('resize', _reposition);
+        window.addEventListener('scroll', _reposition, true);
     }
 }
 
+// Устанавливает активный пункт нижней навигации по текущему виду
+function setActiveBottomNav(view) {
+    try {
+        const navItems = document.querySelectorAll('.nav-item');
+        if (!navItems || navItems.length === 0) return;
+        navItems.forEach(item => item.classList.remove('active'));
+        navItems.forEach(item => {
+            const label = (item.querySelector('span')?.textContent || '').trim();
+            const isProducts = label.includes('Товары') || label.includes('Products') || label.includes('Товари');
+            const isAccount = label.includes('Кабинет') || label.includes('Cabinet') || label.includes('Кабінет');
+            if (view === 'products' && isProducts) item.classList.add('active');
+            if (view === 'account' && isAccount) item.classList.add('active');
+        });
+    } catch (e) {}
+}
 // Функция показа/скрытия настроек (toggle)
 function showSettingsPopup() {
     console.log('showSettingsPopup: Переключаем настройки');
@@ -1566,7 +1698,6 @@ function goToCart() {
     console.log('goToCart: Переходим в корзину');
     showCartPopup();
 }
-
 // Функция загрузки товаров
 async function loadProducts(page = 0, append = false) {
     if (isLoading || isSearchActive) {
@@ -1685,7 +1816,6 @@ function appendProducts(products) {
     displayProducts(combined);
     console.log('appendProducts: Всего товаров после добавления:', (window.currentProducts || []).length);
 }
-
 // Функция отображения товаров
 function displayProducts(products) {
     console.log('displayProducts: Отображаем товары');
@@ -1932,7 +2062,23 @@ function showAddToCartNotification(productName) {
         box-shadow: 0 4px 8px rgba(0,0,0,0.2);
         animation: slideIn 0.3s ease-out;
     `;
-    notification.textContent = 'Товар "' + productName + '" добавлен в корзину!';
+    // Локализованный текст уведомления
+    let lang = 'uk';
+    try {
+        if (typeof getCurrentLanguage === 'function') {
+            lang = getCurrentLanguage();
+        } else {
+            lang = localStorage.getItem('selectedLanguage') || 'uk';
+        }
+    } catch (e) {
+        lang = 'uk';
+    }
+    const messages = {
+        ru: `Товар "${productName}" добавлен в корзину!`,
+        uk: `Товар "${productName}" додано до кошика!`,
+        en: `Product "${productName}" added to cart!`
+    };
+    notification.textContent = messages[lang] || messages.uk;
     
     // Добавляем стили для анимации
     const style = document.createElement('style');
@@ -2049,7 +2195,6 @@ const COLORED_ELECTRIC = new Set([
     'DR BKE7-11 Black Beauties K3 Coated 7-String Extra Heavy 11-60'
 ].map(s => s.toLowerCase()));
 const COLORED_ELECTRIC_LOOSE = new Set(Array.from(COLORED_ELECTRIC).map(name => normalizeLooseName(name)));
-
 // Функция создания карточки товара
 function createProductCard(product, index) {
     // console.log('createProductCard: Создаем карточку для товара:', product.name, 'индекс:', index);
@@ -2387,7 +2532,7 @@ function createProductCard(product, index) {
                             const t = (translations[(localStorage.getItem('selectedLanguage')||'uk')]||{});
                             const badge = (t.coloredInfo)||'Colored Strings';
                             const title = (t.coloredShowAll)||'Показать все Colored Strings';
-                            return `<span class=\"product-colored\" title=\"${title}\">${badge}</span>`;
+                            return `<span class="product-colored" title="${title}">${badge}</span>`;
                         }
                     } catch(e) {}
                     return '';
@@ -2544,7 +2689,6 @@ function initializeLanguage() {
     
     console.log('initializeLanguage: Язык инициализирован:', savedLanguage);
 }
-
 // Функция настройки переключателей языка
 function setupLanguageSwitchers() {
     console.log('setupLanguageSwitchers: Настраиваем переключатели языка');
@@ -2649,7 +2793,7 @@ document.addEventListener('DOMContentLoaded', function() {
             document.body.classList.remove('is-telegram');
         }
     } catch (e) {}
-
+    
     // Инициализируем язык
     initializeLanguage();
     
@@ -2660,6 +2804,31 @@ document.addEventListener('DOMContentLoaded', function() {
     currentPage = 0;
     hasMoreProducts = true;
     loadedProductNames.clear();
+    
+    // Синхронизируем состояние авторизации заранее (чтобы дропдаун профиля не мигал формой)
+    try {
+        const tgQs0 = getTelegramQueryString();
+        fetch('/api/user_profile' + tgQs0, { credentials: 'include' })
+            .then(r => r.ok ? r.json() : { success: false })
+            .then(data => {
+                const authed = isAuthenticatedData(data);
+                window.__authState = { isAuthenticated: authed, profile: authed ? (data.profile || data) : null };
+                // Обновим аватар в хедере, если есть фото
+                try {
+                    const headerImg = document.getElementById('profile-image');
+                    const headerSvg = document.getElementById('profile-svg');
+                    const headerIcon = document.getElementById('profile-icon');
+                    const p = (data && (data.profile || data)) || {};
+                    if (headerImg && authed && p.photoUrl) {
+                        headerImg.src = p.photoUrl;
+                        headerImg.style.display = 'block';
+                        if (headerSvg) headerSvg.style.display = 'none';
+                        if (headerIcon) headerIcon.style.display = 'none';
+                    }
+                } catch (e) {}
+            })
+            .catch(() => {});
+    } catch (e) {}
     
     // Определяем сохранённый вид
     let savedView = 'products';
@@ -2686,12 +2855,12 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             // Сразу фиксируем, что стартуем в товарах
             try { localStorage.setItem('currentView', 'products'); } catch (e) {}
-            // Автоматически загружаем товары
-            loadProducts(0, false).then(() => {
-                // Настраиваем обработчики событий после загрузки товаров
-                setupEventHandlers();
+    // Автоматически загружаем товары
+    loadProducts(0, false).then(() => {
+        // Настраиваем обработчики событий после загрузки товаров
+        setupEventHandlers();
                 setupCabinetNav();
-            });
+    });
         }
     }
     
@@ -2765,6 +2934,19 @@ function setupEventHandlers() {
         const dropdownLogoutBtn = document.getElementById('dropdownLogoutBtn');
         const showRegisterLink = document.getElementById('showRegisterLink');
         const showLoginLink = document.getElementById('showLoginLink');
+        const showSmsLoginLink = document.getElementById('showSmsLoginLink');
+        const showSmsFromRegisterLink = document.getElementById('showSmsFromRegisterLink');
+        const showPasswordLoginLink = document.getElementById('showPasswordLoginLink');
+        const showRegisterFromSmsLink = document.getElementById('showRegisterFromSmsLink');
+        const smsSection = document.getElementById('dropdownSmsLoginSection');
+        const smsLoginForm = document.getElementById('smsLoginForm');
+        const smsPhoneInput = document.getElementById('smsPhoneInput');
+        const smsSendCodeBtn = document.getElementById('smsSendCodeBtn');
+        const smsResendCodeBtn = document.getElementById('smsResendCodeBtn');
+        const smsCodeRow = document.getElementById('smsCodeRow');
+        const smsCodeInput = document.getElementById('smsCodeInput');
+        const smsConfirmCodeBtn = document.getElementById('smsConfirmCodeBtn');
+        const smsLoginMessage = document.getElementById('smsLoginMessage');
         const registerForm = document.getElementById('registerForm');
         const registerMessage = document.getElementById('registerMessage');
 
@@ -2809,6 +2991,97 @@ function setupEventHandlers() {
             });
         }
 
+        // Переключения на SMS-вход и обратно
+        function showSmsLogin() {
+            if (dropdownLoginSection) dropdownLoginSection.style.display = 'none';
+            const reg = document.getElementById('dropdownRegisterSection');
+            if (reg) reg.style.display = 'none';
+            if (smsSection) smsSection.style.display = 'block';
+            smsLoginMessage.textContent = '';
+            if (smsPhoneInput && !smsPhoneInput.value) smsPhoneInput.value = '+380';
+        }
+        function showPasswordLogin() {
+            if (smsSection) smsSection.style.display = 'none';
+            const reg = document.getElementById('dropdownRegisterSection');
+            if (reg) reg.style.display = 'none';
+            if (dropdownLoginSection) dropdownLoginSection.style.display = 'block';
+            loginMessage.textContent = '';
+        }
+        function showRegisterFromSms() {
+            if (smsSection) smsSection.style.display = 'none';
+            if (dropdownLoginSection) dropdownLoginSection.style.display = 'none';
+            const reg = document.getElementById('dropdownRegisterSection');
+            if (reg) reg.style.display = 'block';
+            registerMessage.textContent = '';
+        }
+
+        if (showSmsLoginLink) showSmsLoginLink.addEventListener('click', (e) => { e.preventDefault(); showSmsLogin(); });
+        if (showSmsFromRegisterLink) showSmsFromRegisterLink.addEventListener('click', (e) => { e.preventDefault(); showSmsLogin(); });
+        if (showPasswordLoginLink) showPasswordLoginLink.addEventListener('click', (e) => { e.preventDefault(); showPasswordLogin(); });
+        if (showRegisterFromSmsLink) showRegisterFromSmsLink.addEventListener('click', (e) => { e.preventDefault(); showRegisterFromSms(); });
+
+        // Отправка и подтверждение SMS‑кода
+        async function requestSmsCode() {
+            if (!smsPhoneInput) return;
+            const phone = (smsPhoneInput.value || '').trim();
+            if (!phone) { smsLoginMessage.textContent = 'Введите номер телефона'; return; }
+            smsLoginMessage.textContent = '';
+            try {
+                const resp = await fetch('/api/sms/request_code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone, lang: getCurrentLanguage() })
+                });
+                const data = await resp.json();
+                if (!data.success) { smsLoginMessage.textContent = data.error || 'Не удалось отправить SMS'; return; }
+                smsLoginMessage.textContent = 'Код отправлен';
+                if (smsCodeRow) smsCodeRow.style.display = 'block';
+                if (smsResendCodeBtn) smsResendCodeBtn.style.display = 'inline-block';
+            } catch (e) {
+                smsLoginMessage.textContent = 'Сервер недоступен';
+            }
+        }
+
+        async function confirmSmsCode() {
+            if (!smsPhoneInput || !smsCodeInput) return;
+            const phone = (smsPhoneInput.value || '').trim();
+            const code = (smsCodeInput.value || '').trim();
+            if (!phone || !code) { smsLoginMessage.textContent = 'Введите телефон и код'; return; }
+            smsLoginMessage.textContent = '';
+            try {
+                // Telegram номер/аватар (если доступно)
+                let tgPhone = null, tgPhotoUrl = null;
+                try {
+                    if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
+                        tgPhone = window.Telegram.WebApp.initDataUnsafe.user.phone_number || null;
+                        tgPhotoUrl = window.Telegram.WebApp.initDataUnsafe.user.photo_url || null;
+                    }
+                } catch (e) {}
+
+                const resp = await fetch('/api/sms/confirm', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ phone, code, lang: getCurrentLanguage(), tg_phone: tgPhone, tg_photo_url: tgPhotoUrl })
+                });
+                const data = await resp.json();
+                if (!data.success) { smsLoginMessage.textContent = data.error || 'Неверный код'; return; }
+                // Успех: показать кабинет
+                if (smsSection) smsSection.style.display = 'none';
+                if (dropdownLogoutSection) dropdownLogoutSection.style.display = 'block';
+                if (dropdownLoginSection) dropdownLoginSection.style.display = 'none';
+                // Кэш авторизации
+                try { window.__authState = { isAuthenticated: true, profile: data.profile || { phone } }; } catch (e) {}
+                showAccountView();
+            } catch (e) {
+                smsLoginMessage.textContent = 'Сервер недоступен';
+            }
+        }
+
+        if (smsSendCodeBtn) smsSendCodeBtn.addEventListener('click', requestSmsCode);
+        if (smsResendCodeBtn) smsResendCodeBtn.addEventListener('click', requestSmsCode);
+        if (smsConfirmCodeBtn) smsConfirmCodeBtn.addEventListener('click', confirmSmsCode);
+
         // Кнопки обновления капчи
         const loginCaptchaRefresh = document.getElementById('loginCaptchaRefresh');
         const registerCaptchaRefresh = document.getElementById('registerCaptchaRefresh');
@@ -2830,7 +3103,7 @@ function setupEventHandlers() {
                     return;
                 }
                 try {
-                    const resp = await fetch('http://localhost:8000/api/login', {
+                    const resp = await fetch('/api/login', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         credentials: 'include',
@@ -2846,6 +3119,8 @@ function setupEventHandlers() {
                     // Переключаем на логаут
                     dropdownLoginSection.style.display = 'none';
                     dropdownLogoutSection.style.display = 'block';
+                    // Кэш авторизации
+                    try { window.__authState = { isAuthenticated: true, profile: data.profile || { username } }; } catch (e) {}
                     // Открываем кабинет
                     showAccountView();
                 } catch (err) {
@@ -2856,12 +3131,27 @@ function setupEventHandlers() {
 
             dropdownLogoutBtn.addEventListener('click', async () => {
                 try {
-                    await fetch('http://localhost:8000/api/logout', { method: 'POST', credentials: 'include' });
+                    await fetch('/api/logout', { method: 'POST', credentials: 'include' });
                 } catch (e) {}
                 // UI
                 dropdownLogoutSection.style.display = 'none';
                 dropdownLoginSection.style.display = 'block';
+                // Сбрасываем кэш авторизации
+                try { window.__authState = { isAuthenticated: false, profile: null }; } catch (e) {}
+                // Сбрасываем поиск/фильтры как при нажатии «Товары»
+                try {
+                    isSearchActive = false;
+                    searchTerm = '';
+                    isCategoryFilterActive = false;
+                    currentCategory = '';
+                    localStorage.removeItem('currentCategory');
+                    const searchInput = document.querySelector('.search-input');
+                    if (searchInput) searchInput.value = '';
+                } catch (e) {}
+                try { clearCategoryFilter(); } catch (e) {}
+                // Переключаемся в товары и подсвечиваем нижнюю навигацию
                 showProductsView();
+                try { setActiveBottomNav('products'); } catch (e) {}
             });
         }
         // Регистрация
@@ -2883,7 +3173,7 @@ function setupEventHandlers() {
                     return;
                 }
                 try {
-                    const resp = await fetch('http://localhost:8000/api/register', {
+                    const resp = await fetch('/api/register', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         credentials: 'include',
@@ -2899,6 +3189,8 @@ function setupEventHandlers() {
                     document.getElementById('dropdownRegisterSection').style.display = 'none';
                     dropdownLoginSection.style.display = 'none';
                     dropdownLogoutSection.style.display = 'block';
+                    // Кэш авторизации
+                    try { window.__authState = { isAuthenticated: true, profile: data.profile || { username, email } }; } catch (e) {}
                     showAccountView();
                 } catch (err) {
                     registerMessage.textContent = 'Сервер недоступен';
@@ -2907,14 +3199,12 @@ function setupEventHandlers() {
             });
         }
     } catch (e) {}
-    
     // Дополнительно обновляем активное состояние кнопок языка после настройки обработчиков
     const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
     setTimeout(() => {
         console.log('setupEventHandlers: Дополнительно обновляем активное состояние кнопок языка:', currentLanguage);
         updateLanguageButtons(currentLanguage);
     }, 200);
-    
     // Обработчик клика вне попапов
     document.addEventListener('click', function(event) {
         // Убираем лишний лог - он срабатывает при каждом клике
@@ -3157,20 +3447,20 @@ function setupEventHandlers() {
             console.log('setupEventHandlers: Прокрутка — кабинет открыт, подгрузка отключена');
             return;
         }
-        if (isLoading || !hasMoreProducts || isSearchActive || isCategoryFilterActive) {
-            console.log('setupEventHandlers: Прокрутка заблокирована - isLoading:', isLoading, 'hasMoreProducts:', hasMoreProducts, 'isSearchActive:', isSearchActive, 'isCategoryFilterActive:', isCategoryFilterActive);
-            return;
-        }
-        
-        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-        const windowHeight = window.innerHeight;
-        const documentHeight = document.documentElement.scrollHeight;
-        
-        // Загружаем следующую страницу когда пользователь приближается к концу страницы
-        if (scrollTop + windowHeight >= documentHeight - 100) {
-            console.log('setupEventHandlers: Достигнут конец страницы, загружаем следующую страницу');
-            loadNextPage();
-        }
+         if (isLoading || !hasMoreProducts || isSearchActive || isCategoryFilterActive) {
+             console.log('setupEventHandlers: Прокрутка заблокирована - isLoading:', isLoading, 'hasMoreProducts:', hasMoreProducts, 'isSearchActive:', isSearchActive, 'isCategoryFilterActive:', isCategoryFilterActive);
+             return;
+         }
+         
+         const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+         const windowHeight = window.innerHeight;
+         const documentHeight = document.documentElement.scrollHeight;
+         
+         // Загружаем следующую страницу когда пользователь приближается к концу страницы
+         if (scrollTop + windowHeight >= documentHeight - 100) {
+             console.log('setupEventHandlers: Достигнут конец страницы, загружаем следующую страницу');
+             loadNextPage();
+         }
     }, { passive: true });
      
                   // Обработчик изменения способа доставки
@@ -3306,14 +3596,14 @@ function setupEventHandlers() {
                     }
                 });
             } catch (e) {}
-             
-             navItems.forEach((navItem, index) => {
-                 // Удаляем предыдущий обработчик, если он есть
-                 if (navItem._clickHandler) {
-                     navItem.removeEventListener('click', navItem._clickHandler);
-                 }
-                 
-                                  // Создаем новый обработчик
+            
+            navItems.forEach((navItem, index) => {
+                // Удаляем предыдущий обработчик, если он есть
+                if (navItem._clickHandler) {
+                    navItem.removeEventListener('click', navItem._clickHandler);
+                }
+                
+                                 // Создаем новый обработчик
                  navItem._clickHandler = (e) => {
                      console.log(`setupEventHandlers: Клик по nav-item ${index + 1}`);
                      
@@ -3343,6 +3633,15 @@ function setupEventHandlers() {
                          if (typeof showProductsView === 'function') showProductsView();
                          try { localStorage.setItem('currentView', 'products'); } catch (e) {}
                      } else if (navText.includes('Кабинет') || navText.includes('Cabinet') || navText.includes('Кабінет')) {
+                         // Если не авторизован — показываем дропдаун логина вместо перехода в кабинет
+                         const authed = window.__authState && window.__authState.isAuthenticated === true;
+                         if (!authed) {
+                             try {
+                                 navItem.classList.remove('active');
+                                 toggleAvatarMenu();
+                                 return false;
+                             } catch (e) {}
+                         }
                          if (typeof showAccountView === 'function') showAccountView();
                          try { localStorage.setItem('currentView', 'account'); } catch (e) {}
                      } else if (navText.includes('Корзина') || navText.includes('Cart')) {
@@ -3356,11 +3655,11 @@ function setupEventHandlers() {
                      // Возвращаем false для предотвращения дальнейшего распространения события
                      return false;
                  };
-                 
-                 // Добавляем обработчик
-                 navItem.addEventListener('click', navItem._clickHandler);
-                 console.log(`setupEventHandlers: Обработчик для nav-item ${index + 1} настроен`);
-             });
+                
+                // Добавляем обработчик
+                navItem.addEventListener('click', navItem._clickHandler);
+                console.log(`setupEventHandlers: Обработчик для nav-item ${index + 1} настроен`);
+            });
         }
         
         // Обработчик кликов по элементам меню
@@ -3395,7 +3694,6 @@ function setupEventHandlers() {
             console.warn('setupEventHandlers: Элементы .menu-item не найдены');
         }
 }
-
 // Делаем функции доступными глобально
 window.showContactsPopup = showContactsPopup;
 window.closeContactsPopup = closeContactsPopup;
@@ -3405,7 +3703,6 @@ window.showDiscontinuedPopup = showDiscontinuedPopup;
 window.showOutOfStockPopup = showOutOfStockPopup;
 window.showExpectedPopup = showExpectedPopup;
 window.showOnOrderPopup = showOnOrderPopup;
-
 // Функция фильтрации товаров по категории
 function filterProductsByCategory(category, force = false) {
     console.log(`filterProductsByCategory: Фильтруем товары по категории: ${category}`);
@@ -3419,7 +3716,7 @@ function filterProductsByCategory(category, force = false) {
     // Сохраняем активную категорию для восстановления после F5
     try { localStorage.setItem('currentCategory', category); } catch (e) {}
     try { localStorage.setItem('currentView', 'products'); } catch (e) {}
-
+    
     // Очищаем предыдущий таймаут
     if (categorySearchTimeout) {
         clearTimeout(categorySearchTimeout);
@@ -4519,8 +4816,9 @@ function showProductsView() {
     }
     const li = document.getElementById('loading-indicator');
     if (li) li.style.display = '';
-    // Запоминаем текущий вид
+    // Запоминаем текущий вид и подсветка нижней навигации
     try { localStorage.setItem('currentView', 'products'); } catch (e) {}
+    try { setActiveBottomNav('products'); } catch (e) {}
 
     // Показываем баннер/фильтры на странице товаров
     try {
@@ -4560,8 +4858,9 @@ async function showAccountView() {
             searchTimeout = null;
         }
     } catch (e) {}
-    // Запоминаем текущий вид
+    // Запоминаем текущий вид и подсветка нижней навигации
     try { localStorage.setItem('currentView', 'account'); } catch (e) {}
+    try { setActiveBottomNav('account'); } catch (e) {}
 
     // Гарантируем наличие секции
     const acc = ensureAccountSection();
@@ -4637,9 +4936,9 @@ async function renderAccountPage() {
             if (tg.user.last_name) params.set('tg_last_name', tg.user.last_name);
             if (tg.user.photo_url) params.set('tg_photo_url', tg.user.photo_url);
         }
-        const profileResp = await fetch('http://localhost:8000/api/user_profile' + (params.toString() ? ('?' + params.toString()) : ''));
+        const profileResp = await fetch('/api/user_profile' + (params.toString() ? ('?' + params.toString()) : ''), { credentials: 'include' });
         const profile = await profileResp.json().catch(() => ({ success:false }));
-        const ordersResp = await fetch('http://localhost:8000/api/user_orders');
+        const ordersResp = await fetch('/api/user_orders', { credentials: 'include' });
         const orders = await ordersResp.json().catch(() => ({ success:false, orders:[], summary:{ totalOrders:0, bonuses:0, totalAmount:0 } }));
         console.log('renderAccountPage: data loaded', { hasProfile: !!profile, ordersCount: (orders.orders||[]).length });
         // Обновляем шапку аккаунта
@@ -4647,6 +4946,11 @@ async function renderAccountPage() {
         const bonusTopEl = document.getElementById('accountBonuses');
         const avatarEl = document.getElementById('accountAvatar');
         if (nameEl) nameEl.textContent = profile.displayName || 'Guest';
+        // Обновим кэш авторизации
+        try {
+            const authed = isAuthenticatedData(profile);
+            window.__authState = { isAuthenticated: authed, profile: authed ? (profile.profile || profile) : null };
+        } catch (e) {}
         // Не заполняем bonusTopEl, чтобы не дублировать
         if (avatarEl) {
             if (profile.photoUrl) {
@@ -4814,7 +5118,6 @@ function ensureAccountSection() {
     console.log('ensureAccountSection: Создан блок #account-section');
     return acc;
 }
-
 function getCurrentLanguage() {
 	try {
 		return localStorage.getItem('selectedLanguage') || 'uk';
@@ -4822,7 +5125,6 @@ function getCurrentLanguage() {
 		return 'uk';
 	}
 }
-
 function updateAccountLangButton(lang) {
 	const btn = document.querySelector('.account-lang-btn');
 	if (!btn) return;
@@ -5003,9 +5305,19 @@ function getOrderStatusText(originalStatus) {
 function getVisibleView() {
     try {
         const acc = document.getElementById('account-section');
-        if (acc && acc.style.display === 'block') return 'account';
+        if (acc) {
+            const accDisp = (acc.style && acc.style.display) || '';
+            const accCs = window.getComputedStyle ? getComputedStyle(acc) : null;
+            const accVisible = (accDisp && accDisp !== 'none') || (accCs && accCs.display !== 'none');
+            if (accVisible) return 'account';
+        }
         const pc = document.getElementById('productsContainer');
-        if (pc && pc.style.display !== 'none') return 'products';
+        if (pc) {
+            const pcDisp = (pc.style && pc.style.display) || '';
+            const pcCs = window.getComputedStyle ? getComputedStyle(pc) : null;
+            const pcVisible = (pcDisp ? pcDisp !== 'none' : true) && (!pcCs || pcCs.display !== 'none' ? true : false);
+            if (pcVisible) return 'products';
+        }
     } catch (e) {}
     return 'products';
 }

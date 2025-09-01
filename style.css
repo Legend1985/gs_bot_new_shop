@@ -1255,10 +1255,11 @@ body.is-telegram .account-actions .account-lang { margin-left: auto; }
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
     box-shadow: var(--shadow-medium);
-    min-width: 200px;
-    z-index: 1000;
+    min-width: 260px;
+    z-index: 2147483647; /* Поверх шестерёнки и других элементов */
     display: none;
-    margin-top: 5px;
+    margin-top: 8px;
+    padding: 10px 12px;
 }
 
 /* Форма логина в выпадающем меню профиля */
@@ -1267,17 +1268,38 @@ body.is-telegram .account-actions .account-lang { margin-left: auto; }
 .login-form label { font-size:12px; color: var(--text-secondary); }
 .login-form input { padding:8px 10px; border:1px solid var(--border-color); border-radius:8px; font-size:14px; }
 .login-form input:focus { outline:none; border-color: var(--primary-color); box-shadow: 0 0 0 2px rgba(248,168,24,0.15); }
-.login-form .form-actions { display:flex; justify-content:space-between; align-items:center; margin-top:6px; }
-.login-form .remember { font-size:12px; color: var(--text-secondary); display:flex; align-items:center; gap:6px; }
-.login-form .btn { padding:8px 12px; border-radius:8px; }
+.login-form .form-actions { display:flex; justify-content:space-between; align-items:center; margin-top:6px; gap:10px; }
+.login-form .remember { font-size:11px; color: var(--text-secondary); display:flex; align-items:center; gap:6px; }
+.avatar-dropdown .login-form .remember { font-size:11px; margin-right:10px; }
+.avatar-dropdown .login-form .remember span { font-size:11px; line-height:1.1; }
+.login-form .btn { padding:4px 4px; border-radius:8px; font-size:14px; }
 .login-form .form-message { margin-top:6px; font-size:12px; min-height:16px; }
 
 .avatar-dropdown.show {
     display: block;
 }
 
+/* Кнопка закрытия в окне профиля */
+.avatar-dropdown .close-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    background: var(--bg-primary);
+    border: 2px solid var(--border-color);
+    box-shadow: var(--shadow-small);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    z-index: 2147483647;
+}
+.avatar-dropdown .close-btn:hover { background: var(--accent-color); color:#fff; border-color: var(--accent-color); }
+
 .dropdown-item {
-    padding: 12px 20px;
+    padding: 14px 16px;
     display: flex;
     align-items: center;
     gap: 12px;
@@ -1303,6 +1325,18 @@ body.is-telegram .account-actions .account-lang { margin-left: auto; }
     color: var(--text-primary);
     font-size: 14px;
 }
+
+/* Визуальные разделители и отступы внутри меню профиля */
+.avatar-dropdown .divider { height: 1px; background: var(--border-color); margin: 8px 0; }
+.avatar-dropdown .section { margin: 8px 0; }
+.avatar-dropdown .section-title { font-size: 12px; color: var(--text-secondary); margin: 6px 2px 8px; }
+
+/* Кнопки в меню профиля: на всю ширину с аккуратными отступами */
+.avatar-dropdown .btn { width: 100%; margin-top: 2px; padding-left: 4px; padding-right: 4px; padding-top: 4px; padding-bottom: 4px; }
+.avatar-dropdown .btn-primary { background: var(--secondary-color); color:#fff; border: none; }
+.avatar-dropdown .btn-primary:hover { filter: brightness(0.95); }
+.avatar-dropdown .btn-secondary { background:#fff; border:1px solid var(--border-color); color: var(--text-primary); }
+.avatar-dropdown .btn-secondary:hover { background: var(--bg-secondary); }
 
 /* Попапы */
 .popup {

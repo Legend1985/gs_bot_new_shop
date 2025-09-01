@@ -47,6 +47,9 @@
             
             <!-- Выпадающее меню аватара -->
             <div class="avatar-dropdown" id="avatarDropdown">
+                <button class="close-btn" onclick="toggleAvatarMenu()">
+                    <i class="fas fa-times"></i>
+                </button>
                 <div class="dropdown-item">
                     <i class="fas fa-user"></i>
                     <span data-translate="profile">Профиль</span>
@@ -58,11 +61,11 @@
                 <div class="dropdown-item" id="dropdownLoginSection" style="display:block;">
                     <form id="loginForm" class="login-form" onsubmit="return false;">
                         <div class="form-row">
-                            <label for="loginUsername">E-mail или логин</label>
+                            <label for="loginUsername" data-translate="loginUsernameLabel">E-mail или логин</label>
                             <input type="text" id="loginUsername" autocomplete="username" required>
                         </div>
                         <div class="form-row">
-                            <label for="loginPassword">Пароль</label>
+                            <label for="loginPassword" data-translate="loginPasswordLabel">Пароль</label>
                             <input type="password" id="loginPassword" autocomplete="current-password" required>
                         </div>
                         <div class="form-row" id="loginCaptchaRow" style="display:none;">
@@ -73,12 +76,13 @@
                             </div>
                         </div>
                         <div class="form-actions">
-                            <label class="remember"><input type="checkbox" id="loginRemember"> Запомнить</label>
-                            <button type="submit" id="loginSubmit" class="btn btn-primary">Войти</button>
+                            <label class="remember"><input type="checkbox" id="loginRemember"> <span data-translate="rememberMe">Запомнить</span></label>
+                            <button type="submit" id="loginSubmit" class="btn btn-primary" data-translate="loginButton">Войти</button>
                         </div>
                         <div class="form-message" id="loginMessage" aria-live="polite"></div>
                         <div class="form-row" style="text-align:center; margin-top:6px;">
-                            <a href="#" id="showRegisterLink">Создать аккаунт</a>
+                            <a href="#" id="showRegisterLink" data-translate="createAccount">Создать аккаунт</a>
+                            <a href="#" id="showSmsLoginLink" data-translate="loginByPhone" style="margin-left:12px;">Войти по телефону</a>
                         </div>
                     </form>
                 </div>
@@ -108,11 +112,37 @@
                             </div>
                         </div>
                         <div class="form-actions">
-                            <button type="submit" id="registerSubmit" class="btn btn-primary">Зарегистрироваться</button>
+                            <button type="submit" id="registerSubmit" class="btn btn-primary" data-translate="register">Зарегистрироваться</button>
                         </div>
                         <div class="form-message" id="registerMessage" aria-live="polite"></div>
                         <div class="form-row" style="text-align:center; margin-top:6px;">
-                            <a href="#" id="showLoginLink">У меня уже есть аккаунт</a>
+                            <a href="#" id="showLoginLink" data-translate="iHaveAccount">У меня уже есть аккаунт</a>
+                            <a href="#" id="showSmsFromRegisterLink" data-translate="loginByPhone" style="margin-left:12px;">Войти по телефону</a>
+                        </div>
+                    </form>
+                </div>
+                <!-- Вход по телефону (SMS) -->
+                <div class="dropdown-item" id="dropdownSmsLoginSection" style="display:none;">
+                    <form id="smsLoginForm" class="login-form" onsubmit="return false;">
+                        <div class="form-row">
+                            <label for="smsPhoneInput" data-translate="smsPhoneLabel">Телефон (формат +380)</label>
+                            <input type="tel" id="smsPhoneInput" value="+380" inputmode="tel" autocomplete="tel" required>
+                        </div>
+                        <div class="form-actions" style="gap:8px;">
+                            <button type="button" id="smsSendCodeBtn" class="btn btn-primary" data-translate="smsSendCode">Отправить код</button>
+                            <button type="button" id="smsResendCodeBtn" class="btn btn-secondary" style="display:none;" data-translate="smsResendCode">Отправить код повторно</button>
+                        </div>
+                        <div id="smsCodeRow" class="form-row" style="display:none;">
+                            <label for="smsCodeInput" data-translate="smsCodeLabel">Код из SMS</label>
+                            <div style="display:flex; gap:8px; align-items:center;">
+                                <input type="text" id="smsCodeInput" inputmode="numeric" maxlength="6" placeholder="123456" style="flex:1;">
+                                <button type="button" id="smsConfirmCodeBtn" class="btn btn-primary" data-translate="smsConfirm">Подтвердить</button>
+                            </div>
+                        </div>
+                        <div class="form-message" id="smsLoginMessage" aria-live="polite"></div>
+                        <div class="form-row" style="text-align:center; margin-top:6px;">
+                            <a href="#" id="showPasswordLoginLink" data-translate="loginByPassword">Войти по паролю</a>
+                            <a href="#" id="showRegisterFromSmsLink" data-translate="register" style="margin-left:12px;">Регистрация</a>
                         </div>
                     </form>
                 </div>

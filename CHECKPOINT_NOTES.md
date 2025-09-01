@@ -77,3 +77,73 @@ $env:FLASK_DEBUG="0"; python -u api_server.py
   - `server.out.log` — стандартный вывод
   - `server.err.log` — ошибки
 
+
+## Устойчивый автозапуск (Windows)
+
+### 1) Планировщик задач (рекомендуется)
+
+- Создать задачу и запускать при входе:
+```powershell
+$taskName = 'gs_bot_new_shop_server'
+$ps = "$env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe"
+$script = 'E:\Python_Projects\gs_bot_new_shop\scripts\run_server.ps1'
+schtasks /Create /TN $taskName /TR "`"$ps`" -NoProfile -ExecutionPolicy Bypass -File `"$script`"" /SC ONLOGON /RL HIGHEST /F
+```
+
+- Запустить задачу сейчас:
+```powershell
+schtasks /Run /TN gs_bot_new_shop_server
+```
+
+- Удалить задачу:
+```powershell
+schtasks /Delete /TN gs_bot_new_shop_server /F
+```
+
+### 2) Папка Автозагрузка пользователя (альтернатива)
+
+- Создать CMD‑ярлык, запускающий supervisor скрыто:
+```powershell
+$startup = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Startup\gs_bot_server.cmd'
+$content = '@echo off`r`nstart "" powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "E:\\Python_Projects\\gs_bot_new_shop\\scripts\\run_server.ps1"'
+Set-Content -Path $startup -Value $content -Encoding ASCII
+```
+
+- Удалить ярлык:
+```powershell
+Remove-Item "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\gs_bot_server.cmd" -Force
+```
+
+### 3) Реестр HKCU\Run (альтернатива)
+
+- Добавить автозапуск:
+```powershell
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v GsBotServer /t REG_SZ /d "powershell -NoProfile -ExecutionPolicy Bypass -File \"E:\Python_Projects\gs_bot_new_shop\scripts\run_server.ps1\"" /f
+```
+
+- Удалить запись:
+```powershell
+reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v GsBotServer /f
+```
+
+### Проверка доступности API
+
+- Через curl.exe (важно: именно .exe, не PowerShell‑alias):
+```powershell
+curl.exe -s 'http://127.0.0.1:8000/api/products?start=0&limit=1'
+```
+
+### Управление supervisor‑скриптом
+
+- Ручной запуск (из корня проекта):
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File ".\scripts\run_server.ps1"
+```
+
+- Остановить текущие экземпляры `api_server.py`:
+```powershell
+$ErrorActionPreference='SilentlyContinue'; Get-CimInstance Win32_Process |
+  Where-Object { $_.Name -like 'python*.exe' -and $_.CommandLine -match 'api_server.py' } |
+  ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+```
+

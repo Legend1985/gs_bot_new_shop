@@ -314,7 +314,21 @@ const translations = {
             <h4>7. Заключні положення</h4>
             <p>7.1. Договір набуває чинності з моменту акцепту оферти.</p>
             <p>7.2. Всі спори вирішуються шляхом переговорів або в судовому порядку.</p>
-        `
+        `,
+        loginUsernameLabel: "E-mail або логін",
+        loginPasswordLabel: "Пароль",
+        loginButton: "Увійти",
+        createAccount: "Створити акаунт",
+        loginByPhone: "Увійти за телефоном",
+        iHaveAccount: "У мене вже є акаунт",
+        smsPhoneLabel: "Телефон (формат +380)",
+        smsSendCode: "Надіслати код",
+        smsResendCode: "Надіслати код повторно",
+        smsCodeLabel: "Код з SMS",
+        smsConfirm: "Підтвердити",
+        loginByPassword: "Увійти за паролем",
+        register: "Реєстрація",
+        rememberMe: "Запам'ятати"
     },
     
     ru: {
@@ -658,7 +672,21 @@ const translations = {
             <p>11.3. Стороны имеют право расторгнуть настоящий договор в одностороннем порядке, в случае невыполнения одной из сторон условий настоящего Договора и в случаях, предусмотренных действующим законодательством Украины.</p>
             
             <p>Обращаем ваше внимание, что интернет-магазин «GuitarStrings.com.ua» на официальном интернет-сайте https://guitarstrings.com.ua имеет право в соответствии с законодательством Украины предоставлять право пользования интернет платформой ФЛП и юридическим лицам для реализации товара.</p>
-        `
+        `,
+        loginUsernameLabel: "E-mail или логин",
+        loginPasswordLabel: "Пароль",
+        loginButton: "Войти",
+        createAccount: "Создать аккаунт",
+        loginByPhone: "Войти по телефону",
+        iHaveAccount: "У меня уже есть аккаунт",
+        smsPhoneLabel: "Телефон (формат +380)",
+        smsSendCode: "Отправить код",
+        smsResendCode: "Отправить код повторно",
+        smsCodeLabel: "Код из SMS",
+        smsConfirm: "Подтвердить",
+        loginByPassword: "Войти по паролю",
+        register: "Регистрация",
+        rememberMe: "Запомнить"
     },
     
     en: {
@@ -938,7 +966,21 @@ const translations = {
             <h4>7. Final Provisions</h4>
             <p>7.1. The contract enters into force from the moment of acceptance of the offer.</p>
             <p>7.2. All disputes are resolved through negotiations or in court.</p>
-        `
+        `,
+        loginUsernameLabel: "E-mail or login",
+        loginPasswordLabel: "Password",
+        loginButton: "Sign in",
+        createAccount: "Create account",
+        loginByPhone: "Sign in by phone",
+        iHaveAccount: "I already have an account",
+        smsPhoneLabel: "Phone (format +380)",
+        smsSendCode: "Send code",
+        smsResendCode: "Resend code",
+        smsCodeLabel: "SMS code",
+        smsConfirm: "Confirm",
+        loginByPassword: "Sign in with password",
+        register: "Register",
+        rememberMe: "Remember me"
     }
 };
 
