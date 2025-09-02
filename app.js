@@ -1244,6 +1244,18 @@ function toggleMenu() {
         menu.classList.toggle('active');
     }
 }
+// Закрывает меню аватара с восстановлением портала
+function closeAvatarMenu() {
+    const avatarMenu = document.querySelector('.avatar-dropdown');
+    if (!avatarMenu) return;
+    avatarMenu.style.display = 'none';
+    avatarMenu.classList.remove('show');
+    if (avatarMenu.dataset.portaled === '1' && avatarMenu._restoreParent) {
+        avatarMenu._restoreParent.insertBefore(avatarMenu, avatarMenu._restoreNext);
+    }
+    avatarMenu.dataset.portaled = '0';
+}
+
 // Функция переключения аватара
 function toggleAvatarMenu() {
     console.log('toggleAvatarMenu: Переключаем меню аватара');
@@ -1256,12 +1268,7 @@ function toggleAvatarMenu() {
     const isOpen = avatarMenu.dataset.portaled === '1' && avatarMenu.style.display === 'block' || avatarMenu.classList.contains('show');
     if (isOpen) {
         // close and restore
-        avatarMenu.style.display = 'none';
-        avatarMenu.classList.remove('show');
-        if (avatarMenu.dataset.portaled === '1' && avatarMenu._restoreParent) {
-            avatarMenu._restoreParent.insertBefore(avatarMenu, avatarMenu._restoreNext);
-        }
-        avatarMenu.dataset.portaled = '0';
+        closeAvatarMenu();
         return;
     }
 
@@ -1316,6 +1323,7 @@ function toggleAvatarMenu() {
     avatarMenu.style.width = width + 'px';
     avatarMenu.style.zIndex = '2147483647';
     avatarMenu.style.display = 'block';
+    try { avatarMenu.classList.add('show'); } catch (e) {}
     avatarMenu.dataset.portaled = '1';
 
     // Close on resize
@@ -1698,6 +1706,24 @@ function goToCart() {
     console.log('goToCart: Переходим в корзину');
     showCartPopup();
 }
+// Универсальные функции индикатора загрузки
+function showLoadingIndicator() {
+    try {
+        // Если уже есть – не дублируем
+        if (document.getElementById('loading-indicator')) return;
+        const inner = document.querySelector('.inner');
+        if (!inner) return;
+        const wrap = document.createElement('div');
+        wrap.id = 'loading-indicator';
+        wrap.style.cssText = 'display:flex;align-items:center;justify-content:center;padding:20px;margin:10px auto;';
+        wrap.innerHTML = '<i class="fas fa-spinner fa-spin" style="font-size:22px;color:#4CAF50;"></i>';
+        inner.appendChild(wrap);
+    } catch (e) {}
+}
+function hideLoadingIndicator() {
+    try { const ld = document.getElementById('loading-indicator'); if (ld) ld.remove(); } catch (e) {}
+    try { const lo = document.getElementById('loading-overlay'); if (lo) lo.remove(); } catch (e) {}
+}
 // Функция загрузки товаров
 async function loadProducts(page = 0, append = false) {
     if (isLoading || isSearchActive) {
@@ -1784,8 +1810,8 @@ async function loadProducts(page = 0, append = false) {
         hasMoreProducts = false;
     } finally {
         isLoading = false;
-        // Удаляем оверлей загрузки
-        try { const old = document.getElementById('loading-overlay'); if (old) old.remove(); } catch (e) {}
+        // Удаляем индикаторы загрузки
+        hideLoadingIndicator();
     }
 }
 
@@ -1820,8 +1846,8 @@ function appendProducts(products) {
 function displayProducts(products) {
     console.log('displayProducts: Отображаем товары');
     console.log('displayProducts: Количество товаров:', products.length);
-    // На всякий случай убираем оверлей загрузки
-    try { const old = document.getElementById('loading-overlay'); if (old) old.remove(); } catch (e) {}
+    // На всякий случай убираем любые индикаторы загрузки
+    hideLoadingIndicator();
     const container = ensureProductsContainer();
     if (!container) {
         console.error('displayProducts: Контейнер #productsContainer не найден и не удалось создать');
@@ -2322,9 +2348,9 @@ function createProductCard(product, index) {
     })();
     
     if (isDRProduct) {
-        manufacturerHtml = `<span class="product-manufacturer">${currentTranslations.manufacturer}: DR</span>`;
+        manufacturerHtml = `<span class="product-manufacturer">DR</span>`;
     } else if (isLaBellaProduct) {
-        manufacturerHtml = `<span class="product-manufacturer">${currentTranslations.manufacturer}: La Bella</span>`;
+        manufacturerHtml = `<span class="product-manufacturer">La Bella</span>`;
     }
 
     // Пометка для 09 калибра (электро) — кликабельная для фильтра
@@ -2402,11 +2428,28 @@ function createProductCard(product, index) {
             '<div class="img-container">' +
                 '<img class="img" src="' + product.image + '" alt="' + product.name + '" onerror="this.src=\'./images/Discontinued.jpg\'">' +
             '</div>' +
-            '<div class="product-title">' + product.name + '</div>' +
+            (function(){
+                const fullName = product.name || '';
+                const patterns = [
+                    /nickel[ -]?plated/i,
+                    /pure\s*nickel/i,
+                    /stainless\s*steel/i,
+                    /cobalt/i,
+                    /colored/i,
+                    /flat\s*wound|flatwound|half\s*rounds|chromes/i,
+                    /\b[789]-string\b/i
+                ];
+                let idx = -1;
+                patterns.forEach(re => { const m = fullName.match(re); if (m && (idx === -1 || m.index < idx)) idx = m.index; });
+                if (idx > 0) {
+                    const line1 = fullName.slice(0, idx).trim();
+                    const line2 = fullName.slice(idx).trim();
+                    return '<div class="product-title"><span class="title-line1">' + line1 + '</span><br><span class="title-line2">' + line2 + '</span></div>';
+                }
+                return '<div class="product-title">' + fullName + '</div>';
+            })() +
             '<div class="product-status ' + statusClass + '">' + statusText + '</div>' +
             '<div class="product-subtitle">' +
-                '<input type="checkbox" class="compare-checkbox" data-index="' + index + '">' +
-                '<span>' + currentTranslations.compare + '</span>' +
                 manufacturerHtml +
                 sevenStringHtml +
                 eightStringHtml +
@@ -2538,13 +2581,20 @@ function createProductCard(product, index) {
                     return '';
                 })() +
             '</div>' +
-            '<div class="product-prices">' +
-                oldPriceHtml +
-                '<div class="new-price">' + newPrice + ' ' + getCurrency() + '</div>' +
+            '<div class="product-meta-row">' +
+                '<div class="meta-left">' + oldPriceHtml + '</div>' +
+                '<div class="meta-center product-rating">' + ratingHtml + '</div>' +
+                '<label class="meta-right product-compare-inline">' +
+                    '<input type="checkbox" class="compare-checkbox" data-index="' + index + '">' +
+                    '<span class="compare-label">' + currentTranslations.compare + '</span>' +
+                '</label>' +
             '</div>' +
-            '<div class="product-rating">' + ratingHtml + '</div>' +
+            '<div class="product-buy-row">' +
+                '<div class="new-price">' + newPrice + ' ' + getCurrency() + '</div>' +
+                statusButton +
+            '</div>' +
         '</div>' +
-        statusButton;
+        '';
     
     // console.log('createProductCard: HTML карточки создан:', cardHtml);
     card.innerHTML = cardHtml;
@@ -2785,9 +2835,16 @@ function updateLanguageButtons(activeLang) {
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM загружен, инициализируем приложение');
     
-    // Маркируем окружение Telegram WebApp
+    // Маркируем окружение Telegram WebApp (только при наличии реальных данных пользователя)
     try {
-        if (window.Telegram && window.Telegram.WebApp) {
+        const isTelegramEnv = !!(
+            window.Telegram &&
+            window.Telegram.WebApp &&
+            window.Telegram.WebApp.initDataUnsafe &&
+            window.Telegram.WebApp.initDataUnsafe.user &&
+            window.Telegram.WebApp.initDataUnsafe.user.id
+        );
+        if (isTelegramEnv) {
             document.body.classList.add('is-telegram');
         } else {
             document.body.classList.remove('is-telegram');
@@ -3232,9 +3289,9 @@ function setupEventHandlers() {
         const avatarMenu = document.querySelector('.avatar-dropdown');
         const profilePic = document.querySelector('.profile-pic');
         
-        if (avatarMenu && avatarMenu.classList.contains('show')) {
+        if (avatarMenu && (avatarMenu.classList.contains('show') || avatarMenu.style.display === 'block')) {
             if (!profilePic.contains(event.target) && !avatarMenu.contains(event.target)) {
-                avatarMenu.classList.remove('show');
+                closeAvatarMenu();
                 console.log('toggleAvatarMenu: Меню аватара закрыто (клик вне)');
             }
         }
@@ -3746,7 +3803,7 @@ function filterProductsByCategory(category, force = false) {
         productsContainer.innerHTML = '';
     }
     
-    // Показываем индикатор загрузки
+    // Показываем индикатор загрузки (компактный, не перекрывает контент)
     showLoadingIndicator();
     
     // Debounce для поиска категорий - задержка 300ms (или 0 при force)
@@ -4355,7 +4412,7 @@ async function searchNickelPlatedElectricProducts() {
             allProductCards.forEach(card => { card.style.display = 'none'; });
             badges.forEach(b => {
                 const productCard = b.closest('.product-card');
-                if (productCard) productCard.style.display = 'block';
+                if (productCard) productCard.style.display = 'flex'; // сохраняем исходный макет карточки
             });
             isCategoryFilterActive = true;
             console.log('searchNickelPlatedElectricProducts: Отображены только товары Nickel Plated по бейджам');
@@ -4694,10 +4751,11 @@ async function searchPureNickelElectricProducts() {
             allProductCards.forEach(card => { card.style.display = 'none'; });
             badges.forEach(b => {
                 const productCard = b.closest('.product-card');
-                if (productCard) productCard.style.display = 'block';
+                if (productCard) productCard.style.display = 'flex'; // сохраняем исходный макет карточки
             });
             isCategoryFilterActive = true;
             console.log('searchPureNickelElectricProducts: Отображены только товары Pure Nickel по бейджам');
+            try { hideLoadingIndicator(); } catch (e) {}
         } else {
             showNoSearchResults('Pure Nickel Electric Strings');
         }
@@ -4725,10 +4783,12 @@ async function search9StringProducts() {
                 allProductCards.forEach(card => { card.style.display = 'none'; });
                 nineStringCards.forEach(ns => {
                     const productCard = ns.closest('.product-card');
-                    if (productCard) productCard.style.display = 'block';
+                    if (productCard) productCard.style.display = 'flex'; // сохраняем исходный макет карточки
                 });
                 isCategoryFilterActive = true;
                 console.log('search9StringProducts: Отображены только 9-струнные товары по пометкам');
+                // Убираем любые индикаторы загрузки
+                try { hideLoadingIndicator(); } catch (e) {}
             } else {
                 console.log('search9StringProducts: Карточки с пометкой 9-струнных не найдены');
                 showNoSearchResults('9-струнные');
@@ -4781,7 +4841,18 @@ function showLoadingIndicator() {
 }
 
 function hideLoadingIndicator() {
-    // Индикатор скрывается автоматически при отображении товаров
+    try {
+        const overlay = document.getElementById('loading-overlay');
+        if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    } catch (e) {}
+    try {
+        const indicator = document.getElementById('loading-indicator');
+        if (indicator && indicator.parentNode) indicator.parentNode.removeChild(indicator);
+    } catch (e) {}
+    try {
+        const spinnerBlocks = document.querySelectorAll('.loading-spinner, .loading-spinner-small');
+        spinnerBlocks.forEach(el => { if (el && el.parentNode) el.parentNode.removeChild(el); });
+    } catch (e) {}
 }
 
 // Вспомогательные функции для переключения между товарами и кабинетом
