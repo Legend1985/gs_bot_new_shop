@@ -735,17 +735,17 @@
                     </div>
                     <div class="info-row">
                         <i class="fas fa-map-marker-alt"></i>
-                        <span data-translate="settlement">Населённый пункт:</span>
+                        <span data-translate="settlement">Населённый пункт:<span class="required-star">*</span></span>
                         <input type="text" id="cartCustomerSettlement" class="cart-input-field" placeholder="Введите населённый пункт" data-translate-placeholder="settlementPlaceholder" value="">
                     </div>
                     <div class="info-row">
                         <i class="fas fa-building"></i>
-                        <span data-translate="branchNumber">Номер отделения:</span>
+                        <span data-translate="branchNumber">Номер отделения:<span class="required-star">*</span></span>
                         <input type="text" id="cartCustomerBranch" class="cart-input-field" placeholder="Введите номер отделения" data-translate-placeholder="branchNumberPlaceholder" value="">
                     </div>
                     <div class="info-row">
                         <i class="fas fa-phone"></i>
-                        <span data-translate="phone">Телефон:</span>
+                        <span data-translate="phone">Телефон:<span class="required-star">*</span></span>
                         <input type="tel" id="cartCustomerPhone" class="cart-input-field" placeholder="+380" value="+380" onfocus="this.setSelectionRange(4, 4)">
                     </div>
                 </div>
@@ -757,6 +757,145 @@
                         <span id="cartPayAmount">0 грн</span>
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Popup подтверждения заказа -->
+    <div class="popup-overlay" id="orderAcceptedPopup" style="display:none;">
+        <div class="popup-content">
+            <button class="close-btn" onclick="closePopup('orderAcceptedPopup')">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="popup-header">
+                <i class="fas fa-check-circle" style="color:#2cab37;"></i>
+                <h3 data-translate="orderAcceptedTitle">Заказ принят</h3>
+            </div>
+            <div class="popup-body">
+                <p id="orderAcceptedText"></p>
+            </div>
+            <div class="popup-footer">
+                <button class="btn btn-secondary" onclick="closeOrderAcceptedPopup()" data-translate="close">Закрыть</button>
+                <button class="btn btn-primary" onclick="showLastOrderDetails()" data-translate="viewOrder">Посмотреть заказ</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Popup просмотра деталей заказа -->
+    <div class="popup-overlay" id="orderDetailsPopup" style="display:none;">
+        <div class="popup-content order-details-popup">
+            <button class="close-btn" onclick="closePopup('orderDetailsPopup')">
+                <i class="fas fa-times"></i>
+            </button>
+            <button class="print-btn-small" onclick="printOrder()" title="Печать заказа">
+                <i class="fas fa-print"></i>
+            </button>
+            <div class="popup-header">
+                <div class="store-title-centered">GuitarStrings.com.ua</div>
+                <div class="order-title-section">
+                    <i class="fas fa-shopping-bag order-icon-small" style="color:#f8a818;"></i>
+                    <h3 id="orderDetailsTitle" class="order-title-small">Заказ GS1000</h3>
+                </div>
+            </div>
+            <div class="popup-body">
+                <!-- Информация о заказе -->
+                <div class="order-info-section">
+                    <h4>Информация о заказе</h4>
+                    <div class="order-info-grid">
+                        <div class="info-item">
+                            <span class="info-label">Номер заказа:</span>
+                            <span class="info-value" id="orderDetailNumber">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Дата:</span>
+                            <span class="info-value" id="orderDetailDate">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Статус:</span>
+                            <span class="info-value" id="orderDetailStatus">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Способ оплаты:</span>
+                            <span class="info-value" id="orderDetailPayment">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Способ доставки:</span>
+                            <span class="info-value" id="orderDetailDelivery">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Бонусы:</span>
+                            <span class="info-value" id="orderDetailBonuses">0</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Купон:</span>
+                            <span class="info-value" id="orderDetailCoupon">0 ₴</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Данные покупателя -->
+                <div class="order-customer-section">
+                    <h4>Данные покупателя</h4>
+                    <div class="order-info-compact">
+                        <div class="info-compact-item">
+                            <span class="info-label">ФИО:</span>
+                            <span class="info-value" id="orderDetailName">-</span>
+                        </div>
+                        <div class="info-compact-item">
+                            <span class="info-label">Телефон:</span>
+                            <span class="info-value" id="orderDetailPhone">-</span>
+                        </div>
+                        <div class="info-compact-item">
+                            <span class="info-label">Населённый пункт:</span>
+                            <span class="info-value" id="orderDetailSettlement">-</span>
+                        </div>
+                        <div class="info-compact-item">
+                            <span class="info-label">Адрес доставки:</span>
+                            <span class="info-value" id="orderDetailBranch">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Список товаров -->
+                <div class="order-items-section">
+                    <h4>Заказанные товары</h4>
+                    <div id="orderItemsList" class="order-items-list">
+                        <!-- Товары будут добавлены динамически -->
+                    </div>
+                </div>
+
+                <!-- Итоговый расчет -->
+                <div class="order-total-section">
+                    <div class="order-total-row">
+                        <span class="order-total-label">Стоимость товаров:</span>
+                        <span class="order-total-value" id="orderItemsTotal">-</span>
+                    </div>
+                    <div class="order-total-row">
+                        <span class="order-total-label">Стоимость доставки:</span>
+                        <span class="order-total-value" id="orderDeliveryCost">-</span>
+                    </div>
+                    <div class="order-total-row">
+                        <span class="order-total-label">Комиссия оплаты:</span>
+                        <span class="order-total-value" id="orderPaymentFee">-</span>
+                    </div>
+                    <div class="order-total-row" id="orderBonusesRow" style="display: none;">
+                        <span class="order-total-label">Использованные бонусы:</span>
+                        <span class="order-total-value" id="orderBonusesTotal">-</span>
+                    </div>
+                    <div class="order-total-row" id="orderCouponRow" style="display: none;">
+                        <span class="order-total-label">Скидка по купону:</span>
+                        <span class="order-total-value" id="orderCouponTotal">-</span>
+                    </div>
+                    <div class="order-total-row order-total-final">
+                        <span class="order-total-label">Итого:</span>
+                        <span class="order-total-value" id="orderFinalTotal">-</span>
+                    </div>
+                </div>
+            </div>
+            <div class="popup-footer">
+                <button class="btn btn-primary" onclick="continueShopping()">
+                    <span data-translate="continueShopping">Продолжить покупки</span>
+                </button>
             </div>
         </div>
     </div>
@@ -1065,7 +1204,33 @@
     </div>
 
     <!-- Telegram WebApp Script -->
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Telegram Web App -->
+    <script>
+        // Безопасная загрузка Telegram Web App
+        (function() {
+            try {
+                // Проверяем, не загружен ли уже Telegram Web App
+                if (window.Telegram && window.Telegram.WebApp) {
+                    console.log('Telegram Web App уже загружен');
+                    return;
+                }
+
+                // Создаем скрипт для загрузки Telegram Web App
+                var script = document.createElement('script');
+                script.src = 'https://telegram.org/js/telegram-web-app.js';
+                script.async = true;
+                script.onload = function() {
+                    console.log('Telegram Web App загружен успешно');
+                };
+                script.onerror = function() {
+                    console.warn('Не удалось загрузить Telegram Web App');
+                };
+                document.head.appendChild(script);
+            } catch (error) {
+                console.warn('Ошибка при загрузке Telegram Web App:', error);
+            }
+        })();
+    </script>
     
     <script>
         // Telegram Web App API уже инициализирован в app.js

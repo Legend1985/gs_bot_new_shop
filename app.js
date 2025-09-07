@@ -1,7 +1,153 @@
 // GS Bot New Shop - Основной JavaScript файл
 console.log('app.js загружен');
 
+// Глобальная обработка ошибок JavaScript
+window.addEventListener('error', function(e) {
+    // Игнорируем ошибки из telegram-web-app.js
+    if (e.filename && e.filename.includes('telegram-web-app.js')) {
+        console.warn('Игнорируем ошибку Telegram Web App:', e.message);
+        e.preventDefault(); // Предотвращаем дальнейшую обработку
+        return false;
+    }
+
+    console.error('Глобальная ошибка JavaScript:', e.error);
+    console.error('Файл:', e.filename);
+    console.error('Строка:', e.lineno);
+    console.error('Столбец:', e.colno);
+    console.error('Сообщение:', e.message);
+});
+
+// Глобальная обработка необработанных промисов
+window.addEventListener('unhandledrejection', function(e) {
+    // Игнорируем ошибки, связанные с Telegram Web App
+    if (e.reason && e.reason.toString().includes('telegram')) {
+        console.warn('Игнорируем необработанный промис Telegram:', e.reason);
+        e.preventDefault();
+        return;
+    }
+
+    console.error('Необработанный промис:', e.reason);
+    e.preventDefault(); // Предотвращаем вывод в консоль браузера
+});
+
 // Экспортируем функции в глобальную область сразу при загрузке скрипта
+
+// === ОСНОВНЫЕ ФУНКЦИИ (определяем в начале файла) ===
+
+// Функция открытия чата в Telegram
+function openTelegramChat() {
+    // Всегда открываем в новой вкладке для сохранения страницы магазина
+    const telegramUrl = 'https://t.me/GuitarStringsUSA';
+
+    safeTelegramCall(
+        // Callback для случая, когда Telegram доступен
+        function(tg) {
+            if (typeof tg.openTelegramLink === 'function') {
+                // Используем window.open для гарантированного открытия в новой вкладке
+                window.open(telegramUrl, '_blank', 'noopener,noreferrer');
+                console.log('openTelegramChat: Открываем чат в новой вкладке через Telegram Web App');
+            } else {
+                window.open(telegramUrl, '_blank', 'noopener,noreferrer');
+                console.log('openTelegramChat: openTelegramLink недоступен, используем fallback в новой вкладке');
+            }
+        },
+        // Fallback для случая, когда Telegram недоступен
+        function() {
+            window.open(telegramUrl, '_blank', 'noopener,noreferrer');
+            console.log('openTelegramChat: Telegram недоступен, открываем в новой вкладке');
+        }
+    );
+}
+
+// Функция переключения меню
+function showMenuPopup() {
+    console.log('showMenuPopup: Переключаем меню');
+    const menu = document.getElementById('menuPopup');
+    if (!menu) {
+        console.error('showMenuPopup: Элемент menuPopup не найден');
+        return;
+    }
+
+    if (menu.style.display === 'block') {
+        menu.style.display = 'none';
+        console.log('showMenuPopup: Меню закрыто');
+    } else {
+        menu.style.display = 'block';
+        console.log('showMenuPopup: Меню открыто');
+    }
+}
+
+// Функция переключения настроек
+function showSettingsPopup() {
+    console.log('showSettingsPopup: Переключаем настройки');
+    const settings = document.getElementById('settingsPopup');
+    if (!settings) {
+        console.error('showSettingsPopup: Элемент settingsPopup не найден');
+        return;
+    }
+
+    if (settings.style.display === 'block') {
+        settings.style.display = 'none';
+        console.log('showSettingsPopup: Настройки закрыты');
+    } else {
+        settings.style.display = 'block';
+        console.log('showSettingsPopup: Настройки открыты');
+    }
+}
+
+// Функция переключения аватара меню
+function toggleAvatarMenu() {
+    console.log('toggleAvatarMenu: Переключаем меню аватара');
+    const menu = document.getElementById('avatarDropdown');
+    if (!menu) {
+        console.error('toggleAvatarMenu: Элемент avatarDropdown не найден');
+        return;
+    }
+
+    if (menu.style.display === 'block') {
+        menu.style.display = 'none';
+        console.log('toggleAvatarMenu: Меню аватара закрыто');
+    } else {
+        menu.style.display = 'block';
+        console.log('toggleAvatarMenu: Меню аватара открыто');
+    }
+}
+
+// Функция перехода в корзину
+function goToCart() {
+    console.log('goToCart: Проверяем корзину перед открытием');
+
+    // Проверяем, есть ли товары в корзине
+    if (!cart || cart.length === 0) {
+        console.log('goToCart: Корзина пуста, не открываем');
+        return;
+    }
+
+    const cartPopup = document.getElementById('cartPopup');
+    if (!cartPopup) {
+        console.error('goToCart: Элемент cartPopup не найден');
+        return;
+    }
+
+    cartPopup.style.display = 'block';
+    console.log('goToCart: Корзина открыта, товаров:', cart.length);
+}
+
+// Безопасная функция для работы с Telegram Web App
+function safeTelegramCall(callback, fallback) {
+    try {
+        if (window.Telegram && window.Telegram.WebApp) {
+            return callback(window.Telegram.WebApp);
+        } else {
+            if (fallback) fallback();
+        }
+    } catch (error) {
+        console.warn('safeTelegramCall: Ошибка работы с Telegram Web App:', error);
+        if (fallback) fallback();
+    }
+}
+
+// === КОНЕЦ ОСНОВНЫХ ФУНКЦИЙ ===
 
 // Инициализация корзины
 let cart = [];
@@ -32,8 +178,15 @@ function isAuthenticatedData(data) {
 // Возвращает строку Telegram-параметров для запроса профиля (если доступно)
 function getTelegramQueryString() {
     try {
-        const tg = window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe;
+        // Проверяем доступность Telegram Web App
+        if (!window.Telegram || !window.Telegram.WebApp) {
+            console.log('getTelegramQueryString: Telegram Web App недоступен');
+            return '';
+        }
+
+        const tg = window.Telegram.WebApp.initDataUnsafe;
         const params = new URLSearchParams();
+
         if (tg && tg.user) {
             if (tg.user.id) params.set('tg_id', tg.user.id);
             if (tg.user.username) params.set('tg_username', tg.user.username);
@@ -41,9 +194,11 @@ function getTelegramQueryString() {
             if (tg.user.last_name) params.set('tg_last_name', tg.user.last_name);
             if (tg.user.photo_url) params.set('tg_photo_url', tg.user.photo_url);
         }
+
         const qs = params.toString();
         return qs ? ('?' + qs) : '';
     } catch (e) {
+        console.warn('getTelegramQueryString: Ошибка получения Telegram данных', e);
         return '';
     }
 }
@@ -1074,10 +1229,16 @@ function isCouponValid() {
 // Функция управления способами доставки в зависимости от способа оплаты и суммы корзины
 function updateDeliveryMethods() {
     console.log('updateDeliveryMethods: Обновляем способы доставки');
-    
+
+    // Если идет процесс оформления заказа, не трогаем способы доставки
+    if (isCheckoutInProgress) {
+        console.log('updateDeliveryMethods: Пропускаем обновление способов доставки во время оформления заказа');
+        return;
+    }
+
     const paymentSelect = document.getElementById('paymentMethodSelect');
     const deliverySelect = document.getElementById('deliveryMethodSelect');
-    
+
     if (!paymentSelect || !deliverySelect) {
         console.error('updateDeliveryMethods: Элементы выбора не найдены');
         return;
@@ -1107,22 +1268,32 @@ function updateDeliveryMethods() {
                 option.style.display = 'block';
                 option.disabled = false;
             } else {
-                option.style.display = 'none';
-                option.disabled = true;
+                option.style.display = 'block';
+                option.disabled = false;
             }
         });
         
-        // Устанавливаем самовывоз как выбранный
+        // Устанавливаем самовывоз как выбранный по умолчанию
+        if (deliverySelect.value !== 'pickup') {
         deliverySelect.value = 'pickup';
+        }
         
     } else {
         // Для других способов оплаты показываем способы доставки в зависимости от суммы корзины
         console.log('updateDeliveryMethods: Показываем способы доставки в зависимости от суммы корзины');
         
+        // Проверяем, используется ли купон в корзине
+        const couponDiscount = parseInt(localStorage.getItem('cartCouponDiscount') || '0');
+        const hasCoupon = couponDiscount > 0;
+
         deliveryOptions.forEach(option => {
             if (option.value === 'free1001') {
-                // Показываем бесплатную доставку от 1001 грн
-                if (cartTotal >= 1001) {
+                // Если используется купон, скрываем бесплатную доставку от 1001 грн
+                if (hasCoupon) {
+                    option.style.display = 'none';
+                    option.disabled = true;
+                    console.log('updateDeliveryMethods: Скрываем бесплатную доставку от 1001 грн (используется купон)');
+                } else if (cartTotal >= 1001) {
                     option.style.display = 'block';
                     option.disabled = false;
                     console.log('updateDeliveryMethods: Показываем бесплатную доставку от 1001 грн');
@@ -1131,8 +1302,12 @@ function updateDeliveryMethods() {
                     option.disabled = true;
                 }
             } else if (option.value === 'free2000') {
-                // Показываем бесплатную доставку от 2000 грн
-                if (cartTotal >= 2000) {
+                // Если используется купон, скрываем бесплатную доставку от 2000 грн
+                if (hasCoupon) {
+                    option.style.display = 'none';
+                    option.disabled = true;
+                    console.log('updateDeliveryMethods: Скрываем бесплатную доставку от 2000 грн (используется купон)');
+                } else if (cartTotal >= 2000) {
                     option.style.display = 'block';
                     option.disabled = false;
                     console.log('updateDeliveryMethods: Показываем бесплатную доставку от 2000 грн');
@@ -1152,26 +1327,96 @@ function updateDeliveryMethods() {
         console.log('updateDeliveryMethods: Сохраняем выбранный покупателем способ доставки:', deliverySelect.value);
     }
     
+    // Дополнительная настройка UI для самовывоза
+    try { if (typeof updatePickupUi === 'function') updatePickupUi(deliverySelect.value); } catch (e) {}
     // Обновляем стоимость доставки
     updateDeliveryCost();
 }
 
-// Функция показа/скрытия меню (toggle)
-function showMenuPopup() {
-    console.log('showMenuPopup: Переключаем меню');
-    const popup = document.getElementById('menuPopup');
-    if (popup) {
-        if (popup.style.display === 'flex') {
-            // Если меню открыто - закрываем
-            popup.style.display = 'none';
-            console.log('showMenuPopup: Меню закрыто');
-        } else {
-            // Если меню закрыто - открываем
-            popup.style.display = 'flex';
-            console.log('showMenuPopup: Меню открыто');
+// Настройка UI для самовывоза: адрес, время, обязательность полей
+function updatePickupUi(selectedMethod) {
+    try {
+        // Если идет процесс оформления заказа, не трогаем данные пользователя
+        if (isCheckoutInProgress) {
+            console.log('updatePickupUi: Пропускаем обновление UI во время оформления заказа');
+            return;
         }
-    }
+
+        const lang = getCurrentLanguage ? getCurrentLanguage() : (localStorage.getItem('selectedLanguage') || 'uk');
+        const cityEl = document.getElementById('cartCustomerSettlement');
+        const branchEl = document.getElementById('cartCustomerBranch');
+        const nameEl = document.getElementById('cartCustomerName');
+        if (!cityEl || !branchEl) return;
+
+        if (selectedMethod === 'pickup') {
+            // Город = Одесса только для самовывоза, но только если поле пустое или содержит автозаполненное значение
+            const currentValue = cityEl.value.trim();
+            const od = window.translations ? window.translations.getTranslation('pickupOdessa', lang) : 'Одесса';
+
+            // Устанавливаем Одессу только если поле пустое или содержит автозаполненное значение Одессы
+            // Не трогаем, если пользователь ввел свой город
+            if (!currentValue || currentValue === od || currentValue === 'Одесса') {
+                cityEl.value = od;
+            }
+            // Если пользователь ввел другой город, оставляем его без изменений
+
+            // Имя необязательное для самовывоза
+            if (nameEl) nameEl.required = false;
+            // Заменяем текст "Номер отделения" на адрес самовывоза
+            const branchLabelEl = document.querySelector('span[data-translate="branchNumber"]');
+            if (branchLabelEl) {
+                const pickupText = window.translations ? window.translations.getTranslation('pickupPlaceText', lang) : 'Троицкая угол Канатной, место встречи возле входа в "китайское кафе" по Троицкой.';
+                branchLabelEl.innerHTML = pickupText.replace(/\n/g, '<br>');
+            }
+            // Выпадающий список времени вместо номера отделения
+            const times = getPickupTimes();
+            const sel = document.createElement('select');
+            sel.id = 'cartCustomerBranch';
+            sel.className = branchEl.className;
+            times.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t;
+                opt.textContent = t;
+                sel.appendChild(opt);
+            });
+            branchEl.parentNode.replaceChild(sel, branchEl);
+        } else {
+            // Очищаем город для других способов доставки
+            cityEl.value = '';
+            // Возвращаем текст "Номер отделения"
+            const branchLabelEl = document.querySelector('span[data-translate="branchNumber"]');
+            if (branchLabelEl) {
+                branchLabelEl.textContent = window.translations ? window.translations.getTranslation('branchNumber', lang) : 'Номер отделения:';
+            }
+            // Вернуть обычный input, если был select
+            if (branchEl.tagName && branchEl.tagName.toLowerCase() === 'select') {
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.id = 'cartCustomerBranch';
+                input.className = branchEl.className;
+                input.placeholder = window.translations ? window.translations.getTranslation('branchNumberPlaceholder', lang) : 'Enter branch number';
+                branchEl.parentNode.replaceChild(input, branchEl);
+            }
+            if (nameEl) nameEl.required = true;
+        }
+    } catch (e) {}
 }
+
+function getPickupTimes() {
+    const d = new Date();
+    const day = d.getDay(); // 0=Sun, 6=Sat
+    if (day === 0) {
+        // Sunday - показываем времена для понедельника (следующего дня)
+        const mondayPrefix = window.translations ? window.translations.getTranslation('monday', getCurrentLanguage()) : 'Понедельник';
+        return [`${mondayPrefix} 13:30`, `${mondayPrefix} 12:00`];
+    }
+    if (day === 6) {
+        return ['12:30', '12:00'];
+    }
+    return ['13:30', '12:00'];
+}
+
+// Функция показа/скрытия меню (перемещена в начало файла)
 
 // Функция закрытия попапов
 function closePopup(popupId) {
@@ -1190,6 +1435,7 @@ function showCartPopup() {
         renderCartItems();
         updateCartCalculations();
         updateDeliveryMethods(); // Инициализируем способы доставки
+        updatePaymentButtonText(); // Инициализируем текст кнопки оплаты
         popup.style.display = 'flex';
     }
 }
@@ -1358,22 +1604,7 @@ function setActiveBottomNav(view) {
         });
     } catch (e) {}
 }
-// Функция показа/скрытия настроек (toggle)
-function showSettingsPopup() {
-    console.log('showSettingsPopup: Переключаем настройки');
-    const popup = document.getElementById('settingsPopup');
-    if (popup) {
-        if (popup.style.display === 'flex') {
-            // Если настройки открыты - закрываем
-            popup.style.display = 'none';
-            console.log('showSettingsPopup: Настройки закрыты');
-        } else {
-            // Если настройки закрыты - открываем
-            popup.style.display = 'flex';
-            console.log('showSettingsPopup: Настройки открыты');
-        }
-    }
-}
+// Функция показа/скрытия настроек (перемещена в начало файла)
 
 // Функция закрытия настроек
 function closeSettingsPopup() {
@@ -1637,13 +1868,6 @@ async function loadNextPage() {
     await loadProducts(nextPage, true);
 }
 
-// Функция открытия чата в Telegram
-function openTelegramChat() {
-    console.log('openTelegramChat: Открываем чат в Telegram');
-    const telegramUrl = 'https://t.me/GuitarStringsUSA';
-    window.open(telegramUrl, '_blank');
-}
-
 // Функция обновления онлайн статуса по времени
 function updateOnlineStatus() {
     console.log('updateOnlineStatus: Обновляем статус по времени');
@@ -1702,10 +1926,7 @@ function closeSupportPopup() {
 }
 
 // Функция перехода в корзину
-function goToCart() {
-    console.log('goToCart: Переходим в корзину');
-    showCartPopup();
-}
+// Функция перехода в корзину (перемещена в начало файла)
 // Универсальные функции индикатора загрузки
 function showLoadingIndicator() {
     try {
@@ -1775,8 +1996,18 @@ async function loadProducts(page = 0, append = false) {
     try {
         // Вычисляем start на основе номера страницы (30 товаров на страницу для быстрой загрузки)
         const start = page * 30;
+        console.log('loadProducts: Отправляем запрос к API:', `/api/products?start=${start}&limit=30`);
+
         const response = await fetch(`http://localhost:8000/api/products?start=${start}&limit=30`);
+        console.log('loadProducts: Получен ответ от сервера, статус:', response.status);
+
+        if (!response.ok) {
+            console.error('loadProducts: Сервер вернул ошибку:', response.status, response.statusText);
+            throw new Error(`HTTP ошибка! статус: ${response.status} - ${response.statusText}`);
+        }
+
         const data = await response.json();
+        console.log('loadProducts: Получены данные:', data);
         
         if (data && data.products && data.products.length > 0) {
             // console.log('loadProducts: Загружено', data.products.length, 'товаров');
@@ -2583,11 +2814,7 @@ function createProductCard(product, index) {
             '</div>' +
             '<div class="product-meta-row">' +
                 '<div class="meta-left">' + oldPriceHtml + '</div>' +
-                '<div class="meta-center product-rating">' + ratingHtml + '</div>' +
-                '<label class="meta-right product-compare-inline">' +
-                    '<input type="checkbox" class="compare-checkbox" data-index="' + index + '">' +
-                    '<span class="compare-label">' + currentTranslations.compare + '</span>' +
-                '</label>' +
+                '<div class="meta-right product-rating">' + ratingHtml + '</div>' +
             '</div>' +
             '<div class="product-buy-row">' +
                 '<div class="new-price">' + newPrice + ' ' + getCurrency() + '</div>' +
@@ -2856,7 +3083,10 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Инициализируем корзину
     initializeCart();
-    
+
+    // Инициализируем баланс бонусов
+    initializeUserBonus();
+
     // Сбрасываем состояние бесконечной прокрутки
     currentPage = 0;
     hasMoreProducts = true;
@@ -2927,6 +3157,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Обновляем статус каждую минуту
     setInterval(updateOnlineStatus, 60000);
 
+    // Инициализируем заказы из localStorage
+    initializeUserOrders();
+
     // Перед перезагрузкой сохраняем фактический видимый раздел
     window.addEventListener('beforeunload', function() {
         try {
@@ -2935,6 +3168,25 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (e) {}
     });
 });
+
+// Функция инициализации заказов пользователя из localStorage
+function initializeUserOrders() {
+    try {
+        console.log('initializeUserOrders: Инициализация заказов из localStorage');
+
+        // Получаем заказы из localStorage
+        const orders = JSON.parse(localStorage.getItem('userOrders') || '[]');
+
+        // Сохраняем в глобальную переменную
+        window.userOrders = orders;
+
+        console.log('initializeUserOrders: Загружено заказов:', orders.length);
+
+    } catch (error) {
+        console.error('initializeUserOrders: Ошибка инициализации заказов', error);
+        window.userOrders = [];
+    }
+}
 
 // Функция настройки обработчиков событий
 function setupEventHandlers() {
@@ -3525,6 +3777,15 @@ function setupEventHandlers() {
        if (deliveryMethodSelect) {
            deliveryMethodSelect.addEventListener('change', function() {
                console.log('setupEventHandlers: Изменен способ доставки на:', this.value);
+
+               // Если выбран способ доставки кроме самовывоза и оплата "при встрече",
+               // автоматически меняем на WayForPay
+               const paymentMethodSelect = document.getElementById('paymentMethodSelect');
+               if (paymentMethodSelect && paymentMethodSelect.value === 'meeting' && this.value !== 'pickup') {
+                   paymentMethodSelect.value = 'wayforpay';
+                   console.log('setupEventHandlers: Автоматически изменен способ оплаты на WayForPay');
+               }
+
                updateDeliveryCost();
                updateCartCalculations(); // Дополнительно обновляем расчеты корзины
            });
@@ -3537,6 +3798,7 @@ function setupEventHandlers() {
                console.log('setupEventHandlers: Изменен способ оплаты на:', this.value);
                updateDeliveryMethods();
                updateCartCalculations(); // Обновляем расчеты при изменении способа оплаты
+               updatePaymentButtonText(); // Обновляем текст кнопки оплаты
            });
        }
      
@@ -4988,6 +5250,9 @@ async function showAccountView() {
         }
     } catch (e) {}
     console.log('showAccountView: renderAccountPage завершён');
+
+    // Рендерим заказы из localStorage
+    renderAccountOrders();
 }
 
 function setupCabinetNav() {
@@ -5080,6 +5345,91 @@ async function renderAccountPage() {
         try { updateAccountOrdersLocale(); } catch (e) {}
     } catch (e) {
         console.error('renderAccountPage error', e);
+    }
+}
+
+// Функция рендеринга заказов из localStorage в кабинет пользователя
+function renderAccountOrders() {
+    try {
+        console.log('renderAccountOrders: Рендеринг заказов из localStorage');
+
+        // Получаем заказы из localStorage
+        const orders = JSON.parse(localStorage.getItem('userOrders') || '[]');
+
+        // Если заказов нет, ничего не делаем
+        if (orders.length === 0) {
+            console.log('renderAccountOrders: Нет заказов в localStorage');
+            return;
+        }
+
+        // Находим контейнер для заказов
+        const body = document.getElementById('ordersTableBody');
+        if (!body) {
+            console.log('renderAccountOrders: Контейнер ordersTableBody не найден');
+            return;
+        }
+
+        // Очищаем текущие заказы
+        body.innerHTML = '';
+
+        // Сортируем заказы по дате (новые выше)
+        orders.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        // Добавляем заказы из localStorage
+        orders.forEach(order => {
+            const row = document.createElement('div');
+            row.className = 'orders-table-row';
+            row.style.cursor = 'pointer';
+            row.onclick = () => showOrderDetails(order.id);
+
+            // Форматируем дату
+            const orderDate = new Date(order.date).toLocaleDateString();
+
+            // Получаем статус заказа
+            const statusText = getOrderStatusText(order.status);
+
+            row.innerHTML = `
+                <div>${order.id || ''}</div>
+                <div>${orderDate}</div>
+                <div>${order.customer.settlement || ''}, ${order.customer.branch || ''}</div>
+                <div class="order-amount" data-amount="${order.total}">${order.total} ${getCurrencyWithDot()}</div>
+                <div class="order-status" data-original-status="${order.status || ''}">${statusText}</div>
+            `;
+
+            body.appendChild(row);
+        });
+
+        // Обновляем сводку заказов
+        updateAccountSummary(orders);
+
+        console.log('renderAccountOrders: Заказы успешно отрендерены', orders.length);
+
+    } catch (error) {
+        console.error('renderAccountOrders: Ошибка рендеринга заказов', error);
+    }
+}
+
+// Функция обновления сводки заказов
+function updateAccountSummary(orders) {
+    try {
+        const totalOrders = orders.length;
+        const totalAmount = orders.reduce((sum, order) => sum + (order.total || 0), 0);
+
+        const totalOrdersEl = document.getElementById('accTotalOrders');
+        const totalAmountEl = document.getElementById('accTotalAmount');
+
+        if (totalOrdersEl) {
+            totalOrdersEl.textContent = totalOrders;
+        }
+
+        if (totalAmountEl) {
+            totalAmountEl.textContent = `${totalAmount} ${getCurrencyWithDot()}`;
+        }
+
+        console.log('updateAccountSummary: Сводка обновлена', { totalOrders, totalAmount });
+
+    } catch (error) {
+        console.error('updateAccountSummary: Ошибка обновления сводки', error);
     }
 }
 
@@ -5353,21 +5703,25 @@ function getOrderStatusText(originalStatus) {
 	if (s.includes('оплач')) code = 'paid';
 	else if (s.includes('paid')) code = 'paid';
 	else if (s.includes('processing') || s.includes('обработ')) code = 'processing';
+	else if (s.includes('принят') || s.includes('accepted')) code = 'accepted';
 	else if (s.includes('отмен') || s.includes('cancel')) code = 'cancelled';
 	// Локализация
 	if (lang === 'uk') {
 		if (code === 'paid') return 'Сплачено';
 		if (code === 'processing') return 'Обробляється';
+		if (code === 'accepted') return 'Прийнято';
 		if (code === 'cancelled') return 'Скасовано';
 		return 'Статус';
 	} else if (lang === 'ru') {
 		if (code === 'paid') return 'Оплачено';
 		if (code === 'processing') return 'В обработке';
+		if (code === 'accepted') return 'Принят';
 		if (code === 'cancelled') return 'Отменён';
 		return 'Статус';
 	} else {
 		if (code === 'paid') return 'Paid';
 		if (code === 'processing') return 'Processing';
+		if (code === 'accepted') return 'Accepted';
 		if (code === 'cancelled') return 'Cancelled';
 		return 'Status';
 	}
@@ -5391,4 +5745,882 @@ function getVisibleView() {
         }
     } catch (e) {}
     return 'products';
+}
+
+// Функция генерации номера заказа
+function generateOrderId() {
+    const lastOrderId = localStorage.getItem('lastOrderId') || 999;
+    const nextOrderId = parseInt(lastOrderId) + 1;
+    localStorage.setItem('lastOrderId', nextOrderId.toString());
+    return `GS${nextOrderId}`;
+}
+
+// Функция сохранения заказа в localStorage
+function saveOrderToLocalStorage(order) {
+    try {
+        const orders = JSON.parse(localStorage.getItem('userOrders') || '[]');
+        orders.push(order);
+        localStorage.setItem('userOrders', JSON.stringify(orders));
+        console.log('saveOrderToLocalStorage: Заказ сохранен в localStorage', order);
+    } catch (error) {
+        console.error('saveOrderToLocalStorage: Ошибка сохранения заказа', error);
+    }
+}
+
+// Функция начисления бонусов пользователю
+function addUserBonus(bonusAmount) {
+    try {
+        if (!window.__authState || !window.__authState.isAuthenticated) {
+            console.log('addUserBonus: Пользователь не авторизован, бонусы не начислены');
+            return;
+        }
+
+        // Получаем текущий баланс бонусов из localStorage
+        const currentBonus = parseInt(localStorage.getItem('userBonusBalance') || '0');
+        const newBonusBalance = currentBonus + bonusAmount;
+
+        // Сохраняем новый баланс
+        localStorage.setItem('userBonusBalance', newBonusBalance.toString());
+
+        // Обновляем отображение баланса в интерфейсе
+        updateBonusDisplay(newBonusBalance);
+
+        console.log(`addUserBonus: Начислено ${bonusAmount} бонусов. Новый баланс: ${newBonusBalance}`);
+    } catch (error) {
+        console.error('addUserBonus: Ошибка начисления бонусов', error);
+    }
+}
+
+// Функция обновления отображения баланса бонусов
+function updateBonusDisplay(bonusBalance) {
+    // Обновляем отображение в кабинете
+    const bonusElement = document.getElementById('userBonusBalance');
+    if (bonusElement) {
+        bonusElement.textContent = bonusBalance;
+    }
+
+    // Обновляем отображение в корзине
+    const cartBonusElement = document.getElementById('cartBonusBalance');
+    if (cartBonusElement) {
+        cartBonusElement.textContent = bonusBalance;
+    }
+}
+
+// Функция получения текущего баланса бонусов
+function getUserBonusBalance() {
+    return parseInt(localStorage.getItem('userBonusBalance') || '0');
+}
+
+// Функция инициализации баланса бонусов
+function initializeUserBonus() {
+    try {
+        const bonusBalance = getUserBonusBalance();
+        updateBonusDisplay(bonusBalance);
+        console.log('initializeUserBonus: Баланс бонусов инициализирован:', bonusBalance);
+    } catch (error) {
+        console.error('initializeUserBonus: Ошибка инициализации баланса бонусов', error);
+    }
+}
+
+// Функция добавления заказа в кабинет пользователя
+function addOrderToAccountView(order) {
+    try {
+        if (!window.__authState || !window.__authState.isAuthenticated) {
+            console.log('addOrderToAccountView: Пользователь не авторизован, пропускаем добавление в кабинет');
+            return;
+        }
+
+        // Добавляем заказ в глобальный массив заказов пользователя
+        if (!window.userOrders) window.userOrders = [];
+        window.userOrders.push(order);
+
+        // Если кабинет открыт, обновляем отображение заказов
+        if (getVisibleView() === 'account') {
+            renderAccountOrders();
+        }
+
+        console.log('addOrderToAccountView: Заказ добавлен в кабинет пользователя', order);
+    } catch (error) {
+        console.error('addOrderToAccountView: Ошибка добавления заказа в кабинет', error);
+    }
+}
+
+// Функция показа всплывающего окна с подтверждением заказа
+function showOrderAcceptedPopup(orderId) {
+    try {
+        const lang = getCurrentLanguage ? getCurrentLanguage() : (localStorage.getItem('selectedLanguage') || 'uk');
+        const orderAcceptedText = document.getElementById('orderAcceptedText');
+
+        if (orderAcceptedText) {
+            const message = window.translations ? window.translations.getTranslationWithParams('orderAcceptedText', {orderId}, lang) :
+                `Ваш заказ принят, номер заказа ${orderId}. Ожидайте сообщение от менеджера с реквизитами для оплаты или уточнением, если вдруг какого-то товара меньше, чем в заказе.`;
+
+            orderAcceptedText.textContent = message;
+        }
+
+        const popup = document.getElementById('orderAcceptedPopup');
+        if (popup) {
+            popup.style.display = 'flex';
+        }
+
+        console.log('showOrderAcceptedPopup: Показано всплывающее окно заказа', orderId);
+    } catch (error) {
+        console.error('showOrderAcceptedPopup: Ошибка показа всплывающего окна', error);
+    }
+}
+
+// Функция отправки уведомления в Telegram (если есть)
+async function sendOrderNotification(order) {
+    try {
+        console.log('sendOrderNotification: Отправка уведомления о заказе', order);
+
+        // Получаем Telegram данные пользователя
+        let tg, hasTelegramData;
+
+        try {
+            tg = window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe;
+            hasTelegramData = tg && tg.user && tg.user.id;
+        } catch (telegramError) {
+            console.warn('sendOrderNotification: Ошибка доступа к Telegram Web App', telegramError);
+            hasTelegramData = false;
+        }
+
+        if (!hasTelegramData) {
+            console.log('sendOrderNotification: Telegram данные пользователя недоступны или произошла ошибка');
+            return;
+        }
+
+        // Формируем сообщение для пользователя
+        const userMessage = `🎉 Ваш заказ ${order.id} принят!\n\n` +
+                           `📦 Товары: ${order.items.length} позиций\n` +
+                           `💰 Сумма: ${order.total} ${getCurrencyWithDot()}\n` +
+                           `📱 Телефон: ${order.customer.phone}\n` +
+                           `📍 Доставка: ${getDeliveryMethodText(order.deliveryMethod)}\n\n` +
+                           `⏰ Ожидайте сообщение от менеджера с реквизитами оплаты!`;
+
+        // Формируем сообщение для менеджера
+        const managerMessage = `🆕 Новый заказ ${order.id}!\n\n` +
+                              `👤 Клиент: ${order.customer.name || 'Не указан'}\n` +
+                              `📱 Телефон: ${order.customer.phone}\n` +
+                              `📧 Email: ${tg.user.username ? '@' + tg.user.username : 'Не указан'}\n` +
+                              `🏠 Адрес: ${order.customer.settlement}, ${order.customer.branch}\n` +
+                              `💰 Сумма: ${order.total} ${getCurrencyWithDot()}\n` +
+                              `💳 Оплата: ${getPaymentMethodText(order.paymentMethod)}\n` +
+                              `🚚 Доставка: ${getDeliveryMethodText(order.deliveryMethod)}\n` +
+                              `📦 Товаров: ${order.items.length}\n\n` +
+                              `🔗 Telegram ID: ${tg.user.id}`;
+
+        // Отправляем уведомления через API сервера
+        const notifications = [
+            { type: 'user', message: userMessage, telegramId: tg.user.id },
+            { type: 'manager', message: managerMessage, telegramId: null } // Менеджеру отправляется через бота
+        ];
+
+        for (const notification of notifications) {
+            try {
+                const response = await fetch('/api/send_telegram_notification', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: notification.message,
+                        telegramId: notification.telegramId,
+                        orderId: order.id,
+                        notificationType: notification.type
+                    }),
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    console.log(`sendOrderNotification: ${notification.type} уведомление отправлено`);
+                } else {
+                    console.error(`sendOrderNotification: Ошибка отправки ${notification.type} уведомления`, response.status);
+                }
+            } catch (error) {
+                console.error(`sendOrderNotification: Ошибка отправки ${notification.type} уведомления`, error);
+            }
+        }
+
+        console.log('sendOrderNotification: Уведомления отправлены');
+
+    } catch (error) {
+        console.error('sendOrderNotification: Ошибка отправки уведомления', error);
+    }
+}
+
+// Флаг для предотвращения сброса данных при отправке заказа
+let isCheckoutInProgress = false;
+
+// Основная функция оформления заказа
+function checkout() {
+    try {
+        console.log('checkout: Начало оформления заказа');
+
+        // Устанавливаем флаг, чтобы предотвратить сброс данных
+        isCheckoutInProgress = true;
+
+        // Проверяем наличие необходимых функций
+        if (typeof calculateCartTotal !== 'function') {
+            throw new Error('Функция calculateCartTotal не найдена');
+        }
+        if (typeof generateOrderId !== 'function') {
+            throw new Error('Функция generateOrderId не найдена');
+        }
+        if (typeof saveOrderToLocalStorage !== 'function') {
+            throw new Error('Функция saveOrderToLocalStorage не найдена');
+        }
+        if (typeof calculateDeliveryCost !== 'function') {
+            throw new Error('Функция calculateDeliveryCost не найдена');
+        }
+        if (typeof calculatePaymentFee !== 'function') {
+            throw new Error('Функция calculatePaymentFee не найдена');
+        }
+
+        // Проверяем корзину
+        if (!cart || cart.length === 0) {
+            alert('Корзина пуста!');
+            return;
+        }
+
+        // Получаем данные формы
+        const customerName = document.getElementById('cartCustomerName').value.trim();
+        const customerPhone = document.getElementById('cartCustomerPhone').value.trim();
+        const customerSettlement = document.getElementById('cartCustomerSettlement').value.trim();
+        const customerBranch = document.getElementById('cartCustomerBranch');
+        const paymentMethod = document.getElementById('paymentMethodSelect').value;
+        const deliveryMethod = document.getElementById('deliveryMethodSelect').value;
+
+        // Определяем тип поля branch (input или select)
+        let branchValue = '';
+        if (customerBranch.tagName && customerBranch.tagName.toLowerCase() === 'select') {
+            branchValue = customerBranch.value;
+        } else {
+            branchValue = customerBranch.value.trim();
+        }
+
+        // Валидация обязательных полей
+        const errors = [];
+
+        // Проверяем телефон
+        if (!customerPhone) {
+            errors.push('Телефон обязателен для заполнения');
+        }
+
+        // Проверяем населённый пункт
+        if (!customerSettlement) {
+            errors.push('Населённый пункт обязателен для заполнения');
+        }
+
+        // Проверяем номер отделения/время самовывоза
+        if (!branchValue) {
+            errors.push('Номер отделения обязателен для заполнения');
+        }
+
+        // Проверяем имя только если не самовывоз
+        if (deliveryMethod !== 'pickup' && !customerName) {
+            errors.push('Фамилия и имя обязательны для заполнения');
+        }
+
+        if (errors.length > 0) {
+            alert('Пожалуйста, заполните все обязательные поля:\n' + errors.join('\n'));
+            return;
+        }
+
+        // Генерируем номер заказа
+        const orderId = generateOrderId();
+
+        // Получаем информацию о купонах и бонусах из корзины
+        const bonusesUsed = parseInt(localStorage.getItem('cartBonusesUsed') || '0');
+        const couponDiscount = parseInt(localStorage.getItem('cartCouponDiscount') || '0');
+
+        // Создаем объект заказа
+        const order = {
+            id: orderId,
+            date: new Date().toISOString(),
+            customer: {
+                name: customerName,
+                phone: customerPhone,
+                settlement: customerSettlement,
+                branch: branchValue
+            },
+            paymentMethod: paymentMethod,
+            deliveryMethod: deliveryMethod,
+            items: [...cart], // Копируем корзину
+            total: calculateCartTotal(),
+            bonusesUsed: bonusesUsed,
+            couponDiscount: couponDiscount,
+            status: 'accepted'
+        };
+
+        console.log('checkout: Создан заказ', order);
+
+        // Сохраняем заказ в localStorage
+        saveOrderToLocalStorage(order);
+
+        // Если пользователь авторизован, добавляем в кабинет
+        addOrderToAccountView(order);
+
+        // Рассчитываем итоговую сумму с учетом бонусов и купонов
+        const itemsTotal = order.total;
+        const deliveryCost = calculateDeliveryCost(deliveryMethod, itemsTotal);
+        const paymentFee = calculatePaymentFee(paymentMethod, itemsTotal);
+        const finalTotal = itemsTotal + deliveryCost + paymentFee - bonusesUsed - couponDiscount;
+
+        // Начисляем бонусы за заказ (1% от итоговой суммы)
+        const bonusEarned = Math.round(finalTotal * 0.01); // 1% от итоговой суммы
+        if (bonusEarned > 0) {
+            addUserBonus(bonusEarned);
+            console.log(`checkout: Начислено ${bonusEarned} бонусов за заказ ${orderId}`);
+        }
+
+        // Отправляем уведомление в Telegram (если есть) - асинхронно, не блокирует
+        try {
+            sendOrderNotification(order);
+        } catch (notificationError) {
+            console.warn('checkout: Ошибка отправки уведомления, но заказ оформлен', notificationError);
+        }
+
+        // Закрываем окно корзины
+        closePopup('cartPopup');
+
+        // Показываем всплывающее окно подтверждения
+        showOrderAcceptedPopup(orderId);
+
+        // Очищаем корзину
+        cart = [];
+        cartItemCount = 0;
+        localStorage.setItem('cart', JSON.stringify(cart));
+        localStorage.setItem('cartItemCount', cartItemCount.toString());
+
+        // Обновляем отображение корзины
+        updateCartBadge();
+        renderCartItems();
+
+        // Сбрасываем флаг после успешного оформления
+        isCheckoutInProgress = false;
+
+        console.log('checkout: Заказ успешно оформлен', orderId);
+
+    } catch (error) {
+        console.error('checkout: Ошибка оформления заказа', error);
+        console.error('checkout: Детали ошибки:', {
+            message: error.message,
+            stack: error.stack,
+            orderData: {
+                customerName,
+                customerPhone,
+                customerSettlement,
+                branchValue,
+                paymentMethod,
+                deliveryMethod
+            }
+        });
+
+        // Сбрасываем флаг в случае ошибки
+        isCheckoutInProgress = false;
+
+        alert('Произошла ошибка при оформлении заказа. Попробуйте еще раз.\n\nДетали: ' + error.message);
+    }
+}
+
+// Безопасная функция для работы с Telegram Web App
+function safeTelegramCall(callback, fallback) {
+    try {
+        if (window.Telegram && window.Telegram.WebApp) {
+            return callback(window.Telegram.WebApp);
+        } else {
+            console.log('Telegram Web App недоступен, используем fallback');
+            if (fallback) return fallback();
+        }
+    } catch (error) {
+        console.warn('Ошибка при работе с Telegram Web App:', error);
+        if (fallback) return fallback();
+    }
+}
+
+// Функция расчета общей суммы корзины
+function calculateCartTotal() {
+    let total = 0;
+    cart.forEach(item => {
+        const price = parseInt(item.newPrice || item.price || 0);
+        const quantity = item.quantity || 1;
+        total += price * quantity;
+    });
+    return total;
+}
+
+// Функция показа деталей последнего заказа
+function showLastOrderDetails() {
+    try {
+        console.log('showLastOrderDetails: Показ деталей последнего заказа');
+
+        // Получаем последний заказ из localStorage
+        const orders = JSON.parse(localStorage.getItem('userOrders') || '[]');
+        if (orders.length === 0) {
+            console.log('showLastOrderDetails: Нет заказов в localStorage');
+            return;
+        }
+
+        // Берем последний заказ (самый свежий)
+        const lastOrder = orders[orders.length - 1];
+
+        // Заполняем детали заказа
+        fillOrderDetails(lastOrder);
+
+        // Показываем окно деталей заказа
+        const popup = document.getElementById('orderDetailsPopup');
+        if (popup) {
+            popup.style.display = 'flex';
+        }
+
+        // Закрываем окно подтверждения
+        closePopup('orderAcceptedPopup');
+
+        console.log('showLastOrderDetails: Показано окно деталей заказа', lastOrder.id);
+
+    } catch (error) {
+        console.error('showLastOrderDetails: Ошибка показа деталей заказа', error);
+    }
+}
+
+// Функция показа деталей конкретного заказа
+function showOrderDetails(orderId) {
+    try {
+        console.log('showOrderDetails: Показ деталей заказа', orderId);
+
+        // Получаем заказы из localStorage
+        const orders = JSON.parse(localStorage.getItem('userOrders') || '[]');
+        const order = orders.find(o => o.id === orderId);
+
+        if (!order) {
+            console.log('showOrderDetails: Заказ не найден', orderId);
+            return;
+        }
+
+        // Заполняем детали заказа
+        fillOrderDetails(order);
+
+        // Показываем окно деталей заказа
+        const popup = document.getElementById('orderDetailsPopup');
+        if (popup) {
+            popup.style.display = 'flex';
+        }
+
+        console.log('showOrderDetails: Показано окно деталей заказа', orderId);
+
+    } catch (error) {
+        console.error('showOrderDetails: Ошибка показа деталей заказа', error);
+    }
+}
+
+// Функция заполнения деталей заказа в окне
+function fillOrderDetails(order) {
+    try {
+        console.log('fillOrderDetails: Заполнение деталей заказа', order.id);
+
+        // Заполняем заголовок
+        const titleEl = document.getElementById('orderDetailsTitle');
+        if (titleEl) {
+            titleEl.textContent = `Заказ ${order.id}`;
+        }
+
+        // Заполняем информацию о заказе
+        document.getElementById('orderDetailNumber').textContent = order.id || '-';
+        document.getElementById('orderDetailDate').textContent = new Date(order.date).toLocaleDateString() || '-';
+        document.getElementById('orderDetailStatus').textContent = getOrderStatusText(order.status) || '-';
+        document.getElementById('orderDetailPayment').textContent = getPaymentMethodText(order.paymentMethod) || '-';
+        document.getElementById('orderDetailDelivery').textContent = getDeliveryMethodText(order.deliveryMethod) || '-';
+
+        // Использованные бонусы и купон (если есть в данных заказа)
+        const bonusesUsed = order.bonusesUsed || 0;
+        const couponDiscount = order.couponDiscount || 0;
+
+        document.getElementById('orderDetailBonuses').textContent = bonusesUsed;
+        document.getElementById('orderDetailCoupon').textContent = couponDiscount > 0 ? `${couponDiscount} ${getCurrencyWithDot()}` : '0 ₴';
+
+        // Расчет итоговой суммы
+        const itemsTotal = order.total || 0;
+        let deliveryCost = calculateDeliveryCost(order.deliveryMethod, itemsTotal);
+
+        // Дополнительная проверка для доставки - если купон используется, доставка должна быть бесплатной
+        if (couponDiscount > 0 && (order.deliveryMethod === 'nova' || order.deliveryMethod === 'meest')) {
+            deliveryCost = 0;
+            console.log('fillOrderDetails: Купон используется, доставка Nova/Meest установлена в 0');
+        }
+
+        const paymentFee = calculatePaymentFee(order.paymentMethod, itemsTotal);
+
+        let finalTotal = itemsTotal + deliveryCost + paymentFee;
+        if (bonusesUsed > 0) {
+            finalTotal -= bonusesUsed;
+        }
+        if (couponDiscount > 0) {
+            finalTotal -= couponDiscount;
+        }
+
+        // Заполняем итоговый расчет
+        document.getElementById('orderItemsTotal').textContent = `${itemsTotal} ${getCurrencyWithDot()}`;
+        document.getElementById('orderDeliveryCost').textContent = `${deliveryCost} ${getCurrencyWithDot()}`;
+        document.getElementById('orderPaymentFee').textContent = `${paymentFee} ${getCurrencyWithDot()}`;
+        document.getElementById('orderFinalTotal').textContent = `${finalTotal} ${getCurrencyWithDot()}`;
+
+        // Показываем/скрываем строки с бонусами и купоном
+        const bonusesRow = document.getElementById('orderBonusesRow');
+        const couponRow = document.getElementById('orderCouponRow');
+
+        if (bonusesUsed > 0) {
+            bonusesRow.style.display = 'flex';
+            document.getElementById('orderBonusesTotal').textContent = `-${bonusesUsed}`;
+        } else {
+            bonusesRow.style.display = 'none';
+        }
+
+        if (couponDiscount > 0) {
+            couponRow.style.display = 'flex';
+            document.getElementById('orderCouponTotal').textContent = `-${couponDiscount} ${getCurrencyWithDot()}`;
+        } else {
+            couponRow.style.display = 'none';
+        }
+
+        // Добавляем информацию о начисленных бонусах за этот заказ
+        const bonusEarned = Math.round(finalTotal * 0.01);
+        if (bonusEarned > 0) {
+            // Создаем строку для начисленных бонусов, если ее нет
+            let bonusEarnedRow = document.getElementById('orderBonusEarnedRow');
+            if (!bonusEarnedRow) {
+                const totalSection = document.querySelector('.order-total-section');
+                const finalRow = document.querySelector('.order-total-final');
+
+                bonusEarnedRow = document.createElement('div');
+                bonusEarnedRow.id = 'orderBonusEarnedRow';
+                bonusEarnedRow.className = 'order-total-row';
+                bonusEarnedRow.innerHTML = `
+                    <span class="order-total-label">Бонусы за заказ:</span>
+                    <span class="order-total-value" id="orderBonusEarnedTotal">+${bonusEarned}</span>
+                `;
+
+                // Вставляем перед итоговой строкой
+                totalSection.insertBefore(bonusEarnedRow, finalRow);
+            } else {
+                document.getElementById('orderBonusEarnedTotal').textContent = `+${bonusEarned}`;
+            }
+        }
+
+        // Заполняем данные покупателя
+        document.getElementById('orderDetailName').textContent = order.customer?.name || '-';
+        document.getElementById('orderDetailPhone').textContent = order.customer?.phone || '-';
+        document.getElementById('orderDetailSettlement').textContent = order.customer?.settlement || '-';
+        document.getElementById('orderDetailBranch').textContent = order.customer?.branch || '-';
+
+        // Заполняем список товаров
+        fillOrderItems(order.items || []);
+
+        console.log('fillOrderDetails: Детали заказа заполнены');
+
+    } catch (error) {
+        console.error('fillOrderDetails: Ошибка заполнения деталей заказа', error);
+    }
+}
+
+// Функция заполнения списка товаров в заказе
+function fillOrderItems(items) {
+    try {
+        const container = document.getElementById('orderItemsList');
+        if (!container) return;
+
+        container.innerHTML = '';
+
+        if (items.length === 0) {
+            container.innerHTML = '<div class="empty-order-items">Нет товаров в заказе</div>';
+            return;
+        }
+
+        items.forEach(item => {
+            const itemEl = document.createElement('div');
+            itemEl.className = 'order-item';
+
+            const imageUrl = item.image || item.photo || '/static/images/no-image.png';
+            const name = item.name || item.title || 'Без названия';
+            const quantity = item.quantity || 1;
+            const price = parseInt(item.newPrice || item.price || 0);
+            const total = price * quantity;
+
+            const unitPrice = parseInt(item.newPrice || item.price || 0);
+            itemEl.innerHTML = `
+                <img src="${imageUrl}" alt="${name}" class="order-item-image" onerror="this.src='/static/images/no-image.png'">
+                <div class="order-item-details">
+                    <div class="order-item-name">${name}</div>
+                    <div class="order-item-meta">${quantity} шт. × ${unitPrice} ${getCurrencyWithDot()}</div>
+                </div>
+                <div class="order-item-price">${total} ${getCurrencyWithDot()}</div>
+            `;
+
+            container.appendChild(itemEl);
+        });
+
+        console.log('fillOrderItems: Список товаров заполнен', items.length);
+
+    } catch (error) {
+        console.error('fillOrderItems: Ошибка заполнения списка товаров', error);
+    }
+}
+
+// Функция получения текста способа оплаты
+function getPaymentMethodText(method) {
+    const translations = {
+        'wayforpay': 'WayForPay (Visa, Mastercard)',
+        'privat24': 'Приват 24',
+        'terminal': 'Терминал Приватбанку',
+        'meeting': 'При встрече в Одессе'
+    };
+    return translations[method] || method || '-';
+}
+
+// Функция получения текста способа доставки
+function getDeliveryMethodText(method) {
+    const translations = {
+        'nova': 'Nova Посhta',
+        'meest': 'Meest Express',
+        'ukrposhta': 'УКРПОЧТА',
+        'pickup': 'Самовывоз',
+        'free1001': 'Бесплатная доставка от 1001грн',
+        'free2000': 'Бесплатная доставка от 2000грн'
+    };
+    return translations[method] || method || '-';
+}
+
+// Функция расчета стоимости доставки
+function calculateDeliveryCost(deliveryMethod, orderTotal) {
+    // Логика расчета стоимости доставки
+    if (deliveryMethod === 'pickup') return 0;
+    if (deliveryMethod === 'free1001' && orderTotal >= 1001) return 0;
+    if (deliveryMethod === 'free2000' && orderTotal >= 2000) return 0;
+    if (deliveryMethod === 'ukrposhta') return 80;
+    if (deliveryMethod === 'nova') return 70;
+    if (deliveryMethod === 'meest') return 70;
+
+    // Для неизвестных методов доставки или если купон используется - возвращаем 0
+    console.log('calculateDeliveryCost: Неизвестный метод доставки или используется купон:', deliveryMethod);
+    return 0;
+}
+
+// Функция расчета комиссии оплаты
+function calculatePaymentFee(paymentMethod, orderTotal) {
+    // Логика расчета комиссии оплаты
+    if (paymentMethod === 'wayforpay') return Math.round(orderTotal * 0.02); // 2%
+    if (paymentMethod === 'privat24') return 0; // Без комиссии
+    if (paymentMethod === 'terminal') return 0; // Предоплата
+    if (paymentMethod === 'meeting') return 0; // При встрече
+
+    return 0;
+}
+
+// Функция закрытия окна подтверждения заказа и перехода на страницу товаров
+function closeOrderAcceptedPopup() {
+    try {
+        console.log('closeOrderAcceptedPopup: Закрытие окна подтверждения и переход на товары');
+
+        // Закрываем окно подтверждения
+        closePopup('orderAcceptedPopup');
+
+        // Переходим на страницу товаров
+        showProductsView();
+        setActiveBottomNav('products');
+
+        console.log('closeOrderAcceptedPopup: Окно закрыто, переход выполнен');
+
+    } catch (error) {
+        console.error('closeOrderAcceptedPopup: Ошибка закрытия окна', error);
+    }
+}
+
+// Функция обновления текста кнопки оплаты
+function updatePaymentButtonText() {
+    try {
+        const paymentMethodSelect = document.getElementById('paymentMethodSelect');
+        const payButton = document.querySelector('.cart-actions .btn-pay span[data-translate="pay"]');
+
+        if (!paymentMethodSelect || !payButton) return;
+
+        const selectedPayment = paymentMethodSelect.value;
+        const lang = getCurrentLanguage ? getCurrentLanguage() : (localStorage.getItem('selectedLanguage') || 'uk');
+
+        if (selectedPayment === 'meeting') {
+            // Если оплата при встрече, показываем "Подтвердить заказ"
+            payButton.textContent = window.translations ? window.translations.getTranslation('confirmOrder', lang) : 'ПОДТВЕРДИТЬ ЗАКАЗ';
+        } else {
+            // Иначе показываем "Оплатить"
+            payButton.textContent = window.translations ? window.translations.getTranslation('pay', lang) : 'ОПЛАТИТЬ';
+        }
+
+        console.log('updatePaymentButtonText: Обновлен текст кнопки оплаты для способа:', selectedPayment);
+
+    } catch (error) {
+        console.error('updatePaymentButtonText: Ошибка обновления текста кнопки', error);
+    }
+}
+
+// Функция печати заказа
+function printOrder() {
+    try {
+        console.log('printOrder: Печать заказа');
+
+        // Получаем текущий заказ из открытого окна
+        const orderTitle = document.getElementById('orderDetailsTitle');
+        const orderId = orderTitle ? orderTitle.textContent.replace('Заказ ', '') : 'Unknown';
+
+        // Создаем новое окно для печати
+        const printWindow = window.open('', '_blank', 'width=800,height=600');
+
+        // Получаем данные заказа
+        const orders = JSON.parse(localStorage.getItem('userOrders') || '[]');
+        const order = orders.find(o => o.id === orderId);
+
+        if (!order) {
+            alert('Заказ не найден');
+            return;
+        }
+
+        // Создаем HTML для печати
+        const printHTML = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Заказ ${order.id}</title>
+                <meta charset="UTF-8">
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 20px; }
+                    .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+                    .order-info { margin-bottom: 20px; }
+                    .order-info div { margin-bottom: 5px; }
+                    .items { margin-top: 20px; }
+                    .item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #ddd; }
+                    .total { font-weight: bold; font-size: 1.2em; margin-top: 20px; text-align: right; }
+                    @media print { body { margin: 0; } }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>GuitarStrings.com.ua</h1>
+                    <h2>Заказ №${order.id}</h2>
+                    <p>Дата: ${new Date(order.date).toLocaleDateString()}</p>
+                </div>
+
+                <div style="display: flex; gap: 40px; margin-bottom: 30px;">
+                    <div style="flex: 1;">
+                        <div class="order-info">
+                            <h3>Информация о заказе:</h3>
+                            <div>Способ оплаты: ${getPaymentMethodText(order.paymentMethod)}</div>
+                            <div>Способ доставки: ${getDeliveryMethodText(order.deliveryMethod)}</div>
+                            <div>Статус: ${getOrderStatusText(order.status)}</div>
+                        </div>
+                    </div>
+                    <div style="flex: 1;">
+                        <div class="order-info">
+                            <h3>Данные покупателя:</h3>
+                            <div>ФИО: ${order.customer.name || '-'}</div>
+                            <div>Телефон: ${order.customer.phone || '-'}</div>
+                            <div>Населённый пункт: ${order.customer.settlement || '-'}</div>
+                            <div>Адрес доставки: ${order.customer.branch || '-'}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="items">
+                    <h3>Заказанные товары:</h3>
+                    ${order.items.map(item => `
+                        <div class="item">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                ${item.image || item.photo ? `<img src="${item.image || item.photo}" alt="${item.name || item.title || 'Товар'}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">` : ''}
+                                <div>
+                                    <div style="font-weight: bold;">${item.name || item.title || 'Без названия'}</div>
+                                    <div style="font-size: 0.9em; color: #666;">${item.quantity || 1} шт. × ${parseInt(item.newPrice || item.price || 0)} ${getCurrencyWithDot()}</div>
+                                </div>
+                            </div>
+                            <div style="font-weight: bold;">${(item.quantity || 1) * parseInt(item.newPrice || item.price || 0)} ${getCurrencyWithDot()}</div>
+                        </div>
+                    `).join('')}
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; margin-top: 30px;">
+                    <div style="width: 300px; border: 1px solid #ddd; padding: 15px; border-radius: 5px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                            <span>Стоимость товаров:</span>
+                            <span>${order.total} ${getCurrencyWithDot()}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                            <span>Стоимость доставки:</span>
+                            <span>${calculateDeliveryCost(order.deliveryMethod, order.total)} ${getCurrencyWithDot()}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                            <span>Комиссия оплаты:</span>
+                            <span>${calculatePaymentFee(order.paymentMethod, order.total)} ${getCurrencyWithDot()}</span>
+                        </div>
+                        ${order.bonusesUsed > 0 ? `<div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                            <span>Использованные бонусы:</span>
+                            <span>-${order.bonusesUsed}</span>
+                        </div>` : ''}
+                        ${order.couponDiscount > 0 ? `<div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                            <span>Скидка по купону:</span>
+                            <span>-${order.couponDiscount} ${getCurrencyWithDot()}</span>
+                        </div>` : ''}
+                        <div style="display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 2px solid #f8a818; font-weight: bold; font-size: 1.1em;">
+                            <span>Итого:</span>
+                            <span>${order.total + calculateDeliveryCost(order.deliveryMethod, order.total) + calculatePaymentFee(order.paymentMethod, order.total) - (order.bonusesUsed || 0) - (order.couponDiscount || 0)} ${getCurrencyWithDot()}</span>
+                        </div>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.write(printHTML);
+        printWindow.document.close();
+
+        // Ждем загрузки и печатаем
+        printWindow.onload = function() {
+            printWindow.print();
+            printWindow.close();
+        };
+
+        console.log('printOrder: Заказ отправлен на печать');
+
+    } catch (error) {
+        console.error('printOrder: Ошибка печати заказа', error);
+        alert('Ошибка при печати заказа');
+    }
+}
+
+// Функция продолжения покупок
+function continueShopping() {
+    try {
+        console.log('continueShopping: Продолжение покупок');
+
+        // Закрываем окно деталей заказа
+        closePopup('orderDetailsPopup');
+
+        // Переходим на страницу товаров и открываем категорию "Струны для электрогитары"
+        // Это то же самое, что делает кнопка "Товары" в футере
+        showProductsView();
+        setActiveBottomNav('products');
+
+        // Имитируем клик по баннеру "Струны для электрогитары" (главная категория)
+        const electricGuitarStrings = document.querySelector('.banner-title');
+        if (electricGuitarStrings) {
+            // Устанавливаем текущую категорию как "electricGuitarStrings"
+            currentCategory = 'electricGuitarStrings';
+            lastCategorySearch = 'electricGuitarStrings';
+
+            // Загружаем все товары (главная категория)
+            loadProducts();
+
+            console.log('continueShopping: Открыта категория "Струны для электрогитары"');
+        }
+
+        console.log('continueShopping: Переход на страницу товаров');
+
+    } catch (error) {
+        console.error('continueShopping: Ошибка перехода', error);
+    }
 }
