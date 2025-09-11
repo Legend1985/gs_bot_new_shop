@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест реальных изображений</title>
+    <style>
+        .image-test {
+            margin: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            display: inline-block;
+        }
+        .image-test img {
+            max-width: 150px;
+            border: 1px solid #ddd;
+        }
+        .status {
+            margin-top: 5px;
+            font-size: 12px;
+            color: #666;
+        }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Тест реальных изображений с guitarstrings.com.ua</h1>
+
+    <div id="imageContainer"></div>
+
+    <script>
+        // Тестовые URL из базы знаний
+        const testImages = [
+            {
+                name: "Orphee RX19 Nickel Alloy Medium 11-50",
+                url: "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/orphee_rx19_11-50_0x170.png"
+            },
+            {
+                name: "Orphee RX15 Nickel Alloy Super Light 9-42",
+                url: "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/orphee_rx15-9-42_0x170.png"
+            },
+            {
+                name: "Ernie Ball 2221 Regular Slinky 10-46",
+                url: "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/ernie_ball_2221_10-46_0x170.png"
+            },
+            {
+                name: "D'Addario EXL110 Nickel Wound 10-46",
+                url: "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/daddario_exl110_10-46_0x170.png"
+            },
+            {
+                name: "Fender 250R Nickel-Plated Steel 10-46",
+                url: "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/fender_250r_10-46_0x170.png"
+            },
+            {
+                name: "GHS Boomers GBTM Medium 11-50",
+                url: "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/ghs_gbtm_11-50_0x170.png"
+            }
+        ];
+
+        const container = document.getElementById('imageContainer');
+
+        testImages.forEach((test, index) => {
+            const div = document.createElement('div');
+            div.className = 'image-test';
+
+            div.innerHTML = `
+                <h3>${index + 1}. ${test.name}</h3>
+                <img src="${test.url}" alt="${test.name}" crossorigin="anonymous">
+                <div class="status" id="status-${index}">Проверяем...</div>
+            `;
+
+            container.appendChild(div);
+
+            // Проверяем доступность
+            const img = div.querySelector('img');
+            const status = div.querySelector('.status');
+
+            img.onload = function() {
+                status.textContent = '✅ Загружено успешно';
+                status.className = 'status success';
+            };
+
+            img.onerror = function() {
+                status.textContent = '❌ Ошибка загрузки';
+                status.className = 'status error';
+                console.log(`Ошибка загрузки: ${test.url}`);
+            };
+
+            // Также проверяем через fetch
+            fetch(test.url, {
+                method: 'HEAD',
+                mode: 'cors'
+            })
+            .then(response => {
+                if (response.ok) {
+                    console.log(`✅ ${test.name}: HTTP ${response.status}`);
+                } else {
+                    console.log(`❌ ${test.name}: HTTP ${response.status}`);
+                }
+            })
+            .catch(error => {
+                console.log(`❌ ${test.name}: Ошибка сети - ${error.message}`);
+            });
+        });
+    </script>
+</body>
+</html>

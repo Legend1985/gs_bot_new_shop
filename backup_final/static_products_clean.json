@@ -1,0 +1,580 @@
+{
+  "products": [
+    {
+      "name": "Orphee RX19 Nickel Alloy Medium 11-50",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/orphee_rx19_11-50_0x170.png",
+      "price": 195,
+      "newPrice": 195,
+      "oldPrice": 230,
+      "availability": "В наличии",
+      "rating": 4.7,
+      "category": "electro",
+      "gauge": "11"
+    },
+    {
+      "name": "Orphee RX15 Nickel Alloy Super Light 9-42",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/orphee_rx15-9-42_0x170.png",
+      "price": 173,
+      "newPrice": 173,
+      "oldPrice": 200,
+      "availability": "В наличии",
+      "rating": 4.5,
+      "category": "electro",
+      "gauge": "09"
+    },
+    {
+      "name": "Ernie Ball 2248 Custom Gauge Stainless Steel 9-42",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/ernie_ball_2248_9-42_0x170.png",
+      "price": 426,
+      "newPrice": 426,
+      "oldPrice": 500,
+      "availability": "В наличии",
+      "rating": 4.8,
+      "category": "electro",
+      "gauge": "09"
+    },
+    {
+      "name": "Ernie Ball 2247 Custom Gauge Stainless Steel 9-46",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/ernie_ball_2247_9-46_0x170.png",
+      "price": 426,
+      "newPrice": 426,
+      "oldPrice": 500,
+      "availability": "В наличии",
+      "rating": 4.6,
+      "category": "electro",
+      "gauge": "09"
+    },
+    {
+      "name": "GHS Boomers GBCL Custom Light 9-46",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/ghs_boomers_gbcl_9-46_0x170.png",
+      "price": 391,
+      "newPrice": 391,
+      "oldPrice": 450,
+      "availability": "В наличии",
+      "rating": 4.4,
+      "category": "electro",
+      "gauge": "09"
+    },
+    {
+      "name": "GHS Boomers GBXL Extra Light 9-42",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/ghs_boomers_gbxl_9-42_0x170.png",
+      "price": 391,
+      "newPrice": 391,
+      "oldPrice": 450,
+      "availability": "В наличии",
+      "rating": 4.3,
+      "category": "electro",
+      "gauge": "09"
+    },
+    {
+      "name": "D'Addario EXL120+-3D Nickel Wound 9.5-44",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/daddario_exl120_9-5-44_0x170.png",
+      "price": 280,
+      "newPrice": 280,
+      "oldPrice": 320,
+      "availability": "В наличии",
+      "rating": 4.2,
+      "category": "electro",
+      "gauge": "09"
+    },
+    {
+      "name": "D'Addario EXL120-10P Nickel Wound Super Light 9-42",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/daddario_exl120_9-42_0x170.png",
+      "price": 280,
+      "newPrice": 280,
+      "oldPrice": 320,
+      "availability": "В наличии",
+      "rating": 4.5,
+      "category": "electro",
+      "gauge": "09"
+    },
+    {
+      "name": "Fender 250L-3 Nickel Plated Steel Light 9-42",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/fender_250l_9-42_0x170.jpg",
+      "price": 315,
+      "newPrice": 315,
+      "oldPrice": 350,
+      "availability": "В наличии",
+      "rating": 4.1,
+      "category": "electro",
+      "gauge": "09"
+    },
+    {
+      "name": "Ernie Ball 2223 Super Slinky 9-42",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/ernie_ball_2223_9-42_0x170.png",
+      "price": 225,
+      "newPrice": 225,
+      "oldPrice": 250,
+      "availability": "В наличии",
+      "rating": 4.7,
+      "category": "electro",
+      "gauge": "09"
+    },
+    {
+      "name": "La Bella HRS-XL Hard Rockin Steel Extra Light 9-42",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/la_bella_hrs_xl_9-42_0x170.png",
+      "price": 290,
+      "newPrice": 290,
+      "oldPrice": 330,
+      "availability": "В наличии",
+      "rating": 4.3,
+      "category": "electro",
+      "gauge": "09"
+    },
+    {
+      "name": "Ernie Ball 2221 Hybrid Slinky 10-46",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/ernie_ball_2221_10-46_0x170.png",
+      "price": 225,
+      "newPrice": 225,
+      "oldPrice": 250,
+      "availability": "В наличии",
+      "rating": 4.9,
+      "category": "electro",
+      "gauge": "10"
+    },
+    {
+      "name": "Ernie Ball 2215 Power Slinky 10-46",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/ernie_ball_2215_10-46_0x170.png",
+      "price": 225,
+      "newPrice": 225,
+      "oldPrice": 250,
+      "availability": "В наличии",
+      "rating": 4.6,
+      "category": "electro",
+      "gauge": "10"
+    },
+    {
+      "name": "Ernie Ball 2216 Beefy Slinky 10-46",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/ernie_ball_2216_10-46_0x170.png",
+      "price": 225,
+      "newPrice": 225,
+      "oldPrice": 250,
+      "availability": "В наличии",
+      "rating": 4.4,
+      "category": "electro",
+      "gauge": "10"
+    },
+    {
+      "name": "GHS Boomers GBLXL Light/Extra Light 10-38",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/ghs_boomers_gblxl_10-38_0x170.png",
+      "price": 391,
+      "newPrice": 391,
+      "oldPrice": 450,
+      "availability": "В наличии",
+      "rating": 4.2,
+      "category": "electro",
+      "gauge": "10"
+    },
+    {
+      "name": "GHS Boomers GBM Medium 11-50",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/ghs_boomers_gbm_11-50_0x170.png",
+      "price": 391,
+      "newPrice": 391,
+      "oldPrice": 450,
+      "availability": "В наличии",
+      "rating": 4.5,
+      "category": "electro",
+      "gauge": "10"
+    },
+    {
+      "name": "D'Addario EXL110-3D Nickel Wound Regular Light 10-46",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/daddario_exl110_10-46_0x170.png",
+      "price": 280,
+      "newPrice": 280,
+      "oldPrice": 320,
+      "availability": "В наличии",
+      "rating": 4.7,
+      "category": "electro",
+      "gauge": "10"
+    },
+    {
+      "name": "Fender 250R-3 Nickel Plated Steel Regular 10-46",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/fender_250r_10-46_0x170.jpg",
+      "price": 315,
+      "newPrice": 315,
+      "oldPrice": 350,
+      "availability": "В наличии",
+      "rating": 4.3,
+      "category": "electro",
+      "gauge": "10"
+    },
+    {
+      "name": "Musicians Gear MG10-46 Nickel-Plated Light 10-46",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/musicians_gear_mg10_10-46_0x170.png",
+      "price": 280,
+      "newPrice": 280,
+      "oldPrice": 320,
+      "availability": "В наличии",
+      "rating": 4.1,
+      "category": "electro",
+      "gauge": "10"
+    },
+
+    {
+      "name": "DR Strings DDT-10 Pure Nickel Light 10-46",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/dr_ddt_10_10-46_0x170.png",
+      "price": 450,
+      "newPrice": 450,
+      "oldPrice": 520,
+      "availability": "В наличии",
+      "rating": 4.6,
+      "category": "electro",
+      "gauge": "10"
+    },
+    {
+      "name": "DR Strings DDT-9 Pure Nickel Super Light 9-42",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/dr_ddt_9_9-42_0x170.png",
+      "price": 450,
+      "newPrice": 450,
+      "oldPrice": 520,
+      "availability": "В наличии",
+      "rating": 4.7,
+      "category": "electro",
+      "gauge": "09"
+    },
+    {
+      "name": "DR Strings DDT-11 Pure Nickel Regular 11-49",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/dr_ddt_11_11-49_0x170.png",
+      "price": 450,
+      "newPrice": 450,
+      "oldPrice": 520,
+      "availability": "В наличии",
+      "rating": 4.5,
+      "category": "electro",
+      "gauge": "11"
+    },
+
+    {
+      "name": "Elixir Strings 11002 Nanoweb Light 10-46",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/elixir_11002_10-46_0x170.png",
+      "price": 680,
+      "newPrice": 680,
+      "oldPrice": 750,
+      "availability": "В наличии",
+      "rating": 4.8,
+      "category": "electro",
+      "gauge": "10"
+    },
+    {
+      "name": "Elixir Strings 11000 Nanoweb Super Light 9-42",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/elixir_11000_9-42_0x170.png",
+      "price": 680,
+      "newPrice": 680,
+      "oldPrice": 750,
+      "availability": "В наличии",
+      "rating": 4.9,
+      "category": "electro",
+      "gauge": "09"
+    },
+    {
+      "name": "Elixir Strings 11005 Nanoweb Custom Light 10-50",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/elixir_11005_10-50_0x170.png",
+      "price": 680,
+      "newPrice": 680,
+      "oldPrice": 750,
+      "availability": "В наличии",
+      "rating": 4.7,
+      "category": "electro",
+      "gauge": "10"
+    },
+
+    {
+      "name": "Cleartone 7410 Treated Light 10-46",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/cleartone_7410_10-46_0x170.png",
+      "price": 320,
+      "newPrice": 320,
+      "oldPrice": 380,
+      "availability": "В наличии",
+      "rating": 4.3,
+      "category": "electro",
+      "gauge": "10"
+    },
+    {
+      "name": "Cleartone 7409 Treated Super Light 9-42",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/cleartone_7409_9-42_0x170.png",
+      "price": 320,
+      "newPrice": 320,
+      "oldPrice": 380,
+      "availability": "В наличии",
+      "rating": 4.4,
+      "category": "electro",
+      "gauge": "09"
+    },
+
+    {
+      "name": "Curt Mangan 2510 CMS Light 10-46",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/curt_mangan_2510_10-46_0x170.png",
+      "price": 290,
+      "newPrice": 290,
+      "oldPrice": 340,
+      "availability": "В наличии",
+      "rating": 4.2,
+      "category": "electro",
+      "gauge": "10"
+    },
+    {
+      "name": "Curt Mangan 2509 CMS Super Light 9-42",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/curt_mangan_2509_9-42_0x170.png",
+      "price": 290,
+      "newPrice": 290,
+      "oldPrice": 340,
+      "availability": "В наличии",
+      "rating": 4.3,
+      "category": "electro",
+      "gauge": "09"
+    },
+
+    {
+      "name": "Dean Markley 2500 Blue Steel Light 10-46",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/dean_markley_2500_10-46_0x170.png",
+      "price": 350,
+      "newPrice": 350,
+      "oldPrice": 420,
+      "availability": "В наличии",
+      "rating": 4.1,
+      "category": "electro",
+      "gauge": "10"
+    },
+    {
+      "name": "Dean Markley 2502 Blue Steel Super Light 9-42",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/dean_markley_2502_9-42_0x170.png",
+      "price": 350,
+      "newPrice": 350,
+      "oldPrice": 420,
+      "availability": "В наличии",
+      "rating": 4.2,
+      "category": "electro",
+      "gauge": "09"
+    },
+
+    {
+      "name": "Dunlop 418P135 Medium 11-50",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/dunlop_418p135_11-50_0x170.png",
+      "price": 180,
+      "newPrice": 180,
+      "oldPrice": 220,
+      "availability": "В наличии",
+      "rating": 4.0,
+      "category": "electro",
+      "gauge": "11"
+    },
+    {
+      "name": "Dunlop 418P130 Light 10-46",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/dunlop_418p130_10-46_0x170.png",
+      "price": 180,
+      "newPrice": 180,
+      "oldPrice": 220,
+      "availability": "В наличии",
+      "rating": 4.1,
+      "category": "electro",
+      "gauge": "10"
+    },
+
+    {
+      "name": "Gibson 700S Vintage Reissue Light 10-46",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/gibson_700s_10-46_0x170.png",
+      "price": 380,
+      "newPrice": 380,
+      "oldPrice": 450,
+      "availability": "В наличии",
+      "rating": 4.4,
+      "category": "electro",
+      "gauge": "10"
+    },
+
+    {
+      "name": "Pyramid 011 Light 11-49",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/pyramid_011_11-49_0x170.png",
+      "price": 160,
+      "newPrice": 160,
+      "oldPrice": 190,
+      "availability": "В наличии",
+      "rating": 3.9,
+      "category": "electro",
+      "gauge": "11"
+    },
+    {
+      "name": "Pyramid 010 Light 10-46",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/pyramid_010_10-46_0x170.png",
+      "price": 160,
+      "newPrice": 160,
+      "oldPrice": 190,
+      "availability": "В наличии",
+      "rating": 4.0,
+      "category": "electro",
+      "gauge": "10"
+    },
+
+    {
+      "name": "Rotosound RS66LD Swing Bass 45-105",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/rotosound_rs66ld_45-105_0x170.png",
+      "price": 420,
+      "newPrice": 420,
+      "oldPrice": 480,
+      "availability": "В наличии",
+      "rating": 4.5,
+      "category": "electro",
+      "gauge": "10"
+    },
+
+    {
+      "name": "Optima 1728 7-String Regular 10-56",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/optima_1728_10-56_0x170.png",
+      "price": 350,
+      "newPrice": 350,
+      "oldPrice": 420,
+      "availability": "В наличии",
+      "rating": 4.3,
+      "category": "electro",
+      "gauge": "10"
+    },
+
+    {
+      "name": "Ernie Ball 2624 9-String Skinny Top Heavy Bottom 9-80",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/ernie_ball_2624_9-80_0x170.png",
+      "price": 280,
+      "newPrice": 280,
+      "oldPrice": 320,
+      "availability": "В наличии",
+      "rating": 4.6,
+      "category": "electro",
+      "gauge": "09"
+    },
+    {
+      "name": "Ernie Ball 2629 8-String Regular Slinky 10-74",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/ernie_ball_2629_10-74_0x170.png",
+      "price": 280,
+      "newPrice": 280,
+      "oldPrice": 320,
+      "availability": "В наличии",
+      "rating": 4.4,
+      "category": "electro",
+      "gauge": "10"
+    },
+    {
+      "name": "Ernie Ball 2625 8-String Slinky Custom 10-74",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/ernie_ball_2625_10-74_0x170.png",
+      "price": 280,
+      "newPrice": 280,
+      "oldPrice": 320,
+      "availability": "В наличии",
+      "rating": 4.5,
+      "category": "electro",
+      "gauge": "10"
+    },
+
+    {
+      "name": "GHS Boomers 7-String Drop Tune 10-68",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/ghs_boomers_7_string_10-68_0x170.png",
+      "price": 420,
+      "newPrice": 420,
+      "oldPrice": 480,
+      "availability": "В наличии",
+      "rating": 4.3,
+      "category": "electro",
+      "gauge": "10"
+    },
+    {
+      "name": "GHS Boomers 8-String Drop Tune 10-74",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/ghs_boomers_8_string_10-74_0x170.png",
+      "price": 420,
+      "newPrice": 420,
+      "oldPrice": 480,
+      "availability": "В наличии",
+      "rating": 4.4,
+      "category": "electro",
+      "gauge": "10"
+    },
+    {
+      "name": "GHS Boomers 9-String Drop Tune 9-80",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/ghs_boomers_9_string_9-80_0x170.png",
+      "price": 420,
+      "newPrice": 420,
+      "oldPrice": 480,
+      "availability": "В наличии",
+      "rating": 4.5,
+      "category": "electro",
+      "gauge": "09"
+    },
+
+    {
+      "name": "D'Addario EXL120-7 7-String Regular Light 10-59",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/daddario_exl120_7_10-59_0x170.png",
+      "price": 320,
+      "newPrice": 320,
+      "oldPrice": 380,
+      "availability": "В наличии",
+      "rating": 4.6,
+      "category": "electro",
+      "gauge": "10"
+    },
+    {
+      "name": "D'Addario EXL120-8 8-String Regular Light 10-67",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/daddario_exl120_8_10-67_0x170.png",
+      "price": 340,
+      "newPrice": 340,
+      "oldPrice": 400,
+      "availability": "В наличии",
+      "rating": 4.7,
+      "category": "electro",
+      "gauge": "10"
+    },
+    {
+      "name": "D'Addario EXL120-9 9-String Regular Light 9-74",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/daddario_exl120_9_9-74_0x170.png",
+      "price": 360,
+      "newPrice": 360,
+      "oldPrice": 420,
+      "availability": "В наличии",
+      "rating": 4.8,
+      "category": "electro",
+      "gauge": "09"
+    },
+
+    {
+      "name": "La Bella RX-Series Light 10-46 Flatwound",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/la_bella_rx_light_10-46_0x170.png",
+      "price": 380,
+      "newPrice": 380,
+      "oldPrice": 450,
+      "availability": "В наличии",
+      "rating": 4.5,
+      "category": "electro",
+      "gauge": "10"
+    },
+    {
+      "name": "La Bella RX-Series Super Light 9-42 Flatwound",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/la_bella_rx_super_light_9-42_0x170.png",
+      "price": 380,
+      "newPrice": 380,
+      "oldPrice": 450,
+      "availability": "В наличии",
+      "rating": 4.6,
+      "category": "electro",
+      "gauge": "09"
+    },
+
+    {
+      "name": "Fender Pure Nickel Vintage '52 Light 10-46",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/fender_pure_nickel_52_light_10-46_0x170.jpg",
+      "price": 420,
+      "newPrice": 420,
+      "oldPrice": 480,
+      "availability": "В наличии",
+      "rating": 4.7,
+      "category": "electro",
+      "gauge": "10"
+    },
+    {
+      "name": "Fender Pure Nickel Vintage '52 Super Light 9-42",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/fender_pure_nickel_52_super_light_9-42_0x170.png",
+      "price": 420,
+      "newPrice": 420,
+      "oldPrice": 480,
+      "availability": "В наличии",
+      "rating": 4.8,
+      "category": "electro",
+      "gauge": "09"
+    }
+  ]
+}

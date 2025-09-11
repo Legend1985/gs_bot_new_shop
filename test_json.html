@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест JSON загрузки</title>
+</head>
+<body>
+    <h1>Тест загрузки JSON</h1>
+    <div id="result"></div>
+
+    <script>
+        async function testJSON() {
+            try {
+                console.log('Тестируем загрузку JSON...');
+                const response = await fetch('./static_products_clean.json');
+                console.log('Response status:', response.status);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('Загруженные данные:', data);
+
+                document.getElementById('result').innerHTML = `
+                    <h2>Успешно загружено!</h2>
+                    <p>Количество товаров: ${data.products.length}</p>
+                    <p>Первый товар: ${data.products[0].name}</p>
+                `;
+            } catch (error) {
+                console.error('Ошибка загрузки:', error);
+                document.getElementById('result').innerHTML = `
+                    <h2>Ошибка загрузки!</h2>
+                    <p>${error.message}</p>
+                `;
+            }
+        }
+
+        // Запускаем тест при загрузке страницы
+        testJSON();
+    </script>
+</body>
+</html>

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Отладка изображений товаров</title>
+    <style>
+        .test-item {
+            margin: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            display: inline-block;
+            vertical-align: top;
+        }
+        .test-item img {
+            max-width: 150px;
+            border: 1px solid #ddd;
+        }
+        .status {
+            margin-top: 5px;
+            font-size: 12px;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .loading { background: #fff3cd; color: #856404; }
+    </style>
+</head>
+<body>
+    <h1>Отладка загрузки изображений товаров</h1>
+    <p>Проверяем загрузку изображений с guitarstrings.com.ua</p>
+
+    <div id="results"></div>
+
+    <script>
+        const testImages = [
+            {
+                name: "Orphee RX15",
+                url: "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/orphee_rx15-9-42_0x170.png"
+            },
+            {
+                name: "Orphee RX19",
+                url: "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/orphee_rx19_11-50_0x170.png"
+            },
+            {
+                name: "Ernie Ball 2221",
+                url: "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/ernie_ball_2221_10-46_0x170.png"
+            },
+            {
+                name: "D'Addario EXL110",
+                url: "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/daddario_exl110_10-46_0x170.png"
+            },
+            {
+                name: "Fender 250R",
+                url: "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/fender_250r_10-46_0x170.png"
+            },
+            {
+                name: "GHS Boomers",
+                url: "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/ghs_gbtm_11-50_0x170.png"
+            }
+        ];
+
+        const resultsContainer = document.getElementById('results');
+
+        testImages.forEach((test, index) => {
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'test-item';
+
+            itemDiv.innerHTML = `
+                <h3>${index + 1}. ${test.name}</h3>
+                <img src="${test.url}"
+                     alt="${test.name}"
+                     crossorigin="anonymous"
+                     onload="updateStatus(${index}, 'success', '✅ Загружено')"
+                     onerror="updateStatus(${index}, 'error', '❌ Ошибка загрузки')">
+                <div class="status loading" id="status-${index}">Загружается...</div>
+                <small>${test.url}</small>
+            `;
+
+            resultsContainer.appendChild(itemDiv);
+
+            // Также проверяем через fetch
+            fetch(test.url, { method: 'HEAD', mode: 'cors' })
+                .then(response => {
+                    console.log(`${test.name}: HTTP ${response.status}`);
+                    if (!response.ok) {
+                        updateStatus(index, 'error', `❌ HTTP ${response.status}`);
+                    }
+                })
+                .catch(error => {
+                    console.log(`${test.name}: Ошибка сети - ${error.message}`);
+                    updateStatus(index, 'error', `❌ Сеть: ${error.message}`);
+                });
+        });
+
+        function updateStatus(index, type, message) {
+            const statusElement = document.getElementById(`status-${index}`);
+            if (statusElement) {
+                statusElement.className = `status ${type}`;
+                statusElement.textContent = message;
+            }
+        }
+
+        // Выводим информацию о браузере
+        console.log('Browser Info:', navigator.userAgent);
+        console.log('CORS support:', 'fetch' in window);
+    </script>
+</body>
+</html>

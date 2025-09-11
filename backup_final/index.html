@@ -20,10 +20,10 @@
     <meta name="theme-color" content="#ffffff">
     <link rel="manifest" href="images/favicon_v016/site.webmanifest">
     
-            <link rel="stylesheet" href="style.css?v=11.49">
+            <link rel="stylesheet" href="style.css?v=11.46">
         <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-        <script src="translations.js?v=10.68"></script>
-        <script src="app.js?v=25.21"></script>
+        <script src="translations.js?v=10.65"></script>
+        <script src="app.js?v=20.0"></script>
         <!-- Предварительная загрузка фоновых изображений -->
     <link rel="preload" href="images/Contacts_image/background.jpg" as="image" type="image/jpeg">
 </head>
@@ -31,10 +31,9 @@
     <!-- Верхний хедер -->
     <header class="app-header">
         <div class="header-left">
-            <div class="logo-container" onclick="clearCategoryFilter()" style="cursor: pointer;">
-                <img src="images/Logo/GS-logo-gold+star.png" alt="GuitarStrings Logo" class="site-logo">
-                <h1 class="app-title">GuitarStrings.com.ua</h1>
-            </div>
+            <img src="images/Logo/GS-logo-gold+star.png" alt="GuitarStrings Logo" class="header-logo" onclick="clearCategoryFilter()" style="cursor: pointer;">
+            <h1 class="app-title" data-translate="appTitle" onclick="clearCategoryFilter()" style="cursor: pointer;">GuitarStrings.com.ua</h1>
+            <div class="bonus-info" id="headerBonusBalance" data-translate="bonusInfo" style="display: none;">Кол-во бонусов: 0</div>
         </div>
         <div class="header-right">
             <div class="profile-pic" onclick="toggleAvatarMenu()">
@@ -52,7 +51,7 @@
                 <button class="close-btn" onclick="toggleAvatarMenu()">
                     <i class="fas fa-times"></i>
                 </button>
-                <div class="dropdown-item">
+                <div class="dropdown-item" onclick="showAccount()">
                     <i class="fas fa-user"></i>
                     <span data-translate="profile">Профиль</span>
                 </div>
@@ -64,16 +63,16 @@
                     <form id="loginForm" class="login-form" onsubmit="return false;">
                         <div class="form-row">
                             <label for="loginUsername" data-translate="loginUsernameLabel">E-mail или логин</label>
-                            <input type="text" id="loginUsername" autocomplete="username" required>
+                            <input type="text" id="loginUsername" data-translate-placeholder="loginUsernamePlaceholder" placeholder="E-mail или логин" autocomplete="username" required>
                         </div>
                         <div class="form-row">
                             <label for="loginPassword" data-translate="loginPasswordLabel">Пароль</label>
-                            <input type="password" id="loginPassword" autocomplete="current-password" required>
+                            <input type="password" id="loginPassword" data-translate-placeholder="loginPasswordPlaceholder" placeholder="Введите пароль" autocomplete="current-password" required>
                         </div>
                         <div class="form-row" id="loginCaptchaRow" style="display:none;">
                             <label id="loginCaptchaQuestion">Проверка: —</label>
                             <div style="display:flex; gap:8px; align-items:center;">
-                                <input type="text" id="loginCaptchaAnswer" placeholder="Ответ" inputmode="numeric" style="flex:1;">
+                                <input type="text" id="loginCaptchaAnswer" data-translate-placeholder="captchaAnswerPlaceholder" placeholder="Ответ" inputmode="numeric" style="flex:1;">
                                 <button type="button" id="loginCaptchaRefresh" class="btn btn-secondary">↻</button>
                             </div>
                         </div>
@@ -86,30 +85,33 @@
                             <a href="#" id="showRegisterLink" data-translate="createAccount">Создать аккаунт</a>
                             <a href="#" id="showSmsLoginLink" data-translate="loginByPhone" style="margin-left:12px;">Войти по телефону</a>
                         </div>
+                        <div class="form-row" style="text-align:center; margin-top:3px; font-size:11px; color:#666;">
+                            <a href="#" id="clearSavedDataLink" style="color:#666; text-decoration:underline;" onclick="clearSavedLoginData(); return false;">Очистить сохраненные данные</a>
+                        </div>
                     </form>
                 </div>
                 <div class="dropdown-item" id="dropdownRegisterSection" style="display:none;">
                     <form id="registerForm" class="login-form" onsubmit="return false;">
                         <div class="form-row">
-                            <label for="registerEmail">E-mail</label>
-                            <input type="email" id="registerEmail" autocomplete="email" required>
+                            <label for="registerEmail" data-translate="registerEmailLabel">E-mail</label>
+                            <input type="email" id="registerEmail" data-translate-placeholder="registerEmailPlaceholder" placeholder="your@email.com" autocomplete="email" required>
                         </div>
                         <div class="form-row">
-                            <label for="registerUsername">Логин</label>
-                            <input type="text" id="registerUsername" autocomplete="username" required>
+                            <label for="registerUsername" data-translate="registerUsernameLabel">Логин</label>
+                            <input type="text" id="registerUsername" data-translate-placeholder="registerUsernamePlaceholder" placeholder="Придумайте логин" autocomplete="username" required>
                         </div>
                         <div class="form-row">
-                            <label for="registerPassword">Пароль</label>
-                            <input type="password" id="registerPassword" autocomplete="new-password" required>
+                            <label for="registerPassword" data-translate="registerPasswordLabel">Пароль</label>
+                            <input type="password" id="registerPassword" data-translate-placeholder="registerPasswordPlaceholder" placeholder="Придумайте пароль" autocomplete="new-password" required>
                         </div>
                         <div class="form-row">
-                            <label for="registerPassword2">Повторите пароль</label>
-                            <input type="password" id="registerPassword2" autocomplete="new-password" required>
+                            <label for="registerPassword2" data-translate="registerPasswordConfirmLabel">Повторите пароль</label>
+                            <input type="password" id="registerPassword2" data-translate-placeholder="registerPasswordConfirmPlaceholder" placeholder="Повторите пароль" autocomplete="new-password" required>
                         </div>
                         <div class="form-row" id="registerCaptchaRow" style="display:none;">
                             <label id="registerCaptchaQuestion">Проверка: —</label>
                             <div style="display:flex; gap:8px; align-items:center;">
-                                <input type="text" id="registerCaptchaAnswer" placeholder="Ответ" inputmode="numeric" style="flex:1;">
+                                <input type="text" id="registerCaptchaAnswer" data-translate-placeholder="captchaAnswerPlaceholder" placeholder="Ответ" inputmode="numeric" style="flex:1;">
                                 <button type="button" id="registerCaptchaRefresh" class="btn btn-secondary">↻</button>
                             </div>
                         </div>
@@ -451,10 +453,13 @@
                         <img id="accountAvatar" class="account-avatar" src="" alt="Avatar" style="display:none;">
                         <div class="account-title-block">
                             <h2 id="accountUserName">—</h2>
-                            <div class="account-bonuses" id="accountBonuses" data-translate="bonusInfo">Кол-во бонусов: 100</div>
+                            <div class="account-bonuses" id="accountBonuses" data-translate="bonusInfo">Кол-во бонусов: {amount}</div>
                         </div>
                     </div>
                     <div class="account-actions">
+                        <div class="account-action-btn" onclick="showProducts()" style="background: #007bff; color: white;">
+                            <i class="fas fa-arrow-left"></i> К товарам
+                        </div>
                         <div class="account-action-btn" data-action="orders" data-translate="ordersList">Список заказов</div>
                         <div class="account-action-btn" data-action="addresses" data-translate="myAddresses">Мои адреса</div>
                         <div class="account-action-btn" data-action="accountData" data-translate="accountData">Данные аккаунта</div>
@@ -669,7 +674,7 @@
                     <textarea class="cart-comment" placeholder="Добавить комментарий..." data-translate-placeholder="addComment"></textarea>
                     <div class="cart-coupon-bonuses-row">
                         <input type="text" id="cartCouponInput" class="cart-coupon" placeholder="Ввести купон:" data-translate-placeholder="enterCoupon">
-                        <input type="number" id="cartBonusesInput" class="cart-bonuses" placeholder="Использовать бонусы:" data-translate-placeholder="useBonuses" min="0" max="100">
+                        <input type="number" id="cartBonusesInput" class="cart-bonuses" placeholder="Использовать бонусы:" data-translate-placeholder="cartBonusesPlaceholder" min="0" max="100">
                     </div>
                 </div>
                 
@@ -720,7 +725,7 @@
                         <i class="fas fa-truck"></i>
                         <span data-translate="deliveryMethod">Способ доставки:</span>
                         <div class="delivery-method-selector">
-                            <select id="deliveryMethodSelect" class="delivery-select" onchange="updateDeliveryCost()">
+                            <select id="deliveryMethodSelect" class="delivery-select" onchange="console.log('onchange deliveryMethodSelect:', this.value); updateDeliveryCost(); updatePickupUi(this.value)">
                                 <option value="nova" data-translate="deliveryNova">Nova пошта</option>
                                 <option value="meest" data-translate="deliveryMeest">Meest пошта</option>
                                 <option value="ukrposhta" data-translate="deliveryUkrposhta">УКРПОШТА (передоплата 80грн.)</option>
@@ -732,7 +737,7 @@
                     </div>
                     <div class="info-row">
                         <i class="fas fa-user"></i>
-                        <span data-translate="fullName">Фамилия и имя:<span class="required-star">*</span></span>
+                        <span data-translate="fullName">Фамилия и имя:</span>
                         <input type="text" id="cartCustomerName" class="cart-input-field" placeholder="Введите фамилию и имя" data-translate-placeholder="fullNamePlaceholder" value="">
                     </div>
                     <div class="info-row">
@@ -741,34 +746,14 @@
                         <input type="text" id="cartCustomerSettlement" class="cart-input-field" placeholder="Введите населённый пункт" data-translate-placeholder="settlementPlaceholder" value="">
                     </div>
                     <div class="info-row">
-                        <i class="fas fa-phone"></i>
-                        <span data-translate="phone">Телефон:<span class="required-star">*</span></span>
-                        <input type="tel" id="cartCustomerPhone" class="cart-input-field" placeholder="+380" value="+380" onfocus="this.setSelectionRange(4, 4)">
-                    </div>
-                    <div class="info-row" id="regionRow" style="display:none;">
-                        <i class="fas fa-map"></i>
-                        <span>Область:<span class="required-star">*</span></span>
-                        <input type="text" id="cartCustomerRegion" class="cart-input-field" placeholder="Введите область" data-translate-placeholder="regionPlaceholder" value="">
-                    </div>
-                    <div class="info-row">
                         <i class="fas fa-building"></i>
                         <span data-translate="branchNumber">Номер отделения:<span class="required-star">*</span></span>
                         <input type="text" id="cartCustomerBranch" class="cart-input-field" placeholder="Введите номер отделения" data-translate-placeholder="branchNumberPlaceholder" value="">
                     </div>
-
-                    <!-- Элементы для самовывоза в корзине -->
-                    <div class="info-row cart-pickup-info" id="cartPickupAddressRow" style="display:none;">
-                        <i class="fas fa-map-marker-alt"></i>
-                        <span data-translate="pickupAddress">Адрес самовывоза:</span>
-                        <div class="pickup-address-text">Троїцька кут Канатної, місце зустрічі біля входу в "китайське кафе" по Троїцькій.</div>
-                    </div>
-
-                    <div class="info-row cart-pickup-info" id="cartPickupTimeRow" style="display:none;">
-                        <i class="fas fa-clock"></i>
-                        <span data-translate="pickupTime">Время самовывоза:</span>
-                        <select id="cartPickupTimeSelect" class="cart-input-field">
-                            <option value="">Выберите время</option>
-                        </select>
+                    <div class="info-row">
+                        <i class="fas fa-phone"></i>
+                        <span data-translate="phone">Телефон:<span class="required-star">*</span></span>
+                        <input type="tel" id="cartCustomerPhone" class="cart-input-field" placeholder="+380" value="+380" onfocus="this.setSelectionRange(4, 4)">
                     </div>
                 </div>
                 
@@ -813,56 +798,59 @@
                 <i class="fas fa-print"></i>
             </button>
             <div class="popup-header">
-                <div class="store-title-with-logo">
-                    <img src="images/Logo/GS-logo-gold+star.png" alt="GuitarStrings Logo" class="popup-logo">
-                    <div class="store-title-centered">GuitarStrings.com.ua</div>
-                </div>
+                <div class="store-title-centered">GuitarStrings.com.ua</div>
                 <div class="order-title-section">
                     <i class="fas fa-shopping-bag order-icon-small" style="color:#f8a818;"></i>
-                    <div class="order-header-info">
-                        <h3 id="orderDetailsTitle" class="order-title-small">Заказ GS1000</h3>
-                        <div class="order-header-details">
-                            <span class="order-date" id="orderHeaderDate">-</span>
-                            <span class="order-status" id="orderHeaderStatus">-</span>
-                        </div>
-                    </div>
+                    <h3 id="orderDetailsTitle" class="order-title-small">Заказ GS1000</h3>
                 </div>
             </div>
             <div class="popup-body">
                 <!-- Информация о заказе -->
-                <div class="order-info-section">
-                    <h4>Информация о заказе</h4>
-                    <div class="order-info-grid">
-                        <div class="info-item">
-                            <span class="info-label">Способ оплаты:</span>
+                <div class="order-customer-section">
+                    <h4 data-translate="orderInfo">Информация о заказе</h4>
+                    <div class="order-info-compact">
+                        <div class="info-compact-item">
+                            <span class="info-label" data-translate="paymentMethodLabel">Способ оплаты:</span>
                             <span class="info-value" id="orderDetailPayment">-</span>
                         </div>
-                        <div class="info-item">
-                            <span class="info-label">Способ доставки:</span>
+                        <div class="info-compact-item">
+                            <span class="info-label" data-translate="deliveryMethodLabel">Способ доставки:</span>
                             <span class="info-value" id="orderDetailDelivery">-</span>
                         </div>
                         <div class="info-compact-item">
-                            <span class="info-label">Прізвище та ім'я:</span>
+                            <span class="info-label" data-translate="usedBonusesLabel">Использованные бонусы:</span>
+                            <span class="info-value" id="orderDetailBonuses">0</span>
+                        </div>
+                        <div class="info-compact-item">
+                            <span class="info-label" data-translate="couponDiscountLabel">Скидка по купону:</span>
+                            <span class="info-value" id="orderDetailCoupon">0 ₴</span>
+                        </div>
+                        <div class="info-compact-item">
+                            <span class="info-label" data-translate="fullNameLabel">ФИО:</span>
                             <span class="info-value" id="orderDetailName">-</span>
                         </div>
                         <div class="info-compact-item">
-                            <span class="info-label">Телефон:</span>
+                            <span class="info-label" data-translate="phoneLabel">Телефон:</span>
                             <span class="info-value" id="orderDetailPhone">-</span>
                         </div>
                         <div class="info-compact-item">
-                            <span class="info-label">Населённый пункт:</span>
+                            <span class="info-label" data-translate="settlementLabel">Населённый пункт:</span>
                             <span class="info-value" id="orderDetailSettlement">-</span>
                         </div>
-                        <div class="info-compact-item" id="orderDetailRegionRow" style="display:none;">
-                            <span class="info-label">Область:</span>
-                            <span class="info-value" id="orderDetailRegion">-</span>
-                        </div>
                         <div class="info-compact-item">
-                            <span class="info-label">Адрес доставки:</span>
+                            <span class="info-label" data-translate="deliveryAddressLabel">Адрес доставки:</span>
                             <span class="info-value" id="orderDetailBranch">-</span>
                         </div>
-                        <div class="info-compact-item">
-                            <span class="info-label">Комментарий:</span>
+                        <div class="info-compact-item" id="pickupInfo" style="display: none;">
+                            <span class="info-label" data-translate="pickupAddressLabel">Адрес самовывоза:</span>
+                            <span class="info-value" id="orderDetailPickupAddress">-</span>
+                        </div>
+                        <div class="info-compact-item" id="pickupTime" style="display: none;">
+                            <span class="info-label" data-translate="pickupTimeLabel">Время самовывоза:</span>
+                            <span class="info-value" id="orderDetailPickupTime">-</span>
+                        </div>
+                        <div class="info-compact-item" id="orderComment" style="display: none;">
+                            <span class="info-label" data-translate="commentLabel">Комментарий:</span>
                             <span class="info-value" id="orderDetailComment">-</span>
                         </div>
                     </div>
@@ -870,7 +858,7 @@
 
                 <!-- Список товаров -->
                 <div class="order-items-section">
-                    <h4>Замовлені товари</h4>
+                    <h4 data-translate="orderedItems">Заказанные товары</h4>
                     <div id="orderItemsList" class="order-items-list">
                         <!-- Товары будут добавлены динамически -->
                     </div>
@@ -879,27 +867,27 @@
                 <!-- Итоговый расчет -->
                 <div class="order-total-section">
                     <div class="order-total-row">
-                        <span class="order-total-label">Вартість товарів:</span>
+                        <span class="order-total-label" data-translate="itemsCost">Стоимость товаров:</span>
                         <span class="order-total-value" id="orderItemsTotal">-</span>
                     </div>
                     <div class="order-total-row">
-                        <span class="order-total-label">Стоимость доставки:</span>
+                        <span class="order-total-label" data-translate="deliveryCost">Стоимость доставки:</span>
                         <span class="order-total-value" id="orderDeliveryCost">-</span>
                     </div>
                     <div class="order-total-row">
-                        <span class="order-total-label">Комиссия оплаты:</span>
+                        <span class="order-total-label" data-translate="paymentFee">Комиссия оплаты:</span>
                         <span class="order-total-value" id="orderPaymentFee">-</span>
                     </div>
                     <div class="order-total-row" id="orderBonusesRow" style="display: none;">
-                        <span class="order-total-label">Использованные бонусы:</span>
+                        <span class="order-total-label" data-translate="usedBonusesLabel">Использованные бонусы:</span>
                         <span class="order-total-value" id="orderBonusesTotal">-</span>
                     </div>
                     <div class="order-total-row" id="orderCouponRow" style="display: none;">
-                        <span class="order-total-label">Скидка по купону:</span>
+                        <span class="order-total-label" data-translate="couponDiscountLabel">Знижка за купоном</span>
                         <span class="order-total-value" id="orderCouponTotal">-</span>
                     </div>
                     <div class="order-total-row order-total-final">
-                        <span class="order-total-label">Итого:</span>
+                        <span class="order-total-label" data-translate="totalLabel">Итого:</span>
                         <span class="order-total-value" id="orderFinalTotal">-</span>
                     </div>
                 </div>

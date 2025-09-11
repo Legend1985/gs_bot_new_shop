@@ -1,18 +1,43 @@
 <?php
-header('Content-Type: application/json');
+// Устанавливаем заголовки для JSON ответа
+header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET');
-header('Access-Control-Allow-Headers: Content-Type');
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
 header('Cache-Control: no-cache, no-store, must-revalidate');
 header('Pragma: no-cache');
 header('Expires: 0');
 
+// Отключаем вывод ошибок в ответ
+ini_set('display_errors', 0);
+error_reporting(0);
+
+// Обработка preflight запросов
+if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
+
 // Параметры запроса
 $start = isset($_GET['start']) ? (int)$_GET['start'] : 0;
 $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 60;
+$category = isset($_GET['category']) ? $_GET['category'] : 'electro';
 
-// URL для скрапинга
-$baseUrl = 'https://guitarstrings.com.ua/electro';
+// URL для скрапинга в зависимости от категории
+$categoryUrls = [
+    'electro' => 'https://guitarstrings.com.ua/electro',
+    'electro-09' => 'https://guitarstrings.com.ua/electro/09-electric',
+    'electro-10' => 'https://guitarstrings.com.ua/electro/10-electric',
+    'electro-11' => 'https://guitarstrings.com.ua/electro/11-electric',
+    'acoustic' => 'https://guitarstrings.com.ua/acoustic',
+    'classic' => 'https://guitarstrings.com.ua/classic',
+    'bass' => 'https://guitarstrings.com.ua/bass',
+    'ukulele' => 'https://guitarstrings.com.ua/ukulele',
+    'picks' => 'https://guitarstrings.com.ua/picks',
+    'accessories' => 'https://guitarstrings.com.ua/accessories'
+];
+
+$baseUrl = isset($categoryUrls[$category]) ? $categoryUrls[$category] : $categoryUrls['electro'];
 if ($start > 0) {
     $baseUrl .= "?start={$start}";
 }

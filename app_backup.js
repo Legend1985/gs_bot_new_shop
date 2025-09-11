@@ -1,632 +1,2230 @@
-// Инициализация системы переводов
-if (typeof window.translations !== 'undefined') {
-    // ИСПРАВЛЕНИЕ БАГА: Принудительно устанавливаем украинский язык по умолчанию при первом заходе
-    const savedLanguage = localStorage.getItem('selectedLanguage');
-    if (!savedLanguage) {
-        console.log('Первый заход на сайт, устанавливаем украинский язык по умолчанию');
-        localStorage.setItem('selectedLanguage', 'uk');
+// GS Bot New Shop - Основной JavaScript файл
+console.log('app.js загружен');
+
+// Базовые переводы для критически важных сообщений (доступны сразу)
+const baseTranslations = {
+    uk: {
+        captchaError: "Неправильна капча"
+    },
+    ru: {
+        captchaError: "Неверная капча"
+    },
+    en: {
+        captchaError: "Incorrect captcha"
     }
-    
-    // Откладываем инициализацию переводов до полной загрузки DOM
-    setTimeout(() => {
-        window.translations.initTranslations();
-        console.log('Система переводов инициализирована');
-    }, 100);
-} else {
-    console.log('Система переводов загружается...');
+};
+
+// Функция для получения перевода (должна быть доступна сразу)
+function getTranslation(key, language = 'uk') {
+    // Сначала пробуем использовать полные translations
+    if (typeof translations !== 'undefined') {
+        const lang = translations[language] || translations.uk;
+        if (lang && lang[key]) {
+            return lang[key];
+        }
+    }
+
+    // Если полные translations недоступны, используем базовые
+    if (typeof baseTranslations !== 'undefined') {
+        const lang = baseTranslations[language] || baseTranslations.uk;
+        if (lang && lang[key]) {
+            return lang[key];
+        }
+    }
+
+    // В крайнем случае возвращаем ключ
+    console.warn('Перевод не найден для ключа:', key, 'на языке:', language);
+    return key;
 }
 
-// Проверяем, находимся ли мы в Telegram Web App
-let tg;
-console.log('=== ИНИЦИАЛИЗАЦИЯ TELEGRAM WEBAPP ===');
-console.log('window.Telegram:', !!window.Telegram);
-console.log('window.Telegram.WebApp:', !!window.Telegram?.WebApp);
-
-if (window.Telegram && window.Telegram.WebApp) {
-    tg = window.Telegram.WebApp;
-    console.log('Telegram WebApp найден, инициализируем...');
-    console.log('tg.initDataUnsafe:', !!tg.initDataUnsafe);
-    console.log('tg.initDataUnsafe.user:', !!tg.initDataUnsafe?.user);
-    
-    if (tg.initDataUnsafe?.user) {
-        console.log('Данные пользователя доступны:', tg.initDataUnsafe.user);
+// Глобальная обработка ошибок JavaScript
+window.addEventListener('error', function(e) {
+    // Игнорируем ошибки из telegram-web-app.js
+    if (e.filename && e.filename.includes('telegram-web-app.js')) {
+        console.warn('Игнорируем ошибку Telegram Web App:', e.message);
+        e.preventDefault(); // Предотвращаем дальнейшую обработку
+        return false;
     }
-    
-    tg.expand();
-    tg.MainButton.textColor = '#FFFFFF';
-    tg.MainButton.color = '#2cab37';
-    console.log('Telegram WebApp успешно инициализирован');
-} else {
-    // Fallback для обычного браузера
-    tg = {
-        WebApp: {
-            expand: () => console.log('Telegram WebApp не доступен'),
-            MainButton: {
-                textColor: '#FFFFFF',
-                color: '#2cab37',
-                text: '',
-                show: () => console.log('Telegram MainButton не доступен'),
-                onClick: (callback) => console.log('Telegram MainButton onClick не доступен')
-            },
-            ready: () => console.log('Telegram WebApp ready не доступен'),
-            sendData: (data) => console.log('Telegram sendData не доступен:', data)
-        }
-    };
-    console.log('Запущено в обычном браузере, Telegram функции недоступны');
-    
-    // В обычном браузере показываем серого человечка по умолчанию
-    console.log('Запущено в обычном браузере - показываем иконку пользователя по умолчанию');
-    
-    // Проверяем, есть ли данные пользователя Telegram (например, из localStorage)
-    const telegramUserData = localStorage.getItem('telegramUserData');
-    if (telegramUserData) {
-        try {
-            const userData = JSON.parse(telegramUserData);
-            if (userData.photo_url) {
-                console.log('Найдены данные пользователя Telegram, загружаем аватар...');
-                const profileImage = document.getElementById('profile-image');
-                const profileIcon = document.getElementById('profile-icon');
-                
-                if (profileImage && profileIcon) {
-                    profileImage.src = userData.photo_url;
-                    profileImage.style.display = 'block';
-                    profileIcon.style.display = 'none';
-                    console.log('Аватар пользователя Telegram загружен');
-                }
+
+    console.error('Глобальная ошибка JavaScript:', e.error);
+    console.error('Файл:', e.filename);
+    console.error('Строка:', e.lineno);
+    console.error('Столбец:', e.colno);
+    console.error('Сообщение:', e.message);
+});
+
+// Глобальная обработка необработанных промисов
+window.addEventListener('unhandledrejection', function(e) {
+    // Игнорируем ошибки, связанные с Telegram Web App
+    if (e.reason && e.reason.toString().includes('telegram')) {
+        console.warn('Игнорируем необработанный промис Telegram:', e.reason);
+        e.preventDefault();
+        return;
+    }
+
+    console.error('Необработанный промис:', e.reason);
+    e.preventDefault(); // Предотвращаем вывод в консоль браузера
+});
+
+// Экспортируем функции в глобальную область сразу при загрузке скрипта
+
+// === ОСНОВНЫЕ ФУНКЦИИ (определяем в начале файла) ===
+
+// Функции для работы с сохраненными данными входа
+function saveLoginData(username, password) {
+    try {
+        const loginData = {
+            username: username,
+            password: password,
+            timestamp: Date.now()
+        };
+        localStorage.setItem('savedLoginData', JSON.stringify(loginData));
+        console.log('Данные входа сохранены');
+    } catch (error) {
+        console.error('Ошибка сохранения данных входа:', error);
+    }
+}
+
+function loadSavedLoginData() {
+    try {
+        const savedData = localStorage.getItem('savedLoginData');
+        if (savedData) {
+            const loginData = JSON.parse(savedData);
+            const usernameField = document.getElementById('loginUsername');
+            const passwordField = document.getElementById('loginPassword');
+            const rememberCheckbox = document.getElementById('loginRemember');
+
+            // Проверяем, что форма логина видима
+            const loginSection = document.getElementById('dropdownLoginSection');
+            if (!loginSection || loginSection.style.display === 'none') {
+                console.log('loadSavedLoginData: Форма логина не отображена, пропускаем загрузку');
+                return;
             }
-        } catch (error) {
-            console.warn('Ошибка при загрузке данных пользователя Telegram:', error);
+
+            if (usernameField && loginData.username) {
+                usernameField.value = loginData.username;
+                console.log('loadSavedLoginData: Загружен username:', loginData.username);
+            }
+            if (passwordField && loginData.password) {
+                passwordField.value = loginData.password;
+                console.log('loadSavedLoginData: Загружен пароль');
+            }
+            if (rememberCheckbox) {
+                rememberCheckbox.checked = true;
+                console.log('loadSavedLoginData: Установлен флаг "Запомнить"');
+            }
+
+            console.log('Сохраненные данные входа загружены успешно');
+        } else {
+            console.log('loadSavedLoginData: Сохраненные данные не найдены');
         }
+    } catch (error) {
+        console.error('Ошибка загрузки данных входа:', error);
     }
 }
 
-// Переменные для загрузки товаров
-let currentPage = 0;
-let isLoading = false;
-let hasMoreProducts = true;
-const productsPerPage = 60;
-let maxProducts = 0;
-let loadedProductNames = new Set();
-let savedScrollPosition = 0;
+function clearSavedLoginData() {
+    try {
+        localStorage.removeItem('savedLoginData');
 
-// Делаем переменные доступными глобально для других скриптов
-window.loadedProductNames = loadedProductNames;
-window.currentPage = currentPage;
-window.isLoading = isLoading;
-window.hasMoreProducts = hasMoreProducts;
-window.maxProducts = maxProducts;
+        // Очищаем поля формы, если они существуют
+        const usernameField = document.getElementById('loginUsername');
+        const passwordField = document.getElementById('loginPassword');
+        const rememberCheckbox = document.getElementById('loginRemember');
+
+        if (usernameField) usernameField.value = '';
+        if (passwordField) passwordField.value = '';
+        if (rememberCheckbox) rememberCheckbox.checked = false;
+
+        console.log('Сохраненные данные входа очищены');
+
+        // Показываем уведомление пользователю
+        const loginMessage = document.getElementById('loginMessage');
+        if (loginMessage) {
+            loginMessage.textContent = 'Сохраненные данные очищены';
+            loginMessage.style.color = '#2cab37';
+            setTimeout(() => {
+                loginMessage.textContent = '';
+                loginMessage.style.color = '';
+            }, 3000);
+        }
+
+    } catch (error) {
+        console.error('Ошибка очистки данных входа:', error);
+    }
+}
+
+// Функция установки сообщений валидации
+function setValidationMessages(language = 'uk') {
+    const valueMissingMsg = getTranslation('validationValueMissing', language);
+    const emailMsg = getTranslation('validationEmail', language);
+
+    // Устанавливаем сообщения валидации для всех required полей
+    const requiredFields = document.querySelectorAll('input[required], textarea[required], select[required]');
+
+    requiredFields.forEach(field => {
+        if (field.type === 'email') {
+            field.setCustomValidity('');
+            field.addEventListener('invalid', function() {
+                if (this.validity.valueMissing) {
+                    this.setCustomValidity(valueMissingMsg);
+                } else if (this.validity.typeMismatch) {
+                    this.setCustomValidity(emailMsg);
+                }
+            });
+        } else {
+            field.setCustomValidity('');
+            field.addEventListener('invalid', function() {
+                if (this.validity.valueMissing) {
+                    this.setCustomValidity(valueMissingMsg);
+                }
+            });
+        }
+    });
+
+    console.log('Установлены сообщения валидации для языка:', language);
+}
+
+// Функция открытия чата в Telegram
+function openTelegramChat() {
+    // Всегда открываем в новой вкладке для сохранения страницы магазина
+    const telegramUrl = 'https://t.me/GuitarStringsUSA';
+
+    safeTelegramCall(
+        // Callback для случая, когда Telegram доступен
+        function(tg) {
+            if (typeof tg.openTelegramLink === 'function') {
+                // Используем window.open для гарантированного открытия в новой вкладке
+                window.open(telegramUrl, '_blank', 'noopener,noreferrer');
+                console.log('openTelegramChat: Открываем чат в новой вкладке через Telegram Web App');
+            } else {
+                window.open(telegramUrl, '_blank', 'noopener,noreferrer');
+                console.log('openTelegramChat: openTelegramLink недоступен, используем fallback в новой вкладке');
+            }
+        },
+        // Fallback для случая, когда Telegram недоступен
+        function() {
+            window.open(telegramUrl, '_blank', 'noopener,noreferrer');
+            console.log('openTelegramChat: Telegram недоступен, открываем в новой вкладке');
+        }
+    );
+}
+
+// Функция переключения меню
+function showMenuPopup() {
+    console.log('showMenuPopup: Переключаем меню');
+    const menu = document.getElementById('menuPopup');
+    if (!menu) {
+        console.error('showMenuPopup: Элемент menuPopup не найден');
+        return;
+    }
+
+    if (menu.style.display === 'block') {
+        menu.style.display = 'none';
+        console.log('showMenuPopup: Меню закрыто');
+    } else {
+        menu.style.display = 'block';
+        console.log('showMenuPopup: Меню открыто');
+    }
+}
+
+// Функция переключения настроек
+function showSettingsPopup() {
+    console.log('showSettingsPopup: Переключаем настройки');
+    const settings = document.getElementById('settingsPopup');
+    if (!settings) {
+        console.error('showSettingsPopup: Элемент settingsPopup не найден');
+        return;
+    }
+
+    if (settings.style.display === 'block') {
+        settings.style.display = 'none';
+        console.log('showSettingsPopup: Настройки закрыты');
+    } else {
+        settings.style.display = 'block';
+        console.log('showSettingsPopup: Настройки открыты');
+    }
+}
+
+// Функция переключения аватара меню
+function toggleAvatarMenu() {
+    console.log('toggleAvatarMenu: Переключаем меню аватара');
+    const menu = document.getElementById('avatarDropdown');
+    if (!menu) {
+        console.error('toggleAvatarMenu: Элемент avatarDropdown не найден');
+        return;
+    }
+
+    if (menu.style.display === 'block') {
+        menu.style.display = 'none';
+        console.log('toggleAvatarMenu: Меню аватара закрыто');
+    } else {
+        menu.style.display = 'block';
+        console.log('toggleAvatarMenu: Меню аватара открыто');
+    }
+}
+
+// Функция перехода в корзину
+function goToCart() {
+    console.log('goToCart: Проверяем корзину перед открытием');
+
+    // Убеждаемся, что cart определена
+    if (typeof cart === 'undefined') {
+        console.warn('goToCart: переменная cart не определена, инициализируем');
+        cart = [];
+    }
+
+    // Также проверяем window.cart для совместимости
+    if (window.cart && Array.isArray(window.cart) && window.cart.length > 0 && (!cart || cart.length === 0)) {
+        console.log('goToCart: Синхронизируем cart с window.cart');
+        cart = window.cart;
+    }
+
+    console.log('goToCart: Текущее состояние корзины:', {
+        cart: cart,
+        cartLength: cart ? cart.length : 'undefined',
+        windowCart: window.cart,
+        windowCartLength: window.cart ? window.cart.length : 'undefined',
+        cartItemCount: cartItemCount
+    });
+
+    // Проверяем, есть ли товары в корзине
+    if (!cart || cart.length === 0) {
+        console.log('goToCart: Корзина пуста, показываем подсказку');
+
+        // Показываем подсказку пользователю с использованием переводов
+        const currentLang = getCurrentLanguage ? getCurrentLanguage() : 'uk';
+        const message = getTranslation('emptyCartMessage', currentLang);
+
+        // Показываем уведомление
+        alert(message);
+
+        console.log('goToCart: Подсказка показана пользователю');
+        return false; // Возвращаем false для предотвращения дальнейших действий
+    }
+
+    const cartPopup = document.getElementById('cartPopup');
+    if (!cartPopup) {
+        console.error('goToCart: Элемент cartPopup не найден');
+        return false;
+    }
+
+    cartPopup.style.display = 'flex';
+    cartPopup.style.alignItems = 'center';
+    cartPopup.style.justifyContent = 'center';
+    console.log('goToCart: Корзина открыта, товаров:', cart.length);
+
+    // Рендерим товары в корзине
+    renderCartItems();
+
+    return true;
+}
+
+// Безопасная функция для работы с Telegram Web App
+function safeTelegramCall(callback, fallback) {
+    try {
+        if (window.Telegram && window.Telegram.WebApp) {
+            return callback(window.Telegram.WebApp);
+        } else {
+            if (fallback) fallback();
+        }
+    } catch (error) {
+        console.warn('safeTelegramCall: Ошибка работы с Telegram Web App:', error);
+        if (fallback) fallback();
+    }
+}
+
+// === КОНЕЦ ОСНОВНЫХ ФУНКЦИЙ ===
+
+// Инициализация корзины (перемещено выше для правильной области видимости)
+let cart = [];
+let cartItemCount = 0;
+// Глобальный кэш состояния авторизации (устранение гонок показа формы/логаута)
+window.__authState = window.__authState || { isAuthenticated: false, profile: null };
+// Определение авторизованности из различных форматов ответа API
+function isAuthenticatedData(data) {
+    try {
+        if (!data) return false;
+        let obj = data;
+        if (typeof data === 'object' && 'success' in data && 'profile' in data) {
+            obj = data.profile || {};
+        }
+        if (obj && obj.authenticated === true) return true;
+        const name = (obj.displayName || obj.username || '').toString().trim();
+        const email = (obj.email || '').toString().trim();
+        const phone = (obj.phone || '').toString().trim();
+        if (name && name.toLowerCase() !== 'guest') return true;
+        if (email) return true;
+        if (phone) return true;
+        return false;
+    } catch (_) {
+        return false;
+    }
+}
+
+// Возвращает строку Telegram-параметров для запроса профиля (если доступно)
+function getTelegramQueryString() {
+    try {
+        // Проверяем доступность Telegram Web App
+        if (!window.Telegram || !window.Telegram.WebApp) {
+            console.log('getTelegramQueryString: Telegram Web App недоступен');
+            return '';
+        }
+
+        const tg = window.Telegram.WebApp.initDataUnsafe;
+        const params = new URLSearchParams();
+
+        if (tg && tg.user) {
+            if (tg.user.id) params.set('tg_id', tg.user.id);
+            if (tg.user.username) params.set('tg_username', tg.user.username);
+            if (tg.user.first_name) params.set('tg_first_name', tg.user.first_name);
+            if (tg.user.last_name) params.set('tg_last_name', tg.user.last_name);
+            if (tg.user.photo_url) params.set('tg_photo_url', tg.user.photo_url);
+        }
+
+        const qs = params.toString();
+        return qs ? ('?' + qs) : '';
+    } catch (e) {
+        console.warn('getTelegramQueryString: Ошибка получения Telegram данных', e);
+        return '';
+    }
+}
 
 // Переменные для поиска
-let allProducts = []; // Массив всех загруженных товаров
+let searchTerm = '';
+let isSearchActive = false;
+let isCategoryFilterActive = false;
+let currentCategory = localStorage.getItem('currentCategory') || '';
+let searchTimeout = null;
 
-// Переменные для корзины
-let cart = []; // Массив товаров в корзине
-let cartTotal = 0; // Общая сумма корзины
-let cartItemCount = 0; // Общее количество товаров в корзине
+// Переменные для бесконечной прокрутки
+let currentPage = 0;
+let hasMoreProducts = true;
+let isLoading = false;
+let loadedProductNames = new Set();
 
-// Инициализация корзины из localStorage
-function initializeCart() {
-    loadCart();
+// Добавляем переменные для debounce
+let categorySearchTimeout = null;
+let lastCategorySearch = '';
+
+// Утилита для "loose"-нормализации названий (для устойчивого сопоставления)
+function normalizeLooseName(value) {
+    let s = (value || '')
+        .toLowerCase()
+        .normalize('NFKD')
+        // сначала убираем апострофы/кавычки без добавления пробела, чтобы d'addario → daddario
+        .replace(/[`'’]/g, '')
+        // прочую пунктуацию заменяем на пробелы
+        .replace(/[\u2000-\u206F\u2E00-\u2E7F"“".,:;!~_*+\-—–·•()\[\]{}<>/\\|@#%^&?=]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    // правка известных брендов: d addario → daddario
+    s = s.replace(/\bd\s+addario\b/g, 'daddario');
+    return s;
 }
 
-// Сохранение корзины в localStorage
-function saveCart() {
-    const cartData = {
-        items: cart,
-        total: cartTotal,
-        itemCount: cartItemCount
-    };
-    localStorage.setItem('gs_cart', JSON.stringify(cartData));
-    console.log('saveCart: Корзина сохранена:', cartData);
-}
+// Набор товаров "09 калибр электро" (именованный список, сравнение по имени в нижнем регистре)
+const GAUGE_09_ELECTRIC = new Set([
+    'orphee rx15 nickel alloy super light 9-42',
+    'ernie ball 2248 custom gauge stainless steel 9-42',
+    'ernie ball 2247 custom gauge stainless steel 9-46',
+    'ghs boomers gbcl custom light 9-46',
+    'ghs boomers gbxl extra light 9-42',
+    'daddario exl120+-3d nickel wound 9.5-44 1 set',
+    'daddario exl120-10p nickel wound super light 9-42 1 set',
+    'daddario exl125-10p nickel wound super lt top reg btm 9-46 1 set',
+    'daddario exl125 nickel wound super light top regular bottom 9-46',
+    'daddario exl120+ nickel wound super light plus 9.5-44',
+    'daddario exl120 nickel wound super light 9-42',
+    'dunlop 3pden0942 nickel wound extra light 9-42 1 set',
+    'dunlop den0942 nickel wound light 9-42',
+    'dunlop den0946 nickel wound light/heavy 9-46',
+    'ernie ball 2222 hybrid slinky 9-46',
+    'ernie ball 2223 super slinky 9-42',
+    'ernie ball 2212 primo slinky 9.5-44',
+    'fender 250l-3 nickel plated steel light 9-42 1 set',
+    'fender 250l nickel plated steel light 9-42',
+    'fender 250lr nickel plated steel 9-46 light/regular',
+    'ernie ball 2224 turbo slinky 9.5-46',
+    'ernie ball 2239 rps super slinky 9-42',
+    'ernie ball 2241 rps hybrid slinky 9-46',
+    'la bella hrs-xl hard rockin steel nickel-plated extra light 9-42',
+    'rotosound rh9 roto orange 9-46',
+    'rotosound r9 roto pinks 9-42',
+    'la bella hrs-l hard rockin steel nickel-plated light 9-46',
+    'ernie ball 2253 pure nickel super slinky 9-42',
+    'dunlop rwn0942 rev. willy mexican lottery billy gibbons 9-42',
+    'ernie ball 2252 pure nickel hybrid slinky 9-46',
+    'dean markley 2508 nickel steel 9-46 signature',
+    'daddario epn120 pure nickel wound super light 9-41',
+    'ghs bccl big core nickel rockers pure nickel 9.5-48 custom light',
+    'dean markley 2552 blue steel light 9-42',
+    'fender 3250l super bullets nickel plated steel 9-42 light',
+    'ernie ball 2722 cobalt slinky 9-46',
+    'ernie ball 2723 cobalt slinky 9-42',
+    'daddario nyxl09544 nickel wound carbon core super light plus 9.5-44',
+    'daddario nyxl0946 nickel wound carbon core custom light 9-46',
+    'daddario xte0942 xt extended life super light 9-42',
+    'daddario nyxl0942 nickel wound carbon core super light 9-42',
+    'daddario xte0946 xt extended life super top regular bottom 9-46',
+    'rotosound um9 ultramag type 52 alloy 9-42',
+    'ernie ball 3122 titanium hybrid slinky 9-46',
+    'ernie ball 3123 titanium super slinky 9-42',
+    'ernie ball 2712 cobalt primo slinky 9.5-44',
+    'elixir 16540 nanoweb super light 9-42 1 set',
+    'dr nge-9/46 hi-def neon green k3 coated light top heavy bottom 9-46',
+    'dr nge-9 hi-def neon green k3 coated light 9-42',
+    'daddario xse0942 xs coated nickel plated super light 9-42',
+    'daddario xse0946 xs coated nickel plated super light top reg btm 9-46',
+    'daddario xse09544 xs coated nickel plated super light plus 9.5-44',
+    'elixir 16550 optiweb nickel plated steel super light 9-42 1 set',
+    'elixir 12002 nanoweb super light 9-42',
+    'gibson seg-les9 les paul premium silk-wrapped pure nickel 9-42 ultra l',
+    'elixir 12027 nanoweb custom light 9-46',
+    'ernie ball 2022 paradigm hybrid slinky 9-46',
+    'ernie ball 2018 paradigm primo slinky 9.5-44',
+    'ernie ball 2023 paradigm super slinky 9-42',
+    'elixir 19002 optiweb nickel plated steel super light 9-42',
+    'elixir 19027 optiweb nickel plated steel custom light 9-46',
+    'ernie ball 2923 m-steel super slinky 9-42',
+    'ernie ball 2922 m-steel hybrid slinky 9-46',
+    'ernie ball 3826 paradigm tim henson signature electric strings 9.5-46',
+    'daddario exl120-3d nickel wound super light 9-42 3 sets',
+    'daddario exl125-3d nickel wound 9-46 3 sets',
+    'daddario exl120+-3d nickel wound 9.5-44 3 sets',
+    'dunlop 3pden0942 nickel wound extra light 9-42 3 sets',
+    'fender 250l-3 nickel plated steel light 9-42 3-pack',
+    'ernie ball 2593 flatwound cobalt super slinky 9-42',
+    'optima 2028 bm 24 karat gold plated brian may electric guitar strings 9-42',
+    'elixir 16540 nanoweb super light 9-42 3 sets',
+    'elixir 16550 optiweb nickel plated steel super light 9-42 3 sets',
+    'ernie ball 2722 cobalt slinky 9-46 6 sets',
+    'daddario exl125-10p nickel wound super lt top reg btm 9-46 10 sets',
+    'ernie ball 2222 hybrid slinky 9-46 12 sets',
+    'ernie ball 2223 super slinky 9-42 12 sets',
+    'elixir 12002 nanoweb super light 9-42 12 sets',
+    'ghs boomers gbxl 9-42 extra light 1 set',
+    'dr lh-9 tite-fit nickel plated electric guitar strings light heavy 9-46',
+    'fender 3250lr super bullets nickel plated steel 9-46 light/regular',
+    'ghs boomers gbxl-6p 9-42 extra light 6 sets',
+    'ernie ball 2723 cobalt slinky 9-42 6 sets',
+    'daddario exl120-10p nickel wound super light 9-42 10 sets',
+    'elixir 12027 nanoweb custom light 9-46 12 sets',
+    'dean markley 2502 nickel steel 9-42 signature',
+    'dean markley 2554 blue steel custom light 9-46'
+].map(s => s.toLowerCase()));
 
-// Загрузка корзины из localStorage
-function loadCart() {
-    const savedCart = localStorage.getItem('gs_cart');
-    if (savedCart) {
-        try {
-            const cartData = JSON.parse(savedCart);
-            cart = cartData.items || [];
-            cartTotal = cartData.total || 0;
-            cartItemCount = cartData.itemCount || 0;
-            console.log('loadCart: Корзина загружена:', cartData);
-        } catch (error) {
-            console.error('loadCart: Ошибка при загрузке корзины:', error);
-            cart = [];
-            cartTotal = 0;
-            cartItemCount = 0;
+// Набор товаров "10 калибр электро"
+const GAUGE_10_ELECTRIC = new Set([
+    'Orphee RX17 Nickel Alloy Normal Light 10-46',
+    "Musicians Gear MG10-46 Nickel-Plated Electric Guitar Strings 10-46",
+    'GHS Boomers GBLXL Light/Extra Light 10-38',
+    'GHS Boomers GB-DGF David Gilmour 10-48',
+    'GHS Boomers GBL 10-46 Regular',
+    'GHS Boomers GBTNT Thin/Thick 10-52',
+    'Ernie Ball 2246 Custom Gauge Stainless Steel 10-46',
+    'GHS Boomers GB-DGG David Gilmour 10.5-50',
+    'DAddario EXL110-10P Nickel Wound Regular Light 10-46 1 set',
+    'DAddario EXL110 Nickel Wound Regular Light 10-46',
+    'DAddario EXL110+ Nickel Wound Regular Light Plus 10.5-48',
+    'Dunlop 3PDEN1046 Nickel Wound 10-46 Light 1 set',
+    'Ernie Ball 2213 Mega Slinky 10.5-48',
+    'Ernie Ball 2215 Skinny Top Heavy Bottom 10-52',
+    'Ernie Ball 2221 Regular Slinky 10-46',
+    'Dunlop DEN1046 Nickel Wound Light 10-46',
+    'Dunlop DEN1052 Nickel Wound Light/Heavy 10-52',
+    'Ernie Ball 2211 Mondo Slinky 10.5-52',
+    'DR MT-10 Tite-Fit Nickel Plated Electric Guitar Strings Meduim 10-46',
+    'Dunlop DHCN1048 Heavy Core 10-48',
+    'Fender 250R-3 Nickel-Plated Steel 10-46 Regular 1 set',
+    'DAddario EXL140-10P Nickel Wound Light Top Heavy Bottom 10-52 1 set',
+    'Fender 250RH Nickel Plated Steel 10-52 Regular/Heavy',
+    'GHS Boomers GBZW Heavy Bottom Zakk Wylde 10-60',
+    'Fender 250R Nickel-Plated Steel 10-46 Regular',
+    'Ernie Ball 2227 Ultra Slinky 10-48',
+    'DAddario EXL140 Nickel Wound Light Top Heavy Bottom 10-52',
+    'Ernie Ball 2240 RPS Regular Slinky 10-46',
+    'DAddario EXL110-E Nickel Wound Regular Light 1-st Extra String 10-46',
+    'Rotosound R10 Roto Yellows 10-46',
+    'Rotosound RH10 Roto Blues 10-52',
+    'Dunlop KKN1052 Kerry King Signature Medium 10-52',
+    'Ernie Ball 2251 Pure Nickel Regular Slinky 10-46',
+    "Dunlop RWN1046 Rev. Willy Mexican Lottery Billy Gibbons 10-46",
+    'DAddario EPN110 Pure Nickel Wound Regular Light 10-45',
+    'GHS BCL Big Core Nickel Rockers Pure Nickel 10.5-48 Light',
+    'Dean Markley 2556 Blue Steel Regular 10-46',
+    'Dunlop ZWEN1046 String Lab Zakk Wylde Signature Medium 10-46',
+    'Dunlop ZWEN1052 String Lab Zakk Wylde Signature Light/Heavy 10-52',
+    'DAddario NYXL1046 Nickel Wound Carbon Core Regular Light 10-46',
+    'Ernie Ball 3818 Silver Slinky John Mayer Signature 1-Pack 10.5-47',
+    'Ernie Ball 2721 Cobalt Slinky 10-46',
+    'DAddario XTE1046 XT Extended Life Regular Light 10-46',
+    'DAddario XTE1052 XT Extended Life Light Top Heavy Bottom 10-52',
+    'Dunlop TVMN1052 Trivium Heavy Core Custom Set 10-52',
+    'Rotosound UM10 Ultramag Type 52 Alloy 10-46',
+    'DAddario NYXL1052 Nickel Wound Carbon Core LTHB 10-52',
+    'Ernie Ball 2715 Cobalt Slinky 10-52',
+    'Ernie Ball 2218 Silver Slinky John Mayer Signature 10.5-47',
+    'Fender 3250R Super Bullets Nickel Plated Steel 10-46 Regular',
+    'Ernie Ball 3115 Titanium S.T.H.B. Slinky 10-52',
+    'Ernie Ball 3121 Titanium Regular Slinky 10-46',
+    'Ernie Ball 2717 Cobalt Ultra Slinky 10-48',
+    'Elixir 16542 Nanoweb Light 10-46 1 set',
+    'DR NGE-10 Hi-Def Neon Green K3 Coated Medium 10-46',
+    'DAddario XSE1046 XS Coated Nickel Plated Regular Light 10-46',
+    'DAddario XSE1052 XS Coated Nickel Plated Light Top Heavy Bottom 10-52',
+    'Elixir 16552 Optiweb Nickel Plated Steel Light 10-46 1 set',
+    'Elixir 12052 Nanoweb Light 10-46',
+    'Gibson SEG-BWR10 Brite Wire Reinforced Nickel Plated 10-46 Light',
+    'Gibson SEG-LES10 Les Paul Premium Silk-Wrapped Pure Nickel 10-46 Light',
+    'Elixir 12077 Nanoweb Light-Heavy 10-52',
+    'Ernie Ball 2015 Paradigm Skinny Top Heavy Bottom 10-52',
+    'Ernie Ball 2017 Paradigm Ultra Slinky 10-48',
+    'Ernie Ball 2021 Paradigm Regular Slinky 10-46',
+    'Elixir 19052 Optiweb Nickel Plated Steel Light 10-46',
+    'Elixir 19077 Optiweb Nickel Plated Steel Light Heavy 10-52',
+    'Ernie Ball 2921 M-Steel Regular Slinky 10-46',
+    'Ernie Ball 2915 M-Steel STHB Slinky 10-52',
+    'DAddario ECG23-3D Chromes Flat Wound 10-48 1 set',
+    'DAddario EXL110-3D Nickel Wound Regular Light 10-46 3 sets',
+    'Dunlop 3PDEN1046 Nickel Wound 10-46 Light 3 sets',
+    'Ernie Ball 3213 Mega Slinky 10.5-48 3 Pack',
+    'DAddario EXL140-3D Nickel Wound 10-52 3 sets',
+    'Fender 250R-3 Nickel-Plated Steel 10-46 Regular 3-Pack',
+    'Ernie Ball Synyster Gates Signature Stainless Steel RPS Strings 10-52',
+    'Ernie Ball 2591 Flatwound Cobalt Regular Slinky 10-46',
+    'Elixir 16552 Optiweb Nickel Plated Steel Light 10-46 3 sets',
+    'Ernie Ball 3818 Silver Slinky John Mayer Signature 3-Pack Tin 10.5-47',
+    'DAddario ECG23-3D Chromes Flat Wound 10-48 3 sets',
+    'DAddario NYXL1046 Nickel Wound Carbon Core Regular 10-46 5 Pack',
+    'Ernie Ball 2721 Cobalt Slinky 10-46 6 sets',
+    'Ernie Ball 2715 Cobalt Slinky 10-52 6 sets',
+    'GHS Boomers GBL 10-46 Regular 10 sets',
+    'Ernie Ball 3818 Silver Slinky John Mayer Signature 6-Pack 10.5-47',
+    'DAddario EXL110-10P Nickel Wound Regular Light 10-46 10 sets',
+    'DAddario EXL140-10P Nickel Wound Light Top Heavy Bottom 10-52 10 sets',
+    'GHS Boomers GB-DGF 10-48 David Gilmour 12 sets',
+    'GHS Boomers GB-DGG 10.5-50 David Gilmour 12 sets',
+    'Ernie Ball 2215 Skinny Top Heavy Bottom 10-52 12 sets',
+    'Ernie Ball 2221 Regular Slinky 10-46 12 sets',
+    'Ernie Ball 2251 Pure Nickel Regular Slinky 10-46 12 sets',
+    'Elixir 12052 Nanoweb Light 10-46 12 sets',
+    'GHS Boomers GBL 10-46 Regular 1 set',
+    'Dunlop DHCN1060-6 Heavy Core 10-60',
+    'La Bella HRS-R Hard Rockin Steel Nickel-Plated Regular 10-46',
+    'Pyramid R451 100 Pure Nickel Classics Round Core 10-46 Regular',
+    'Elixir 16542 Nanoweb Light 10-46 3 Sets',
+    'GHS Boomers GBL-6P 10-46 Regular 6 sets',
+    'Cleartone 9520 10-52 Light Top Heavy Bottom Nickel-Plated Monster',
+    'Pyramid R451 100 Pure Nickel Classics Round Core 10-46 15 sets',
+    'Dean Markley 2503 Nickel Steel 10-46 Signature',
+    'Dean Markley 2504 Nickel Steel 10-52 Signature',
+    'Dean Markley 2558 Blue Steel LTHB 10-52'
+].map(s => s.toLowerCase()));
+
+// Набор товаров "11 калибр электро"
+const GAUGE_11_ELECTRIC = new Set([
+    'Orphee RX19 Nickel Alloy Medium 11-50',
+    'GHS Boomers GBM Medium 11-50',
+    'GHS Boomers GBM 11-50 Medium 1 set',
+    'Ernie Ball 2245 Custom Gauge Stainless Steel 11-48',
+    'GHS Boomers GB-LOW Medium 11-53',
+    'DAddario EXL115-10P Nickel Wound Medium 11-49 1 set',
+    'DAddario EXL115 Nickel Wound Medium 11-49',
+    'Ernie Ball 2220 Power Slinky 11-48',
+    'Fender 250M Nickel-Plated Steel 11-49 Medium',
+    'GHS Boomers GBTM 11-50 Medium',
+    'GHS Boomers GBZWLO Heavyweight Custom Low-Tune 11-70',
+    'Dunlop DEN1156 Nickel Wound Hybrid 11-56',
+    'Dunlop DHCN1150 Heavier Core 11-50',
+    'DAddario EXL117 Nickel Wound 11-56',
+    'DAddario EXL115W Nickel Wound Medium Wound 3-rd 11-49',
+    'DAddario EXL116 Nickel Wound 11-52',
+    'Ernie Ball 2627 Beefy Slinky 11-54',
+    'Ernie Ball 2242 RPS Power Slinky 11-48',
+    'DR EH-11 Tite-Fit Nickel Plated Electric Guitar Strings Ext Hvy 11-50',
+    'Rotosound R11-54 Roto Whites 11-54',
+    'Ernie Ball 2250 Pure Nickel Power Slinky 11-48',
+    'DAddario EPN115 Pure Nickel Wound Medium 11-48',
+    'Dean Markley 2562 Blue Steel Medium 11-52',
+    'DAddario NYXL1149 Nickel Wound Carbon Core Medium 11-49',
+    'DAddario EHR370 Half Rounds Semi-Flat Wound Stainless Steel 11-49',
+    'Ernie Ball 2720 Cobalt Slinky 11-48',
+    'Dunlop JRN1156DB Jim Root Signature Drop B 11-56',
+    'DAddario XTE1149 XT Extended Life Medium 11-49',
+    'Dunlop BEHN1156 String Lab Behemoth Signature Custom 11-56',
+    'DAddario NYXL1156 Nickel Wound Carbon Core Med. Top X-H Btm 11-56',
+    'Ernie Ball 2727 Cobalt Slinky 11-54',
+    'Ernie Ball 3120 Titanium Power Slinky 11-48',
+    'DAddario NYXL1152 Nickel Wound Carbon Core Med. Top H. Btm. 11-52',
+    'Cleartone 9456 Drop D 11-56 Nickel-Plated Monster',
+    'Ernie Ball 2716 Cobalt Burly Slinky 11-52',
+    'DR NGE-11 Hi-Def Neon Green K3 Coated Medium 11-50',
+    'Ernie Ball 3127 Titanium Beefy Slinky 11-54',
+    'DAddario XSE1156 XS Coated Nickel Plated Med Top X-Hvy Bottom 11-56',
+    'DAddario XSE1149 XS Coated Nickel Plated Medium 11-49',
+    'Elixir 12102 Nanoweb Medium 11-49',
+    'Ernie Ball 2020 Paradigm Power Slinky 11-48',
+    'Ernie Ball 2027 Paradigm Beefy Slinky 11-54',
+    'Elixir 19102 Optiweb Nickel Plated Steel Medium 11-49',
+    'Ernie Ball 2920 M-Steel Power Slinky 11-48',
+    'DAddario ECG24-3D Chromes Flat Wound 11-50 1 set',
+    'DAddario ECG24 Chromes Flat Wound Jazz Light 11-50',
+    'DAddario EXL115-3D Nickel Wound 11-49 3 sets',
+    'Ernie Ball 2590 Flatwound Cobalt Power Slinky 11-48',
+    'Ernie Ball 2580 Flatwound Stainless Steel Flats Light 11-50',
+    'Ernie Ball 3822 Paradigm Papa Hets 72 Seasons 3-Pack Tin 11-50',
+    'Ernie Ball 3821 Paradigm Papa Hets Hard Wired 3-Pack Tin 11-50',
+    'DAddario ECG24-3D Chromes Flat Wound 11-50 3 sets',
+    'DAddario EXL115-10P Nickel Wound Medium 11-49 10 sets',
+    'DAddario EXL117 Nickel Wound 11-56 10 Sets',
+    'Ernie Ball 2220 Power Slinky 11-48 12 sets',
+    'Rotosound R11 Roto Reds 11-48',
+    'Dunlop DEN1150 Nickel Wound Medium/Heavy 11-50',
+    'GHS Boomers GBM-6P 11-50 Medium 6 sets',
+    'Ernie Ball 2720 Cobalt Slinky 11-48 6 sets',
+    'Dean Markley 2505 Nickel Steel 11-52 Signature'
+].map(s => s.toLowerCase()));
+// Список Nickel Plated Electric Strings (эталонные названия)
+const NICKEL_PLATED_ELECTRIC = new Set([
+    'Orphee RX19 Nickel Alloy Medium 11-50',
+    'Orphee RX15 Nickel Alloy Super Light 9-42',
+    'Orphee RX17 Nickel Alloy Normal Light 10-46',
+    "Musicians Gear MG10-46 Nickel-Plated Electric Guitar Strings 10-46",
+    'GHS Boomers GBLXL Light/Extra Light 10-38',
+    'GHS Boomers GBM Medium 11-50',
+    'GHS Boomers GBM 11-50 Medium 1 set',
+    'DAddario EXL125-10P Nickel Wound Super Lt Top Reg Btm 9-46 1 set',
+    'GHS Boomers GBXL Extra Light 9-42',
+    'DAddario EXL110-10P Nickel Wound Regular Light 10-46 1 set',
+    'DAddario EXL115-10P Nickel Wound Medium 11-49 1 set',
+    'GHS Boomers GB-DGF David Gilmour 10-48',
+    'DAddario EXL120-10P Nickel Wound Super Light 9-42 1 set',
+    'DAddario EXL120+-3D Nickel Wound 9.5-44 1 set',
+    'GHS Boomers GB-LOW Medium 11-53',
+    'GHS Boomers GBL 10-46 Regular',
+    'GHS Boomers GB-DGG David Gilmour 10.5-50',
+    'GHS Boomers GBCL Custom Light 9-46',
+    'GHS Boomers GBTNT Thin/Thick 10-52',
+    'DAddario EXL125 Nickel Wound Super Light Top Regular Bottom 9-46',
+    'DAddario EXL115 Nickel Wound Medium 11-49',
+    'DAddario EXL130+ Nickel Wound Extra Super Light Plus 8.5-39',
+    'DAddario EXL120+ Nickel Wound Super Light Plus 9.5-44',
+    'DAddario EXL110 Nickel Wound Regular Light 10-46',
+    'DAddario EXL110+ Nickel Wound Regular Light Plus 10.5-48',
+    'DAddario EXL120 Nickel Wound Super Light 9-42',
+    'DAddario EXL130 Nickel Wound Extra Super Light 8-38',
+    'Dunlop 3PDEN0942 Nickel Wound Extra Light 9-42 1 set',
+    'Dunlop 3PDEN1046 Nickel Wound 10-46 Light 1 set',
+    'Ernie Ball 2215 Skinny Top Heavy Bottom 10-52',
+    'Rotosound R12 Roto Purples 12-52',
+    'Ernie Ball 2213 Mega Slinky 10.5-48',
+    'Ernie Ball 2220 Power Slinky 11-48',
+    'Ernie Ball 2221 Regular Slinky 10-46',
+    'Rotosound R13 Roto Greys 13-54',
+    'Dunlop DEN1046 Nickel Wound Light 10-46',
+    'Dunlop DEN0942 Nickel Wound Light 9-42',
+    'Dunlop DEN1052 Nickel Wound Light/Heavy 10-52',
+    'Dunlop DEN0946 Nickel Wound Light/Heavy 9-46',
+    'Ernie Ball 2222 Hybrid Slinky 9-46',
+    'Ernie Ball 2223 Super Slinky 9-42',
+    'GHS Boomers GBZWLO Heavyweight Custom Low-Tune 11-70',
+    'GHS Boomers GBTM 11-50 Medium',
+    'Fender 250M Nickel-Plated Steel 11-49 Medium',
+    'Ernie Ball 2212 Primo Slinky 9.5-44',
+    'Dunlop DHCN1048 Heavy Core 10-48',
+    'Dunlop DHCN1150 Heavier Core 11-50',
+    'Ernie Ball 2211 Mondo Slinky 10.5-52',
+    'Dunlop DHCN1254 Heaviest Core 12-54',
+    'Ernie Ball 2217 Zippy Slinky 7-36',
+    'DR MT-10 Tite-Fit Nickel Plated Electric Guitar Strings Meduim 10-46',
+    'Dunlop DEN1156 Nickel Wound Hybrid 11-56',
+    'DAddario EXL140-10P Nickel Wound Light Top Heavy Bottom 10-52 1 set',
+    'Fender 250R-3 Nickel-Plated Steel 10-46 Regular 1 set',
+    'DAddario EXL116-3D Nickel Wound 11-52 1 set',
+    'Fender 250L-3 Nickel Plated Steel Light 9-42 1 set',
+    'DAddario EXL115W Nickel Wound Medium Wound 3-rd 11-49',
+    'Fender 250L Nickel Plated Steel Light 9-42',
+    'Fender 250LR Nickel Plated Steel 9-46 Light/Regular',
+    'GHS Boomers GBZW Heavy Bottom Zakk Wylde 10-60',
+    'DAddario EXL148 Nickel Wound Extra Heavy 12-60',
+    'Fender 250R Nickel-Plated Steel 10-46 Regular',
+    'DAddario EXL117 Nickel Wound 11-56',
+    'Fender 250RH Nickel Plated Steel 10-52 Regular/Heavy',
+    'DAddario EXL145 Nickel Wound Heavy 12-54',
+    'Ernie Ball 2225 Nickel Extra Slinky 8-38',
+    'DAddario EXL140 Nickel Wound Light Top Heavy Bottom 10-52',
+    'Ernie Ball 2228 Mighty Slinky 8.5-40',
+    'Ernie Ball 2226 Burly Slinky 11-52',
+    'Ernie Ball 2224 Turbo Slinky 9.5-46',
+    'Ernie Ball 2227 Ultra Slinky 10-48',
+    'Ernie Ball 2229 Hyper Slinky 8-42',
+    'Ernie Ball 2216 Skinny Top Beefy Bottom 10-54',
+    'Ernie Ball 2626 Not Even Slinky Drop Tuning 12-56',
+    'Ernie Ball 2627 Beefy Slinky 11-54',
+    'Ernie Ball 2214 Mammoth Slinky 12-62',
+    'Ernie Ball 2240 RPS Regular Slinky 10-46',
+    'Ernie Ball 2242 RPS Power Slinky 11-48',
+    'Ernie Ball 2239 RPS Super Slinky 9-42',
+    'Ernie Ball 2241 RPS Hybrid Slinky 9-46',
+    'DAddario EXL110-E Nickel Wound Regular Light 1-st Extra String 10-46',
+    'DAddario EJ21 Nickel Wound Jazz Light Wound Third 12-52',
+    'Rotosound RH10 Roto Blues 10-52',
+    'Rotosound R12-56 Roto Silvers 12-56',
+    'Rotosound R12-60 Roto Blacks 12-60',
+    'Rotosound R11-54 Roto Whites 11-54',
+    'La Bella HRS-XL Hard Rockin Steel Nickel-Plated Extra Light 9-42',
+    'Rotosound R10 Roto Yellows 10-46',
+    'DR EH-11 Tite-Fit Nickel Plated Electric Guitar Strings Ext Hvy 11-50',
+    'Rotosound R9 Roto Pinks 9-42',
+    'Rotosound RH9 Roto Orange 9-46',
+    'La Bella HRS-L Hard Rockin Steel Nickel-Plated Light 9-46',
+    'Dunlop KKN1052 Kerry King Signature Medium 10-52',
+    'Dunlop DEN1056-7 Nickel Wound 7-String 10-56',
+    'Dunlop RWN0942 Rev. Willy Mexican Lottery Billy Gibbons 9-42',
+    'Dunlop RWN0840 Rev. Willy Mexican Lottery Billy Gibbons 8-40',
+    'Dunlop RWN0738 Rev. Willy Mexican Lottery Billy Gibbons 7-38',
+    'Dunlop RWN1046 Rev. Willy Mexican Lottery Billy Gibbons 10-46',
+    'Ernie Ball 2618 Magnum Slinky Drop Tuning 12-56',
+    'GHS Boomers GB7L 7-String Light 9-58',
+    'GHS Boomers GB7M 7-String Medium 10-60',
+    'GHS Boomers GB7MH 7-String Medium Heavy 11-64',
+    'DAddario EXL110-7 7-String Nickel Wound Regular Light 10-59',
+    'Dean Markley 2508 Nickel Steel 9-46 Signature',
+    'GHS Boomers GB7H 7-String Heavy 13-74',
+    'Ernie Ball 2620 7-String Power Slinky 11-58',
+    'Ernie Ball 2621 7-String Regular Slinky 10-56',
+    'Ernie Ball 2623 7-String Super Slinky 9-52',
+    'Ernie Ball 2839 Baritone 6 string Slinky 13-72',
+    'Ernie Ball 2615 7-String Skinny Top Heavy Bottom 10-62',
+    'DR TF8-11 Tite-Fit 8-String 11-80 Round Core',
+    'DAddario EXL158 Nickel Wound Baritone Light 13-62',
+    'Fender 3250L Super Bullets Nickel Plated Steel 9-42 Light',
+    'Dunlop ZWEN1060 String Lab Zakk Wylde Signature Custom Heavy 10-60',
+    'Dunlop ZWEN1046 String Lab Zakk Wylde Signature Medium 10-46',
+    'Dunlop ZWEN1052 String Lab Zakk Wylde Signature Light/Heavy 10-52',
+    'Dunlop ZWEN1056 String Lab Zakk Wylde Signature Light/Heavy 10-56',
+    'DAddario EXL150 Nickel Wound Regular Light 12-String 10-46',
+    'DAddario NYXL1149 Nickel Wound Carbon Core Medium 11-49',
+    'DAddario EXL157 Nickel Wound Baritone Medium 14-68',
+    'DAddario NYXL09544 Nickel Wound Carbon Core Super Light Plus 9.5-44',
+    'GHS Boomers GBCL-8 8-String Custom Light 9-74',
+    'Dunlop JRN1156DB Jim Root Signature Drop B 11-56',
+    'Dunlop JRN1264DA Jim Root Signature Drop A 12-64',
+    'Ernie Ball 3818 Silver Slinky John Mayer Signature 1-Pack 10.5-47',
+    'DAddario NYXL0946 Nickel Wound Carbon Core Custom Light 9-46',
+    'DAddario XTE1149 XT Extended Life Medium 11-49',
+    'Dunlop BEHN1156 String Lab Behemoth Signature Custom 11-56',
+    'DAddario XTE1046 XT Extended Life Regular Light 10-46',
+    'DAddario XTE0946 XT Extended Life Super Top Regular Bottom 9-46',
+    'DAddario XTE0942 XT Extended Life Super Light 9-42',
+    'Dunlop TVMN1052 Trivium Heavy Core Custom Set 10-52',
+    'Dunlop DHCN1060-7 Heavy Core 7-String 10-60',
+    'DAddario NYXL0942 Nickel Wound Carbon Core Super Light 9-42',
+    'DAddario XTE1052 XT Extended Life Light Top Heavy Bottom 10-52',
+    'DAddario NYXL1052 Nickel Wound Carbon Core LTHB 10-52',
+    'Ernie Ball 3122 Titanium Hybrid Slinky 9-46',
+    'DAddario EXL120-8 Nickel Wound 8-String Super Light 9-65',
+    'Ernie Ball 3123 Titanium Super Slinky 9-42',
+    'DAddario NYXL1254 Nickel Wound Carbon Core Heavy 12-54',
+    'Ernie Ball 2218 Silver Slinky John Mayer Signature 10.5-47',
+    'La Bella HRS-72 Hard Rockin Steel Nickel-Plated 7-String 10-64',
+    'DAddario NYXL1156 Nickel Wound Carbon Core Med. Top X-H Btm 11-56',
+    'Ernie Ball 3120 Titanium Power Slinky 11-48',
+    'Fender 3250R Super Bullets Nickel Plated Steel 10-46 Regular',
+    'DAddario NYXL1260 Nickel Wound Carbon Core Extra Heavy 12-60',
+    'DAddario NYXL1152 Nickel Wound Carbon Core Med. Top H. Btm. 11-52',
+    'GHS Boomers GBH-8 8-String 11-85 Heavy',
+    'Cleartone 9456 Drop D 11-56 Nickel-Plated Monster',
+    'Cleartone 9460 Drop C# 12-60 Nickel-Plated Monster',
+    'Cleartone 9470 Drop C Nickel-Plated Heavy Series 13-70',
+    'Ernie Ball 2837 Bass Guitar 6 string Slinky 20-90',
+    'Ernie Ball 3121 Titanium Regular Slinky 10-46',
+    'Ernie Ball 3126 Titanium Not Even Slinky 12-56',
+    'Ernie Ball 3115 Titanium S.T.H.B. Slinky 10-52',
+    'Elixir 16540 Nanoweb Super Light 9-42 1 set',
+    'Elixir 16542 Nanoweb Light 10-46 1 set',
+    'Cleartone 9410-7 Light 7-String 10-56 Nickel-Plated Monster',
+    'Ernie Ball 2629 8-String Regular Slinky 10-74',
+    'Ernie Ball 3127 Titanium Beefy Slinky 11-54',
+    'Ernie Ball 2624 9-80 8-String Skinny Top Heavy Bottom Custom Gauge',
+    'Dunlop KRHCN1065 Korn Heavy Core Custom Set 7-String 10-65',
+    'Dunlop BEHN1162-7 String Lab Behemoth Custom 7-String 11-62',
+    'DAddario XSE09544 XS Coated Nickel Plated Super Light Plus 9.5-44',
+    'DAddario XSE0942 XS Coated Nickel Plated Super Light 9-42',
+    'DAddario XSE0946 XS Coated Nickel Plated Super Light Top Reg Btm 9-46',
+    'DAddario XSE1046 XS Coated Nickel Plated Regular Light 10-46',
+    'DAddario XSE1052 XS Coated Nickel Plated Light Top Heavy Bottom 10-52',
+    'DAddario XSE1149 XS Coated Nickel Plated Medium 11-49',
+    'DAddario XSE1156 XS Coated Nickel Plated Med Top X-Hvy Bottom 11-56',
+    'DAddario NYXL1059 Nickel Wound Carbon Core Light 7-String 10-59',
+    'DAddario NYXL1252W Nickel Wound Carbon Core Light 12-52',
+    'DAddario NYXL1164 Nickel Wound Carbon Core Medium 7-String 11-64',
+    'Dunlop TVMN1063-7 Trivium Heavy Core Custom Set 7-String 10-63',
+    'Elixir 16552 Optiweb Nickel Plated Steel Light 10-46 1 set',
+    'Ernie Ball 2625 10-74 8-String Slinky Custom Gauge',
+    'Elixir 16550 Optiweb Nickel Plated Steel Super Light 9-42 1 set',
+    'Gibson SEG-BWR10 Brite Wire Reinforced Nickel Plated 10-46 Light',
+    'Elixir 12027 Nanoweb Custom Light 9-46',
+    'Elixir 12052 Nanoweb Light 10-46',
+    'Elixir 12077 Nanoweb Light-Heavy 10-52',
+    'Elixir 12102 Nanoweb Medium 11-49',
+    'Curt Mangan 11074 Nickel Wound 8-String 10-74',
+    'Elixir 12152 Nanoweb Heavy 12-52',
+    'Dunlop DEN0974-8 Nickel Wound 8-String 9-74',
+    'DAddario EXL140-8 8-String Nickel Wound Light Top/Heavy BTM 10-74',
+    'Elixir 12302 Nanoweb Baritone 12-68',
+    'DAddario XTE1059 XT Extended Life 7-String Regular Light 10-59',
+    'Ernie Ball 2018 Paradigm Primo Slinky 9.5-44',
+    'Ernie Ball 2023 Paradigm Super Slinky 9-42',
+    'Ernie Ball 2015 Paradigm Skinny Top Heavy Bottom 10-52',
+    'Ernie Ball 2021 Paradigm Regular Slinky 10-46',
+    'Ernie Ball 2022 Paradigm Hybrid Slinky 9-46',
+    'Ernie Ball 2020 Paradigm Power Slinky 11-48',
+    'Ernie Ball 2016 Paradigm Burly Slinky 11-52',
+    'Ernie Ball 2027 Paradigm Beefy Slinky 11-54',
+    'Ernie Ball 2017 Paradigm Ultra Slinky 10-48',
+    'Ernie Ball 2026 Paradigm Not Even Slinky Drop Tuning 12-56',
+    'Elixir 19052 Optiweb Nickel Plated Steel Light 10-46',
+    'Elixir 19027 Optiweb Nickel Plated Steel Custom Light 9-46',
+    'Elixir 19077 Optiweb Nickel Plated Steel Light Heavy 10-52',
+    'Elixir 19102 Optiweb Nickel Plated Steel Medium 11-49',
+    'Elixir 19002 Optiweb Nickel Plated Steel Super Light 9-42',
+    'Ernie Ball 2028 Paradigm 7-String Regular Slinky 10-56',
+    'GHS GC6-1536 Custom Shop Electric Lap Steel Strings C6 Tuning 15-36',
+    'La Bella HRS-71 Hard Rockin Steel Nickel-Plated 7-String 9-64',
+    'DAddario XSE1252W XS Coated Nickel Plated Jazz Light 12-52',
+    'Ernie Ball 2030 Paradigm 7-String STHB 10-62',
+    'DAddario XSE1056 XS Coated Nickel Plated 7-String Regular Light 10-56',
+    'DAddario NYXL0980 Nickel Wound Carbon Core 8-String 9-80',
+    'DAddario NYXL1074 Nickel Wound Carbon Core 8-String 10-74',
+    'Elixir 12106 NanoWeb 7-String Medium 11-59',
+    'Elixir 12074 Nanoweb 7-String Light/Heavy 10-59',
+    'Elixir 12057 Nanoweb 7-String Light 10-56',
+    'Elixir 12007 Nanoweb 7-String Super Light 9-52',
+    'DAddario EXL156 Nickel Wound Guitar/Bass 24-84',
+    'La Bella HRS-81 Hard Rockin Steel Nickel-Plated 8-String 9-74',
+    'Elixir 19074 Optiweb Nickel Plated Steel 7-String Light/Heavy 10-59',
+    'Elixir 19106 Optiweb Nickel Plated Steel 7-String Medium 11-59',
+    'Elixir 19057 Optiweb Nickel Plated Steel 7-String Light 10-56',
+    'Elixir 19007 Optiweb Nickel Plated Steel 7-String Super Light 9-52',
+    'DAddario EXL120+-3D Nickel Wound 9.5-44 3 sets',
+    'DAddario EXL120-3D Nickel Wound Super Light 9-42 3 sets',
+    'DAddario EXL125-3D Nickel Wound 9-46 3 sets',
+    'DAddario EXL110-3D Nickel Wound Regular Light 10-46 3 sets',
+    'DAddario EXL115-3D Nickel Wound 11-49 3 sets',
+    'Dunlop 3PDEN0942 Nickel Wound Extra Light 9-42 3 sets',
+    'Dunlop 3PDEN1046 Nickel Wound 10-46 Light 3 sets',
+    'Ernie Ball 3213 Mega Slinky 10.5-48 3 Pack',
+    'Elixir 19062 Optiweb Nickel Plated Steel 8-String Light 10-74',
+    'Fender 250R-3 Nickel-Plated Steel 10-46 Regular 3-Pack',
+    'DAddario EXL116-3D Nickel Wound 11-52 3 sets',
+    'DAddario EXL140-3D Nickel Wound 10-52 3 sets',
+    'Fender 250L-3 Nickel Plated Steel Light 9-42 3-Pack',
+    'Elixir 12062 Nanoweb 8-String Light 10-74',
+    'Elixir 12450 Nanoweb 12-String Light 10-46',
+    'Dunlop BG1268 String Lab Bjorn Gelotte In Flames Drop Bb 12-68',
+    'La Bella HRS-90 Hard Rockin Steel Nickel-Plated 9-String 9-90',
+    'Ernie Ball 2628 9-String Slinky Custom Gauge 9-105',
+    'Elixir 16540 Nanoweb Super Light 9-42 3 Sets',
+    'Elixir 16550 Optiweb Nickel Plated Steel Super Light 9-42 3 sets',
+    'Elixir 16552 Optiweb Nickel Plated Steel Light 10-46 3 sets',
+    'Ernie Ball 3818 Silver Slinky John Mayer Signature 3-Pack Tin 10.5-47',
+    'Ernie Ball 3821 Paradigm Papa Hets Hard Wired 3-Pack Tin 11-50',
+    'Ernie Ball 3822 Paradigm Papa Hets 72 Seasons 3-Pack Tin 11-50',
+    'DAddario NYXL1046 Nickel Wound Carbon Core Regular 10-46 5 Pack',
+    'Ernie Ball 3818 Silver Slinky John Mayer Signature 6-Pack 10.5-47',
+    'GHS Boomers GBL 10-46 Regular 10 sets',
+    'DAddario EXL110-10P Nickel Wound Regular Light 10-46 10 sets',
+    'DAddario EXL115-10P Nickel Wound Medium 11-49 10 sets',
+    'DAddario EXL125-10P Nickel Wound Super Lt Top Reg Btm 9-46 10 sets',
+    'DAddario EXL140-10P Nickel Wound Light Top Heavy Bottom 10-52 10 sets',
+    'DAddario EXL117 Nickel Wound 11-56 10 Sets',
+    'GHS Boomers GB-DGF 10-48 David Gilmour 12 sets',
+    'GHS Boomers GB-DGG 10.5-50 David Gilmour 12 sets',
+    'Ernie Ball 2223 Super Slinky 9-42 12 sets',
+    'Ernie Ball 2215 Skinny Top Heavy Bottom 10-52 12 sets',
+    'Ernie Ball 2221 Regular Slinky 10-46 12 sets',
+    'Ernie Ball 2220 Power Slinky 11-48 12 sets',
+    'Ernie Ball 2222 Hybrid Slinky 9-46 12 sets',
+    'Ernie Ball 2226 Burly Slinky 11-52 12 sets',
+    'Ernie Ball 2214 Mammoth Slinky 12-62 12 sets',
+    'Elixir 12002 Nanoweb Super Light 9-42 12 sets',
+    'Elixir 12052 Nanoweb Light 10-46 12 sets',
+    'GHS Boomers GBXL 9-42 Extra Light 1 set',
+    'GHS Boomers GBL 10-46 Regular 1 set',
+    'Rotosound R11 Roto Reds 11-48',
+    'Rotosound R8 Roto Greens 8-38',
+    'Dunlop DHCN1060-6 Heavy Core 10-60',
+    'DR LH-9 Tite-Fit Nickel Plated Electric Guitar Strings Light Heavy 9-46',
+    'Dunlop DEN1150 Nickel Wound Medium/Heavy 11-50',
+    'La Bella HRS-R Hard Rockin Steel Nickel-Plated Regular 10-46',
+    'GHS Boomers GB7CL 7-String Custom Light 9-62',
+    'DAddario EXL120-7 Nickel Wound 7-String Super Light 9-54',
+    'Fender 3250LR Super Bullets Nickel Plated Steel 9-46 Light/Regular',
+    'Cleartone 9480 Drop A 14-80 Nickel-Plated Monster',
+    'Elixir 16542 Nanoweb Light 10-46 3 Sets',
+    'GHS Boomers GBM-6P 11-50 Medium 6 sets',
+    'GHS Boomers GBXL-6P 9-42 Extra Light 6 sets',
+    'GHS Boomers GBL-6P 10-46 Regular 6 sets',
+    'DAddario EXL120-10P Nickel Wound Super Light 9-42 10 sets',
+    'Ernie Ball 2626 Not Even Slinky Drop Tuning 12-56 12 sets',
+    'Ernie Ball 2839 Baritone 6 string Slinky 13-72 12 sets',
+    'DAddario NYXL0838 Nickel Wound Carbon Core Extra Super Light 8-38',
+    'Cleartone 9520 10-52 Light Top Heavy Bottom Nickel-Plated Monster',
+    'Ernie Ball 3125 Titanium Extra Slinky 8-38',
+    'Dean Markley 2503 Nickel Steel 10-46 Signature',
+    'Dean Markley 2504 Nickel Steel 10-52 Signature',
+    'Dean Markley 2505 Nickel Steel 11-52 Signature',
+    'Dean Markley 2502 Nickel Steel 9-42 Signature'
+].map(s => s.toLowerCase()));
+
+// Функция сохранения корзины в localStorage
+function saveCartToStorage() {
+    try {
+        if (!cart || cart.length === 0) {
+            // Если корзина пустая, очищаем localStorage
+            localStorage.removeItem('cart');
+            localStorage.removeItem('cartItemCount');
+            console.log('saveCartToStorage: Корзина пустая, очищаем localStorage');
+        } else {
+            // Сохраняем корзину
+            localStorage.setItem('cart', JSON.stringify(cart));
+            localStorage.setItem('cartItemCount', cartItemCount.toString());
+            console.log('saveCartToStorage: Корзина сохранена в localStorage, товаров:', cart.length);
         }
-    } else {
-        console.log('loadCart: Корзина не найдена в localStorage, создаем пустую');
+    } catch (error) {
+        console.error('saveCartToStorage: Ошибка сохранения корзины:', error);
+    }
+}
+
+// Функция загрузки корзины из localStorage
+function loadCartFromStorage() {
+    try {
+        const savedCart = localStorage.getItem('cart');
+        const savedCount = localStorage.getItem('cartItemCount');
+
+        if (savedCart) {
+            const parsedCart = JSON.parse(savedCart);
+            // Убеждаемся, что загруженные данные являются массивом
+            if (Array.isArray(parsedCart)) {
+                cart = parsedCart;
+                cartItemCount = parseInt(savedCount) || 0;
+
+                // Синхронизируем с window
+                window.cart = cart;
+                window.cartItemCount = cartItemCount;
+
+                console.log('Корзина загружена из localStorage:', cart.length, 'товаров, cart:', cart);
+                updateCartBadge();
+                return true;
+            } else {
+                console.warn('loadCartFromStorage: сохраненные данные не являются массивом');
+                cart = [];
+                cartItemCount = 0;
+                window.cart = cart;
+                window.cartItemCount = cartItemCount;
+            }
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки корзины:', error);
+        // В случае ошибки очищаем localStorage
+        localStorage.removeItem('cart');
+        localStorage.removeItem('cartItemCount');
         cart = [];
-        cartTotal = 0;
         cartItemCount = 0;
     }
-    
-    // Обновляем счетчик корзины
+    return false;
+}
+
+// Функция инициализации корзины
+function initializeCart() {
+    console.log('Корзина инициализирована, cart перед инициализацией:', cart);
+
+    // Убеждаемся, что cart определена как массив
+    if (!Array.isArray(cart)) {
+        cart = [];
+    }
+
+    // Пытаемся загрузить корзину из localStorage
+    if (!loadCartFromStorage()) {
+        cart = [];
+        cartItemCount = 0;
+    }
+
+    // Синхронизируем с window для совместимости
+    window.cart = cart;
+    window.cartItemCount = cartItemCount;
+
+    console.log('Корзина инициализирована, cart после инициализации:', cart);
+
+    // Обновляем отображение счетчика корзины
     updateCartBadge();
 }
 
-// Обновление счетчика корзины
+// Функция добавления в корзину
+function addToCart(product) {
+    console.log('addToCart: Добавление в корзину:', product);
+    console.log('addToCart: Текущее состояние cart:', cart);
+    console.log('addToCart: Текущее состояние window.cart:', window.cart);
+
+    // Проверяем, есть ли уже такой товар в корзине
+    const existingItemIndex = cart.findIndex(item =>
+        item.name === product.name &&
+        (item.newPrice || item.price) === (product.newPrice || product.price) &&
+        (item.oldPrice || 0) === (product.oldPrice || 0)
+    );
+    
+    if (existingItemIndex !== -1) {
+        // Если товар уже есть в корзине, увеличиваем количество
+        console.log('Товар уже есть в корзине, увеличиваем количество');
+        if (!cart[existingItemIndex].quantity) {
+            cart[existingItemIndex].quantity = 1;
+        }
+        cart[existingItemIndex].quantity++;
+        cartItemCount++;
+        console.log('Количество товара увеличено до:', cart[existingItemIndex].quantity);
+    } else {
+        // Если товара нет в корзине, добавляем новый
+        console.log('Добавляем новый товар в корзину');
+        cart.push(product);
+        cartItemCount++;
+    }
+    
+    // Синхронизируем с window
+    window.cart = cart;
+    window.cartItemCount = cartItemCount;
+
+    updateCartBadge();
+    updateCartCalculations(); // Обновляем расчеты после изменения корзины
+    saveCartToStorage();
+}
+
+// Функция обновления бейджа корзины
 function updateCartBadge() {
-    const cartBadge = document.getElementById('cartBadge');
-    if (cartBadge) {
-        if (cartItemCount > 0) {
-            cartBadge.textContent = cartItemCount;
-            cartBadge.style.display = 'flex';
-        } else {
-            cartBadge.style.display = 'none';
+    const badge = document.querySelector('.cart-badge');
+    if (badge) {
+        // Убеждаемся, что cart определена
+        if (typeof cart === 'undefined') {
+            console.warn('updateCartBadge: переменная cart не определена');
+            cart = [];
         }
-    }
-}
-let searchTerm = ''; // Текущий поисковый запрос
-let isSearchActive = false; // Флаг активного поиска
-let searchTimeout = null; // Для debouncing поиска
 
-// Счетчик обновлений страницы (F5)
-let refreshCounter = 0;
-const MAX_REFRESHES_BEFORE_CLEAR = 5; // После 5-го F5 (т.е. при 6-м F5) очищаем кеш
+        // Считаем количество товаров непосредственно из массива cart
+        const totalItems = cart && Array.isArray(cart) ? cart.reduce((total, item) => total + (item.quantity || 1), 0) : 0;
 
-// Функция для получения правильного текста кнопки в зависимости от языка
-function getButtonText(availability, language) {
-    // Определяем язык
-    const currentLanguage = language || localStorage.getItem('selectedLanguage') || 'uk';
-    console.log(`getButtonText: availability="${availability}", language="${language}", currentLanguage="${currentLanguage}"`);
-    
-    // Для товаров в наличии
-    if (availability === 'В наличии' || availability === 'В наявності' || availability === 'In stock' || 
-        availability === 'В наличии в Одессе' || availability === 'В наявності в Одесі') {
-        // Используем переводы из translations.js
-        if (window.translations && window.translations.getTranslation) {
-            return window.translations.getTranslation('buyButton', currentLanguage);
-        }
-        
-        // Fallback если translations.js не загружен
-        switch (currentLanguage) {
-            case 'uk':
-                return 'КУПИТИ';
-            case 'ru':
-                return 'КУПИТЬ';
-            case 'en':
-                return 'BUY';
-            default:
-                return 'КУПИТИ';
-        }
-    }
-    
-    // Для товаров не в наличии
-    if (availability === 'Нет в наличии' || availability === 'Немає в наявності' || availability === 'Out of stock') {
-        switch (currentLanguage) {
-            case 'uk':
-                return 'Немає в наявності';
-            case 'ru':
-                return 'Нет в наличии';
-            case 'en':
-                return 'Out of stock';
-            default:
-                return 'Немає в наявності';
-        }
-    }
-    
-    // Для ожидаемых товаров
-    if (availability === 'Ожидается' || availability === 'Очікується' || availability === 'Expected' || 
-        availability === 'Ожидается поставка' || availability === 'Очікується поставка') {
-        switch (currentLanguage) {
-            case 'uk':
-                return 'Очікується';
-            case 'ru':
-                return 'Ожидается';
-            case 'en':
-                return 'Expected';
-            default:
-                return 'Очікується';
-        }
-    }
-    
-    // Для товаров под заказ
-    if (availability === 'Под заказ' || availability === 'Під замовлення' || availability === 'On order') {
-        switch (currentLanguage) {
-            case 'uk':
-                return 'Під замовлення';
-            case 'ru':
-                return 'Под заказ';
-            case 'en':
-                return 'On order';
-            default:
-                return 'Під замовлення';
-        }
-    }
-    
-    // Для снятых с производства
-    if (availability === 'Снят с производства' || availability === 'Знято з виробництва' || availability === 'Discontinued') {
-        switch (currentLanguage) {
-            case 'uk':
-                return 'Знято з виробництва';
-            case 'ru':
-                return 'Снят с производства';
-            case 'en':
-                return 'Discontinued';
-            default:
-                return 'Знято з виробництва';
-        }
-    }
-    
-    // По умолчанию - кнопка покупки
-    // Используем переводы из translations.js
-    if (window.translations && window.translations.getTranslation) {
-        return window.translations.getTranslation('buyButton', currentLanguage);
-    }
-    
-    // Fallback если translations.js не загружен
-    switch (currentLanguage) {
-        case 'uk':
-            return 'КУПИТИ';
-        case 'ru':
-            return 'КУПИТЬ';
-        case 'en':
-            return 'BUY';
-        default:
-            return 'КУПИТИ';
-    }
-}
+        // Синхронизируем cartItemCount с реальным количеством
+        cartItemCount = totalItems;
 
-// Функция для получения текста статуса товара
-function getStatusText(availability) {
-    // Используем функцию из translations.js
-    if (window.translations && window.translations.getStatusText) {
-        return window.translations.getStatusText(availability);
-    }
-    
-    // Fallback если translations.js не загружен
-    const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
-    
-    // ИСПРАВЛЕНИЕ: Переводим статусы на выбранный язык
-    if (availability === 'В наличии в Одессе' || availability === 'В наличии' || availability === 'В наявності' || availability === 'In stock') {
-        return window.translations ? window.translations.getTranslation('inStock', currentLanguage) : 'В наличии';
-    } else if (availability === 'Нет в наличии' || availability === 'Немає в наявності' || availability === 'Out of stock') {
-        return window.translations ? window.translations.getTranslation('outOfStock', currentLanguage) : 'Нет в наличии';
-    } else if (availability === 'Снят с производства' || availability === 'Знято з виробництва' || availability === 'Discontinued') {
-        return window.translations ? window.translations.getTranslation('discontinued', currentLanguage) : 'Снят с производства';
-    } else if (availability === 'Ожидается' || availability === 'Ожидается поставка' || availability === 'Очікується' || availability === 'Expected') {
-        return window.translations ? window.translations.getTranslation('expected', currentLanguage) : 'Ожидается';
-    } else if (availability === 'Под заказ' || availability === 'Під замовлення' || availability === 'On order') {
-        return window.translations ? window.translations.getTranslation('onOrder', currentLanguage) : 'Под заказ';
+        // Синхронизируем с window
+        window.cartItemCount = cartItemCount;
+
+        badge.textContent = totalItems;
+        badge.style.display = totalItems > 0 ? 'block' : 'none';
+
+        console.log('updateCartBadge: Обновлен счетчик корзины:', totalItems, 'товаров, cart:', cart);
     } else {
-        return window.translations ? window.translations.getTranslation('inStock', currentLanguage) : 'В наличии';
+        console.warn('updateCartBadge: элемент .cart-badge не найден');
     }
 }
 
-// Функция для переключения меню (удалена, так как используется toggleAvatarMenu)
-function toggleMenu() {
-    // Эта функция больше не используется, так как меню аватара обрабатывается toggleAvatarMenu
-    console.log('toggleMenu: Функция устарела, используйте toggleAvatarMenu');
-}
+// Функция отображения товаров в корзине
+function renderCartItems() {
+    console.log('renderCartItems: Отображаем товары в корзине');
+    console.log('renderCartItems: Содержимое cart перед рендерингом:', cart);
 
-// Функция для переключения меню аватара
-function toggleAvatarMenu() {
-    const dropdown = document.getElementById('avatarDropdown');
-    if (dropdown) {
-        dropdown.classList.toggle('show');
-        console.log('toggleAvatarMenu: Меню аватара переключено');
-    } else {
-        console.error('toggleAvatarMenu: Выпадающее меню аватара не найдено');
+    const cartItemsContainer = document.querySelector('#cartItems');
+    if (!cartItemsContainer) {
+        console.error('renderCartItems: Контейнер #cartItems не найден');
+        return;
     }
-}
 
-// Закрытие меню аватара при клике вне его
-document.addEventListener('click', function(event) {
-    const dropdown = document.getElementById('avatarDropdown');
-    const profilePic = document.querySelector('.profile-pic');
-    
-    if (dropdown && profilePic) {
-        // Проверяем, что клик не по аватару или его элементам
-        const isClickOnAvatar = profilePic.contains(event.target);
-        const isClickOnDropdown = dropdown.contains(event.target);
-        
-        if (!isClickOnAvatar && !isClickOnDropdown) {
-            dropdown.classList.remove('show');
-            console.log('toggleAvatarMenu: Меню аватара закрыто (клик вне)');
-        }
-    }
-});
+    console.log('renderCartItems: Контейнер найден, количество товаров:', cart.length);
 
-// Функция для очистки localStorage и перезагрузки данных
-function clearLocalStorage() {
-    console.log('=== clearLocalStorage: Функция вызвана ===');
-    
-    try {
-        console.log('clearLocalStorage: Очищаем localStorage...');
-        localStorage.removeItem('gs_bot_state');
-        localStorage.removeItem('telegramUserData'); // Очищаем данные пользователя Telegram
-        console.log('clearLocalStorage: localStorage очищен');
-        
-        // Сбрасываем счетчик обновлений
-        refreshCounter = 0;
-        console.log('clearLocalStorage: Счетчик обновлений сброшен');
-        
-        // Сбрасываем глобальные переменные
-        currentPage = 0;
-        isLoading = false;
-        hasMoreProducts = true;
-        maxProducts = 0;
-        loadedProductNames.clear();
-        savedScrollPosition = 0;
-        
-        // Сбрасываем переменные поиска
-        allProducts = [];
-        searchTerm = '';
-        isSearchActive = false;
-        
-        console.log('clearLocalStorage: Глобальные переменные сброшены');
-        
-        // Очищаем кеш браузера
-        if ('caches' in window) {
-            caches.keys().then(names => {
-                names.forEach(name => {
-                    caches.delete(name);
-                });
-                console.log('clearLocalStorage: Кеш браузера очищен');
-            });
-        }
-        
-        // Принудительная перезагрузка страницы
-        console.log('clearLocalStorage: Выполняем принудительную перезагрузку...');
-        window.location.reload(true);
-        
-    } catch (error) {
-        console.error('clearLocalStorage: Ошибка при очистке:', error);
-        // Даже при ошибке пытаемся перезагрузить
-        window.location.reload(true);
-    }
-}
-
-// Функция для поиска товаров
-async function searchProducts(query) {
-    console.log(`=== ПОИСК ТОВАРОВ: "${query}" ===`);
-    
-    const currentSearchTerm = query.toLowerCase().trim();
-    isSearchActive = currentSearchTerm.length > 0;
-    
-    // Устанавливаем глобальный поисковый запрос для проверки в других функциях
-    window.currentSearchTerm = currentSearchTerm;
-    
-    console.log(`Поисковый запрос: "${currentSearchTerm}"`);
-    console.log(`Активный поиск: ${isSearchActive}`);
-    console.log(`Всего товаров для поиска: ${allProducts.length}`);
-    
-    if (!isSearchActive) {
-        // Если поиск отменен, показываем все загруженные товары
-        console.log('Поиск отменен, показываем все загруженные товары');
-        
-        // Очищаем поисковый запрос
-        searchTerm = '';
-        window.currentSearchTerm = '';
-        
-        // Проверяем состояние allProducts
-        console.log('Поиск: allProducts.length =', allProducts ? allProducts.length : 'undefined');
-        console.log('Поиск: hasMoreProducts =', hasMoreProducts);
-        console.log('Поиск: currentPage =', currentPage);
-        
-        // Если allProducts пустой, восстанавливаем состояние
-        if (!allProducts || allProducts.length === 0) {
-            console.log('Поиск: allProducts пустой, восстанавливаем состояние...');
-            await restoreAllProducts();
-        } else {
-            // Показываем все загруженные товары
-            console.log('Поиск: Показываем', allProducts.length, 'товаров');
-            await displayProducts(allProducts);
-        }
-        
-        // Восстанавливаем индикатор загрузки для бесконечной прокрутки
-        if (hasMoreProducts) {
-            showLoadingIndicator();
-        }
-        
-        // Скрываем сообщение "Товары не найдены" если оно есть
-        const noResultsElement = document.querySelector('.no-results');
-        if (noResultsElement) {
-            noResultsElement.remove();
-            console.log('Поиск: Убрано сообщение "Товары не найдены"');
-        }
-        
+    if (cart.length === 0) {
+        cartItemsContainer.innerHTML = '<div class="empty-cart">Корзина пуста</div>';
+        console.log('renderCartItems: Корзина пуста, показываем сообщение');
         return;
     }
     
-    // ИСПРАВЛЕНИЕ БАГА: Показываем индикатор загрузки сразу при начале поиска
-    showLoadingIndicator();
-    
-    try {
-        // Сначала фильтруем уже загруженные товары
-        const filteredProducts = allProducts.filter(product => {
-            const name = product.name.toLowerCase();
-            const description = (product.description || '').toLowerCase();
-            const category = (product.category || '').toLowerCase();
-            
-            return name.includes(currentSearchTerm) || 
-                   description.includes(currentSearchTerm) || 
-                   category.includes(currentSearchTerm);
-        });
+    let html = '';
+    cart.forEach((item, index) => {
+        const oldPrice = item.oldPrice || 0;
+        const newPrice = item.newPrice || item.price || 0;
         
-        console.log(`Найдено товаров в загруженных: ${filteredProducts.length}`);
-        
-        // Обновляем searchTerm сразу после фильтрации
-        searchTerm = currentSearchTerm;
-        
-        // Если найдены товары в загруженных, показываем их
-        if (filteredProducts.length > 0) {
-            await displayProducts(filteredProducts);
-        } else {
-            // Если товары не найдены в загруженных, делаем поиск на сервере
-            console.log('Товары не найдены в загруженных, ищем на сервере...');
-            await searchProductsFromServer(currentSearchTerm);
-        }
-        
-        // ДОПОЛНИТЕЛЬНО: Если поисковый запрос короткий (менее 3 символов), 
-        // но мы нашли товары в загруженных, все равно проверяем сервер
-        // для получения полных результатов
-        if (filteredProducts.length > 0 && currentSearchTerm.length >= 3) {
-            console.log('Найдены товары в загруженных, но проверяем сервер для полных результатов...');
-            await searchProductsFromServer(currentSearchTerm);
-        }
-    } catch (error) {
-        console.error('Ошибка при поиске товаров:', error);
-        await displayProducts([]);
-    } finally {
-        // Скрываем индикатор загрузки
-        hideLoadingIndicator();
-    }
-    
-    // searchTerm уже обновлен в начале функции
-}
-
-
-
-// Функция для поиска товаров на сервере
-async function searchProductsFromServer(searchTerm) {
-    try {
-        console.log(`searchProductsFromServer: Ищем "${searchTerm}" на сервере...`);
-        
-        // Проверяем, не изменился ли поисковый запрос
-        if (window.currentSearchTerm && searchTerm !== window.currentSearchTerm) {
-            console.log('searchProductsFromServer: Поисковый запрос изменился, прерываем поиск');
-            return;
-        }
-        
-        // Сначала пробуем поиск с большим лимитом
-        let response = await fetch(`http://localhost:8000/api/products?search=${encodeURIComponent(searchTerm)}&start=0&limit=2000`);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        let data = await response.json();
-        console.log(`searchProductsFromServer: Первый запрос, товаров: ${data.products ? data.products.length : 0}`);
-        
-        // Проверяем, не изменился ли поисковый запрос после первого запроса
-        if (window.currentSearchTerm && searchTerm !== window.currentSearchTerm) {
-            console.log('searchProductsFromServer: Поисковый запрос изменился после первого запроса, прерываем поиск');
-            return;
-        }
-        
-        // Если получили 2000 товаров, возможно есть еще больше
-        if (data.success && data.products && data.products.length === 2000) {
-            console.log('searchProductsFromServer: Получено 2000 товаров, загружаем еще...');
-            
-            // Загружаем еще товары без поиска, чтобы расширить базу
-            const additionalResponse = await fetch(`http://localhost:8000/api/products?start=2000&limit=2000`);
-            if (additionalResponse.ok) {
-                const additionalData = await additionalResponse.json();
-                if (additionalData.success && additionalData.products) {
-                    // Фильтруем дополнительные товары локально
-                    const additionalFiltered = additionalData.products.filter(product => {
-                        const name = product.name.toLowerCase();
-                        const description = (product.description || '').toLowerCase();
-                        const category = (product.category || '').toLowerCase();
-                        
-                        return name.includes(searchTerm.toLowerCase()) || 
-                               description.includes(searchTerm.toLowerCase()) || 
-                               category.includes(searchTerm.toLowerCase());
-                    });
-                    
-                    // Объединяем результаты
-                    data.products = [...data.products, ...additionalFiltered];
-                    console.log(`searchProductsFromServer: После добавления дополнительных товаров: ${data.products.length}`);
-                }
-            }
-        }
-        
-        // Финальная проверка поискового запроса перед отображением
-        if (window.currentSearchTerm && searchTerm !== window.currentSearchTerm) {
-            console.log('searchProductsFromServer: Поисковый запрос изменился перед отображением, прерываем поиск');
-            return;
-        }
-        
-        if (data.success && data.products && data.products.length > 0) {
-            console.log(`searchProductsFromServer: Найдено ${data.products.length} товаров на сервере`);
-            
-            // Показываем найденные товары (НЕ добавляем в allProducts)
-            await displayProducts(data.products);
-        } else {
-            // Товары не найдены на сервере
-            console.log('searchProductsFromServer: Товары не найдены на сервере');
-            await displayProducts([]);
-        }
-    } catch (error) {
-        console.error('searchProductsFromServer: Ошибка поиска на сервере:', error);
-        // Показываем пустой результат
-        await displayProducts([]);
-    }
-}
-
-// Функция для отображения товаров (с поддержкой поиска)
-async function displayProducts(products) {
-    const container = document.querySelector('.inner');
-    if (!container) {
-        console.error('displayProducts: Контейнер .inner не найден');
-        return;
-    }
-    
-    // Сохраняем loading indicator перед очисткой
-    const loadingIndicator = container.querySelector('#loading-indicator');
-    
-    // Очищаем контейнер
-    container.innerHTML = '';
-    
-    // Восстанавливаем loading indicator если он был
-    if (loadingIndicator) {
-        container.appendChild(loadingIndicator);
-    }
-    
-    if (products.length === 0) {
-        // Показываем сообщение о том, что товары не найдены
-        const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
-        const noProductsFoundText = window.translations ? window.translations.getTranslation('noProductsFound', currentLanguage) : 'Товары не найдены';
-        const noProductsForQueryText = window.translations ? window.translations.getTranslationWithParams('noProductsForQuery', { query: searchTerm }, currentLanguage) : `По запросу "${searchTerm}" ничего не найдено`;
-        const clearSearchText = window.translations ? window.translations.getTranslation('clearSearch', currentLanguage) : 'Очистить поиск';
-        
-        container.innerHTML = `
-            <div class="no-results" style="text-align: center; padding: 40px; color: var(--text-light);">
-                <i class="fas fa-search" style="font-size: 48px; margin-bottom: 20px; opacity: 0.5;"></i>
-                <h3>${noProductsFoundText}</h3>
-                <p>${noProductsForQueryText}</p>
-                <button class="btn" onclick="clearSearch()" style="margin-top: 20px;">
-                    <i class="fas fa-times"></i> ${clearSearchText}
-                </button>
+        html += `
+            <div class="cart-item" data-index="${index}">
+                <div class="cart-col-name">
+                    <div class="cart-item-image">
+                        <img src="${item.image}" alt="${item.name}" onerror="this.src='./images/Discontinued.jpg'">
+                    </div>
+                                         <div class="cart-item-details">
+                         <div class="cart-item-name">${item.name}</div>
+                     </div>
+                 </div>
+                <div class="cart-col-quantity">
+                    <div class="quantity-controls">
+                        <button class="quantity-btn minus" onclick="changeQuantity(${index}, -1)" style="width: 20px; height: 20px; font-size: 12px; padding: 0;">-</button>
+                        <span class="quantity-value" style="margin: 0 8px; font-size: 14px;">${item.quantity || 1}</span>
+                        <button class="quantity-btn plus" onclick="changeQuantity(${index}, 1)" style="width: 20px; height: 20px; font-size: 12px; padding: 0;">+</button>
+                    </div>
+                </div>
+                <div class="cart-col-total">
+                    <div class="cart-item-prices">
+                                                 ${oldPrice && oldPrice > 0 && oldPrice !== newPrice ? `<div class="cart-item-old-price">${(oldPrice * (item.quantity || 1)).toFixed(0)} ${getCurrencyWithDot()}</div>` : ''}
+                         <div class="cart-item-price">${(newPrice * (item.quantity || 1)).toFixed(0)} ${getCurrencyWithDot()}</div>
+                    </div>
+                    <button class="remove-item-btn" onclick="removeFromCart(${index})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
             </div>
         `;
-        
-        // Восстанавливаем loading indicator если он был
-        if (loadingIndicator) {
-            container.appendChild(loadingIndicator);
+    });
+
+    console.log('renderCartItems: Сгенерирован HTML для', cart.length, 'товаров, длина HTML:', html.length);
+    console.log('renderCartItems: HTML preview:', html.substring(0, 200) + '...');
+
+    cartItemsContainer.innerHTML = html;
+    console.log('renderCartItems: HTML вставлен в контейнер');
+}
+
+// Функция удаления товара из корзины
+function removeFromCart(index) {
+    console.log('removeFromCart: Удаляем товар из корзины, индекс:', index);
+
+    if (index >= 0 && index < cart.length) {
+        cart.splice(index, 1);
+        cartItemCount = cart.reduce((total, item) => total + (item.quantity || 1), 0);
+
+        console.log('removeFromCart: После удаления - cart.length:', cart.length, 'cartItemCount:', cartItemCount);
+
+        updateCartBadge();
+        renderCartItems();
+        updateCartCalculations();
+        saveCartToStorage();
+
+        // Синхронизируем с window для совместимости
+        window.cart = cart;
+        window.cartItemCount = cartItemCount;
+    }
+}
+
+// Функция изменения количества товара
+function changeQuantity(index, change) {
+    console.log('changeQuantity: Изменяем количество товара, индекс:', index, 'изменение:', change);
+    
+    if (index >= 0 && index < cart.length) {
+        const item = cart[index];
+        if (!item.quantity) {
+            item.quantity = 1;
         }
+        
+        item.quantity += change;
+        
+        if (item.quantity <= 0) {
+            removeFromCart(index);
+        } else {
+            cartItemCount = cart.reduce((total, item) => total + (item.quantity || 1), 0);
+            updateCartBadge();
+            renderCartItems();
+            updateCartCalculations();
+            saveCartToStorage();
+        }
+    }
+}
+// Функция обновления расчетов корзины
+function updateCartCalculations() {
+    console.log('updateCartCalculations: Обновляем расчеты корзины');
+    
+    let newPricesTotal = 0;
+    let oldPricesTotal = 0;
+    
+    cart.forEach(item => {
+        const newPrice = parseInt(item.newPrice || item.price || 0);
+        const oldPrice = parseInt(item.oldPrice || 0);
+        const quantity = item.quantity || 1;
+        
+        newPricesTotal += newPrice * quantity;
+        if (oldPrice > 0 && oldPrice !== newPrice) {
+            oldPricesTotal += oldPrice * quantity;
+        } else {
+            oldPricesTotal += newPrice * quantity;
+        }
+    });
+    
+    const discount = oldPricesTotal - newPricesTotal;
+    
+    // Получаем скидку по купону и использованные бонусы
+    const couponDiscount = getCouponDiscount();
+    const usedBonuses = getUsedBonuses();
+    
+    // Рассчитываем скидку по купону
+    let couponAmount = 0;
+    if (couponDiscount > 0) {
+        if (couponDiscount <= 1) {
+            // Процентная скидка (например, 0.10 = 10%)
+            couponAmount = Math.round(newPricesTotal * couponDiscount);
+        } else {
+            // Фиксированная скидка в грн
+            couponAmount = couponDiscount;
+        }
+    }
+    
+    // Рассчитываем общую сумму с учетом всех скидок
+    const totalAfterDiscounts = newPricesTotal - couponAmount - usedBonuses;
+    const finalTotal = Math.max(0, totalAfterDiscounts); // Не может быть меньше 0
+    
+    // Обновляем отображение итогов
+    const subtotalElement = document.querySelector('#cartSubtotal');
+    const discountElement = document.querySelector('#cartDiscount');
+    const totalElement = document.querySelector('#cartTotalPrice');
+    const payAmountElement = document.querySelector('#cartPayAmount');
+    const couponElement = document.querySelector('#cartCouponUsed');
+    const bonusElement = document.querySelector('#cartBonusUsed');
+    
+    // Устанавливаем ограничение на поле ввода бонусов
+    const bonusesInput = document.getElementById('cartBonusesInput');
+    if (bonusesInput) {
+        const availableBonuses = getUserBonusBalance();
+        bonusesInput.max = availableBonuses;
+        bonusesInput.placeholder = `Использовать бонусы (макс. ${availableBonuses})`;
+
+        // Если текущее значение превышает доступное, корректируем
+        const currentValue = parseInt(bonusesInput.value) || 0;
+        if (currentValue > availableBonuses) {
+            bonusesInput.value = availableBonuses;
+        }
+
+        console.log(`updateCartCalculations: Установлено ограничение бонусов: ${availableBonuses}`);
+    }
+
+    // Обновляем способы доставки в зависимости от суммы корзины
+    // updateDeliveryMethods() теперь вызывается отдельно в showCartPopup()
+    
+         if (subtotalElement) {
+         subtotalElement.textContent = `${oldPricesTotal.toFixed(0)} ${getCurrencyWithDot()}`;
+     }
+     
+     if (discountElement) {
+         if (discount > 0) {
+             discountElement.textContent = `-${discount.toFixed(0)} ${getCurrencyWithDot()}`;
+             discountElement.style.display = 'block';
+         } else {
+             discountElement.style.display = 'none';
+         }
+     }
+     
+     // Обновляем отображение купона (только если купон валидный)
+     if (couponElement) {
+         if (isCouponValid() && couponAmount > 0) {
+             couponElement.textContent = `-${couponAmount.toFixed(0)} ${getCurrencyWithDot()}`;
+             couponElement.parentElement.style.display = 'flex';
+         } else {
+             couponElement.parentElement.style.display = 'none';
+         }
+     }
+     
+     // Обновляем отображение бонусов (только если используются)
+     if (bonusElement) {
+         if (usedBonuses > 0) {
+             bonusElement.textContent = `-${usedBonuses.toFixed(0)} ${getCurrencyWithDot()}`;
+             bonusElement.parentElement.style.display = 'flex';
+         } else {
+             bonusElement.parentElement.style.display = 'none';
+         }
+     }
+    
+         // Обновляем стоимость доставки и общую сумму
+     updateDeliveryCost();
+     
+     if (totalElement) {
+         const deliveryCost = getDeliveryCost();
+         // Комиссия WayForPay отключена - не добавляем процент к итоговой сумме
+         const totalWithDelivery = finalTotal + deliveryCost;
+         
+         // Убеждаемся, что итоговая сумма не меньше 0
+         const finalAmount = Math.max(0, totalWithDelivery);
+         
+         totalElement.textContent = `${finalAmount.toFixed(0)} ${getCurrency()}.`;
+         
+         if (payAmountElement) {
+             payAmountElement.textContent = `${finalAmount.toFixed(0)} ${getCurrency()}`;
+         }
+         
+        // Сохраняем использованные бонусы и купон в localStorage
+        localStorage.setItem('cartBonusesUsed', usedBonuses.toString());
+        localStorage.setItem('cartCouponDiscount', couponAmount.toString());
+
+        // Сохраняем код купона, если он валидный
+        const couponInput = document.getElementById('cartCouponInput');
+        if (couponInput && couponInput.value.trim() && isCouponValid()) {
+            localStorage.setItem('cartCouponCode', couponInput.value.trim());
+        }
+
+        console.log('updateCartCalculations: Сохранены в localStorage:', {
+            cartBonusesUsed: usedBonuses,
+            cartCouponDiscount: couponAmount,
+            cartCouponCode: couponInput?.value?.trim() || ''
+        });
+
+        console.log('updateCartCalculations: Расчеты завершены:', {
+            newPricesTotal,
+            oldPricesTotal,
+            discount,
+            couponAmount,
+            usedBonuses,
+            finalTotal,
+            deliveryCost,
+            totalWithDelivery,
+            finalAmount
+        });
+     }
+}
+
+// Функция получения стоимости доставки
+function getDeliveryCost() {
+    // Проверяем, есть ли товары в корзине
+    if (!cart || cart.length === 0) {
+        console.log('getDeliveryCost: Корзина пуста, стоимость доставки = 0');
+        return 0;
+    }
+
+    const deliverySelect = document.getElementById('deliveryMethodSelect');
+    if (!deliverySelect) {
+        console.log('getDeliveryCost: deliveryMethodSelect не найден');
+        return 0;
+    }
+
+    const selectedMethod = deliverySelect.value;
+    console.log('getDeliveryCost: Выбранный способ доставки:', selectedMethod);
+
+    // Если выбрана Укрпочта, добавляем 80 грн
+    if (selectedMethod === 'ukrposhta') {
+        console.log('getDeliveryCost: Возвращаем 80грн для Укрпочты');
+        return 80;
+    }
+
+    // Бесплатные способы доставки - 0 грн
+    if (selectedMethod === 'free1001' || selectedMethod === 'free2000') {
+        console.log('getDeliveryCost: Возвращаем 0грн для бесплатной доставки');
+        return 0;
+    }
+
+    // Для всех остальных способов доставки - 0 грн
+    console.log('getDeliveryCost: Возвращаем 0грн для способа:', selectedMethod);
+    return 0;
+}
+
+// Функция получения комиссии за оплату
+function getPaymentCommission() {
+    const paymentSelect = document.getElementById('paymentMethodSelect');
+    if (!paymentSelect) return 0;
+
+    const selectedMethod = paymentSelect.value;
+
+    // Все способы оплаты без комиссии
+    if (selectedMethod === 'wayforpay') {
+        return 0; // Без комиссии
+    }
+
+    // Для всех остальных способов оплаты - 0% комиссия
+    return 0;
+}
+
+// Функция получения скидки по купону
+function getCouponDiscount() {
+    const couponInput = document.getElementById('cartCouponInput');
+    if (!couponInput || !couponInput.value.trim()) return 0;
+    
+    const couponCode = couponInput.value.trim().toLowerCase();
+    
+    // Здесь можно добавить логику проверки купонов
+    // Пока используем простую логику для тестирования
+    if (couponCode === 'test10') {
+        return 0.10; // 10% скидка
+    } else if (couponCode === 'test20') {
+        return 0.20; // 20% скидка
+    } else if (couponCode === 'test50') {
+        return 50; // 50 грн скидка
+    }
+    
+    return 0; // Неверный купон
+}
+
+// Функция получения количества используемых бонусов
+function getUsedBonuses() {
+    const bonusesInput = document.getElementById('cartBonusesInput');
+    if (!bonusesInput || !bonusesInput.value) return 0;
+
+    const usedBonuses = parseInt(bonusesInput.value) || 0;
+    const availableBonuses = getUserBonusBalance(); // Получаем реальное количество бонусов пользователя
+
+    // Проверяем, что не превышает доступное количество
+    if (usedBonuses > availableBonuses) {
+        bonusesInput.value = availableBonuses;
+        console.log(`getUsedBonuses: Превышение лимита бонусов, установлено максимальное значение: ${availableBonuses}`);
+        return availableBonuses;
+    }
+
+    return usedBonuses;
+}
+
+// Функция получения валюты в зависимости от языка
+function getCurrency() {
+    const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
+    return currentLanguage === 'en' ? 'UAH' : 'грн';
+}
+
+// Функция получения валюты с точкой для украинского/русского
+function getCurrencyWithDot() {
+    const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
+    return currentLanguage === 'en' ? 'UAH' : 'грн.';
+}
+
+// Функция проверки валидности купона
+function isCouponValid() {
+    const couponInput = document.getElementById('cartCouponInput');
+    if (!couponInput || !couponInput.value.trim()) return false;
+    
+    const couponCode = couponInput.value.trim().toLowerCase();
+    
+    // Список валидных купонов
+    const validCoupons = ['test10', 'test20', 'test50'];
+    
+    return validCoupons.includes(couponCode);
+}
+
+    // Функция обновления стоимости доставки и комиссии
+function updateDeliveryCost() {
+    console.log('updateDeliveryCost: Обновляем стоимость доставки и комиссии');
+
+    const deliveryCostElement = document.querySelector('#cartDelivery');
+    const commissionElement = document.querySelector('#cartCommission');
+    const deliveryCost = getDeliveryCost();
+
+    console.log('updateDeliveryCost: Стоимость доставки:', deliveryCost);
+
+    // Показываем строку доставки только если выбрана платная доставка
+    if (deliveryCostElement) {
+        if (deliveryCost > 0) {
+            deliveryCostElement.textContent = `${deliveryCost} ${getCurrency()}`;
+            deliveryCostElement.parentElement.style.display = 'flex';
+            console.log('updateDeliveryCost: Показываем стоимость доставки:', deliveryCost);
+        } else {
+            deliveryCostElement.parentElement.style.display = 'none';
+            console.log('updateDeliveryCost: Скрываем стоимость доставки (бесплатно)');
+        }
+    } else {
+        console.log('updateDeliveryCost: Элемент #cartDelivery не найден');
+    }
+
+    // НЕ вызываем updateCartCalculations() здесь, чтобы избежать бесконечного цикла
+    // updateCartCalculations() вызывает updateDeliveryMethods(), которая вызывает updateDeliveryCost()
+
+      // Обновляем комиссию за оплату (временно отключено)
+      // if (commissionElement) {
+      //     const paymentMethod = document.getElementById('paymentMethodSelect');
+      //     const commissionRate = getPaymentCommission();
+      //     
+      //     if (commissionRate > 0 && paymentMethod && paymentMethod.value === 'wayforpay') {
+      //         // Рассчитываем комиссию от суммы товаров (без учета скидок)
+      //         let subtotal = 0;
+      //         cart.forEach(item => {
+      //             const newPrice = parseInt(item.newPrice || item.price || 0);
+      //             const quantity = item.quantity || 1;
+      //             subtotal += newPrice * quantity;
+      //         });
+      //         
+      //         const commissionAmount = Math.round(subtotal * commissionRate);
+      //         commissionElement.textContent = `${commissionAmount} ${getCurrency()}`;
+      //         commissionElement.parentElement.style.display = 'flex';
+      //     } else {
+      //         commissionElement.textContent = `0 ${getCurrency()}`;
+      //         commissionElement.parentElement.style.display = 'none';
+      //     }
+      // }
+      
+      // НЕ вызываем updateCartCalculations() здесь, чтобы избежать бесконечной рекурсии
+  }
+
+// Переменная для предотвращения множественных вызовов updateDeliveryMethods
+let updateDeliveryMethodsTimeout = null;
+
+// Функция управления способами доставки в зависимости от способа оплаты и суммы корзины
+function updateDeliveryMethods() {
+    console.log('updateDeliveryMethods: Обновляем способы доставки');
+    console.log('updateDeliveryMethods: Текущее значение deliveryMethodSelect:', document.getElementById('deliveryMethodSelect')?.value);
+
+    // Очищаем предыдущий таймер, если он был
+    if (updateDeliveryMethodsTimeout) {
+        clearTimeout(updateDeliveryMethodsTimeout);
+    }
+
+    // Устанавливаем новый таймер для выполнения обновления через 100мс
+    // Это предотвратит множественные вызовы в течение короткого времени
+    updateDeliveryMethodsTimeout = setTimeout(() => {
+        updateDeliveryMethodsInternal();
+        updateDeliveryMethodsTimeout = null;
+    }, 100);
+}
+
+function updateDeliveryMethodsInternal() {
+    console.log('updateDeliveryMethodsInternal: Выполняем обновление способов доставки');
+
+    // Если идет процесс оформления заказа, не трогаем способы доставки
+    if (isCheckoutInProgress) {
+        console.log('updateDeliveryMethodsInternal: Пропускаем обновление способов доставки во время оформления заказа');
         return;
     }
 
-    // ИСПРАВЛЕНИЕ БАГА: Показываем все товары сразу без порций для устранения "мельтешения"
-    const fragment = document.createDocumentFragment();
-    
-    for (let i = 0; i < products.length; i++) {
-        const productCard = createProductCardFromSiteData(products[i], `btn${i + 1}`);
-        fragment.appendChild(productCard);
+    const paymentSelect = document.getElementById('paymentMethodSelect');
+    const deliverySelect = document.getElementById('deliveryMethodSelect');
+
+    if (!paymentSelect || !deliverySelect) {
+        console.error('updateDeliveryMethods: Элементы выбора не найдены');
+        return;
     }
     
-    container.appendChild(fragment);
+    const selectedPayment = paymentSelect.value;
     
-    // Настраиваем обработчики для всех товаров сразу
-    setupImageHandlers();
+    // Рассчитываем сумму корзины
+    let cartTotal = 0;
+    cart.forEach(item => {
+        const newPrice = parseInt(item.newPrice || item.price || 0);
+        const quantity = item.quantity || 1;
+        cartTotal += newPrice * quantity;
+    });
     
-    // ИСПРАВЛЕНИЕ БАГА: Обновляем переводы для отображенных карточек товаров
-    const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
-    if (typeof window.translations !== 'undefined') {
-        window.translations.applyTranslations(currentLanguage);
+    console.log('updateDeliveryMethods: Сумма корзины:', cartTotal);
+    
+    // Получаем все опции доставки
+    const deliveryOptions = deliverySelect.querySelectorAll('option');
+    
+    if (selectedPayment === 'meeting') {
+        // Если выбрана оплата "при встрече в Одессе", показываем только самовывоз
+        console.log('updateDeliveryMethods: Показываем только самовывоз');
+        
+        deliveryOptions.forEach(option => {
+            if (option.value === 'pickup') {
+                option.style.display = 'block';
+                option.disabled = false;
+            } else {
+                option.style.display = 'block';
+                option.disabled = false;
+            }
+        });
+        
+        // Устанавливаем самовывоз как выбранный по умолчанию
+        deliverySelect.value = 'pickup';
+        
+    } else {
+        // Для других способов оплаты показываем способы доставки в зависимости от суммы корзины
+        console.log('updateDeliveryMethods: Показываем способы доставки в зависимости от суммы корзины');
+        
+        // Проверяем, используется ли купон в корзине
+        const couponDiscount = parseInt(localStorage.getItem('cartCouponDiscount') || '0');
+        const hasCoupon = couponDiscount > 0;
+
+        deliveryOptions.forEach(option => {
+            if (option.value === 'free1001') {
+                // Если используется купон, скрываем бесплатную доставку от 1001 грн
+                if (hasCoupon) {
+                    option.style.display = 'none';
+                    option.disabled = true;
+                    console.log('updateDeliveryMethods: Скрываем бесплатную доставку от 1001 грн (используется купон)');
+                } else if (cartTotal >= 1001) {
+                    option.style.display = 'block';
+                    option.disabled = false;
+                    console.log('updateDeliveryMethods: Показываем бесплатную доставку от 1001 грн');
+                } else {
+                    option.style.display = 'none';
+                    option.disabled = true;
+                }
+            } else if (option.value === 'free2000') {
+                // Если используется купон, скрываем бесплатную доставку от 2000 грн
+                if (hasCoupon) {
+                    option.style.display = 'none';
+                    option.disabled = true;
+                    console.log('updateDeliveryMethods: Скрываем бесплатную доставку от 2000 грн (используется купон)');
+                } else if (cartTotal >= 2000) {
+                    option.style.display = 'block';
+                    option.disabled = false;
+                    console.log('updateDeliveryMethods: Показываем бесплатную доставку от 2000 грн');
+                } else {
+                    option.style.display = 'none';
+                    option.disabled = true;
+                }
+            } else {
+                // Обычные способы доставки всегда доступны
+                option.style.display = 'block';
+                option.disabled = false;
+            }
+        });
+        
+        // НЕ сбрасываем выбранный покупателем способ доставки
+        // Сохраняем выбор пользователя
+        console.log('updateDeliveryMethods: Сохраняем выбранный покупателем способ доставки:', deliverySelect.value);
     }
     
-    console.log(`displayProducts: Все ${products.length} товаров отображены`);
+    // Дополнительная настройка UI для самовывоза
+    try { if (typeof updatePickupUi === 'function') updatePickupUi(deliverySelect.value); } catch (e) {}
+    // Обновляем стоимость доставки
+    updateDeliveryCost();
 }
 
-// Функция для очистки поиска
+// Настройка UI для самовывоза: адрес, время, обязательность полей
+function updatePickupUi(selectedMethod) {
+    try {
+        console.log('updatePickupUi: Обновляем UI для способа доставки:', selectedMethod);
+
+        // Если идет процесс оформления заказа, не трогаем данные пользователя
+        if (isCheckoutInProgress) {
+            console.log('updatePickupUi: Пропускаем обновление UI во время оформления заказа');
+            return;
+        }
+
+        const lang = getCurrentLanguage ? getCurrentLanguage() : (localStorage.getItem('selectedLanguage') || 'uk');
+        const cityEl = document.getElementById('cartCustomerSettlement');
+        const branchEl = document.getElementById('cartCustomerBranch');
+        const nameEl = document.getElementById('cartCustomerName');
+
+        console.log('updatePickupUi: Элементы найдены - cityEl:', !!cityEl, 'branchEl:', !!branchEl, 'nameEl:', !!nameEl);
+        console.log('updatePickupUi: cityEl value до изменения:', cityEl ? cityEl.value : 'элемент не найден');
+
+        if (!cityEl || !branchEl) {
+            console.log('updatePickupUi: Не найдены необходимые элементы');
+            return;
+        }
+
+        if (selectedMethod === 'pickup') {
+            // Город = Одесса только для самовывоза, но только если поле пустое или содержит автозаполненное значение
+            const currentValue = cityEl.value.trim();
+            const od = window.translations ? window.translations.getTranslation('pickupOdessa', lang) : 'Одесса';
+
+            console.log('updatePickupUi: Текущий город:', currentValue, 'Ожидаемый город:', od);
+
+            // Устанавливаем Одессу только если поле пустое или содержит автозаполненное значение Одессы
+            // Не трогаем, если пользователь ввел свой город
+            if (!currentValue || currentValue === od || currentValue === 'Одесса') {
+                console.log('updatePickupUi: Устанавливаем Одессу для самовывоза');
+                cityEl.value = od;
+                console.log('updatePickupUi: cityEl value после установки Одессы:', cityEl.value);
+            } else {
+                console.log('updatePickupUi: Оставляем текущий город без изменений:', currentValue);
+            }
+            // Если пользователь ввел другой город, оставляем его без изменений
+
+            // Имя необязательное для самовывоза
+            if (nameEl) nameEl.required = false;
+            // Заменяем текст "Номер отделения" на адрес самовывоза
+            const branchLabelEl = document.querySelector('span[data-translate="branchNumber"]');
+            if (branchLabelEl) {
+                const pickupText = window.translations ? window.translations.getTranslation('pickupPlaceText', lang) : 'Троицкая угол Канатной, место встречи возле входа в "китайское кафе" по Троицкой.';
+                branchLabelEl.innerHTML = pickupText.replace(/\n/g, '<br>');
+            }
+            // Выпадающий список времени вместо номера отделения
+            const times = getPickupTimes();
+            const sel = document.createElement('select');
+            sel.id = 'cartCustomerBranch';
+            sel.className = branchEl.className;
+            times.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t;
+                opt.textContent = t;
+                sel.appendChild(opt);
+            });
+            branchEl.parentNode.replaceChild(sel, branchEl);
+        } else {
+            console.log('updatePickupUi: Возвращаемся к обычным полям для способа:', selectedMethod);
+
+            // Сохраняем текущий город, если он был введен пользователем
+            const currentCityValue = cityEl.value.trim();
+            const odessaText = window.translations ? window.translations.getTranslation('pickupOdessa', lang) : 'Одесса';
+
+            // Очищаем город только если там была автозаполненная Одесса для самовывоза
+            // Не трогаем, если пользователь ввел свой город вручную
+            if (currentCityValue === odessaText || currentCityValue === 'Одесса' || currentCityValue === '') {
+                cityEl.value = '';
+                console.log('updatePickupUi: Очистили город (была автозаполненная Одесса или пустое поле)');
+            } else {
+                console.log('updatePickupUi: Сохранили введенный пользователем город:', currentCityValue);
+            }
+
+            // Возвращаем текст "Номер отделения"
+            const branchLabelEl = document.querySelector('span[data-translate="branchNumber"]');
+            if (branchLabelEl) {
+                const originalText = window.translations ? window.translations.getTranslation('branchNumber', lang) : 'Номер отделения:';
+                branchLabelEl.textContent = originalText;
+                console.log('updatePickupUi: Восстановили текст лейбла:', originalText);
+            } else {
+                console.log('updatePickupUi: branchLabelEl не найден');
+            }
+
+            // Вернуть обычный input, если был select
+            console.log('updatePickupUi: branchEl.tagName:', branchEl.tagName);
+            if (branchEl.tagName && branchEl.tagName.toLowerCase() === 'select') {
+                console.log('updatePickupUi: Заменяем select обратно на input');
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.id = 'cartCustomerBranch';
+                input.className = branchEl.className;
+                input.placeholder = window.translations ? window.translations.getTranslation('branchNumberPlaceholder', lang) : 'Enter branch number';
+                branchEl.parentNode.replaceChild(input, branchEl);
+                console.log('updatePickupUi: Select заменен на input');
+            } else {
+                console.log('updatePickupUi: branchEl не является select, тип:', branchEl.tagName);
+            }
+
+            if (nameEl) {
+                nameEl.required = true;
+                console.log('updatePickupUi: Установили nameEl.required = true');
+            }
+        }
+    } catch (e) {}
+}
+
+function getPickupTimes() {
+    const d = new Date();
+    const day = d.getDay(); // 0=Sun, 6=Sat
+    if (day === 0) {
+        // Sunday - показываем времена для понедельника (следующего дня)
+        const mondayPrefix = window.translations ? window.translations.getTranslation('monday', getCurrentLanguage()) : 'Понедельник';
+        return [`${mondayPrefix} 13:30`, `${mondayPrefix} 12:00`];
+    }
+    if (day === 6) {
+        return ['12:30', '12:00'];
+    }
+    return ['13:30', '12:00'];
+}
+
+// Функция показа/скрытия меню (перемещена в начало файла)
+
+// Функция закрытия попапов
+function closePopup(popupId) {
+    console.log('closePopup: Закрываем', popupId);
+    const popup = document.getElementById(popupId);
+    if (popup) {
+        popup.style.display = 'none';
+    }
+}
+
+// Функция показа корзины
+function showCartPopup() {
+    console.log('showCartPopup: Показываем корзину');
+    const popup = document.getElementById('cartPopup');
+    if (popup) {
+        // Сначала инициализируем способы доставки, чтобы deliveryMethodSelect имел правильное значение
+        updateDeliveryMethods(); // Инициализируем способы доставки
+
+        renderCartItems();
+        updateCartCalculations();
+        updatePaymentButtonText(); // Инициализируем текст кнопки оплаты
+        popup.style.display = 'flex';
+    }
+}
+
+// Функция закрытия корзины
+function closeCartPopup() {
+    console.log('closeCartPopup: Закрываем корзину');
+    const popup = document.getElementById('cartPopup');
+    if (popup) {
+        popup.style.display = 'none';
+    }
+}
+
+// Функция показа контактов
+function showContactsPopup() {
+    console.log('showContactsPopup: Показываем контакты');
+    const popup = document.getElementById('contactsPopup');
+    if (popup) {
+        console.log('showContactsPopup: Элемент найден, добавляем класс show');
+        popup.classList.add('show');
+        popup.style.zIndex = '99999';
+        popup.style.display = 'flex';
+        popup.style.alignItems = 'center';
+        popup.style.justifyContent = 'center';
+        console.log('showContactsPopup: Класс show добавлен, z-index установлен');
+        console.log('showContactsPopup: Текущие классы:', popup.className);
+        console.log('showContactsPopup: Текущий z-index:', popup.style.zIndex);
+    } else {
+        console.error('showContactsPopup: Элемент contactsPopup не найден!');
+    }
+}
+
+// Функция закрытия контактов
+function closeContactsPopup() {
+    console.log('closeContactsPopup: Закрываем контакты');
+    const popup = document.getElementById('contactsPopup');
+    if (popup) {
+        popup.classList.remove('show');
+        popup.style.display = 'none';
+        popup.style.zIndex = '';
+        console.log('closeContactsPopup: Окно контактов закрыто');
+    } else {
+        console.error('closeContactsPopup: Элемент contactsPopup не найден!');
+    }
+}
+
+// Функция переключения меню
+function toggleMenu() {
+    console.log('toggleMenu: Переключаем меню');
+    const menu = document.querySelector('.menu');
+    if (menu) {
+        menu.classList.toggle('active');
+    }
+}
+// Закрывает меню аватара с восстановлением портала
+function closeAvatarMenu() {
+    const avatarMenu = document.querySelector('.avatar-dropdown');
+    if (!avatarMenu) return;
+    avatarMenu.style.display = 'none';
+    avatarMenu.classList.remove('show');
+    if (avatarMenu.dataset.portaled === '1' && avatarMenu._restoreParent) {
+        avatarMenu._restoreParent.insertBefore(avatarMenu, avatarMenu._restoreNext);
+    }
+    avatarMenu.dataset.portaled = '0';
+}
+
+// Функция переключения аватара
+function toggleAvatarMenu() {
+    console.log('toggleAvatarMenu: Переключаем меню аватара');
+    const avatarMenu = document.querySelector('.avatar-dropdown');
+    const profilePic = document.querySelector('.profile-pic');
+    if (!avatarMenu || !profilePic) {
+        console.error('toggleAvatarMenu: Элементы не найдены');
+        return;
+    }
+    const isOpen = avatarMenu.dataset.portaled === '1' && avatarMenu.style.display === 'block' || avatarMenu.classList.contains('show');
+    if (isOpen) {
+        // close and restore
+        closeAvatarMenu();
+        return;
+    }
+
+    // Перед показом — синхронизируем UI сессии (сначала по кэшу, затем подтверждаем по серверу)
+    try {
+        const loginSection = document.getElementById('dropdownLoginSection');
+        const logoutSection = document.getElementById('dropdownLogoutSection');
+        // Скрываем обе секции, чтобы избежать мерцания неправильного состояния
+        if (loginSection) loginSection.style.display = 'none';
+        if (logoutSection) logoutSection.style.display = 'none';
+
+        const applyAuthUi = (state) => {
+            if (state && state.isAuthenticated) {
+                if (loginSection) loginSection.style.display = 'none';
+                if (logoutSection) logoutSection.style.display = 'block';
+    } else {
+                if (logoutSection) logoutSection.style.display = 'none';
+                if (loginSection) loginSection.style.display = 'block';
+            }
+        };
+
+        // Мгновенно выставляем по локальному кэшу, если уже знаем состояние
+        if (window.__authState && (window.__authState.isAuthenticated === true || window.__authState.isAuthenticated === false)) {
+            applyAuthUi(window.__authState);
+        }
+
+        // Загружаем сохраненные данные логина при показе формы
+        setTimeout(() => {
+            loadSavedLoginData();
+        }, 100); // Небольшая задержка для гарантированного отображения формы
+
+        // Подтверждаем состояние у сервера (относительный путь), добавляем Telegram-параметры если есть
+        const tgQs1 = getTelegramQueryString();
+        fetch('/api/user_profile' + tgQs1, { credentials: 'include' })
+            .then(r => r.ok ? r.json() : { success: false })
+            .then(data => {
+                const authed = isAuthenticatedData(data);
+                window.__authState = { isAuthenticated: authed, profile: authed ? data.profile : null };
+                applyAuthUi(window.__authState);
+            })
+            .catch(() => {});
+    } catch (e) {}
+
+    // Open: portal into body and position fixed under avatar
+    const rect = profilePic.getBoundingClientRect();
+    avatarMenu._restoreParent = avatarMenu.parentNode;
+    avatarMenu._restoreNext = avatarMenu.nextSibling;
+    document.body.appendChild(avatarMenu);
+    avatarMenu.style.position = 'fixed';
+    avatarMenu.style.top = Math.round(rect.bottom + 8) + 'px';
+    // align right edges
+    const width = Math.max(260, avatarMenu.offsetWidth || 260);
+    let left = Math.round(rect.right - width);
+    const pad = 8;
+    left = Math.max(pad, Math.min(left, window.innerWidth - width - pad));
+    avatarMenu.style.left = left + 'px';
+    avatarMenu.style.width = width + 'px';
+    avatarMenu.style.zIndex = '2147483647';
+    avatarMenu.style.display = 'block';
+    try { avatarMenu.classList.add('show'); } catch (e) {}
+    avatarMenu.dataset.portaled = '1';
+
+    // Close on resize
+    const _reposition = () => {
+        if (avatarMenu.style.display === 'block') {
+            const r = profilePic.getBoundingClientRect();
+            let l = Math.round(r.right - width);
+            l = Math.max(pad, Math.min(l, window.innerWidth - width - pad));
+            avatarMenu.style.top = Math.round(r.bottom + 8) + 'px';
+            avatarMenu.style.left = l + 'px';
+        }
+    };
+    if (!avatarMenu._rsz) {
+        avatarMenu._rsz = true;
+        window.addEventListener('resize', _reposition);
+        window.addEventListener('scroll', _reposition, true);
+    }
+}
+
+// Устанавливает активный пункт нижней навигации по текущему виду
+function setActiveBottomNav(view) {
+    try {
+        const navItems = document.querySelectorAll('.nav-item');
+        if (!navItems || navItems.length === 0) return;
+        navItems.forEach(item => item.classList.remove('active'));
+        navItems.forEach(item => {
+            const label = (item.querySelector('span')?.textContent || '').trim();
+            const isProducts = label.includes('Товары') || label.includes('Products') || label.includes('Товари');
+            const isAccount = label.includes('Кабинет') || label.includes('Cabinet') || label.includes('Кабінет');
+            if (view === 'products' && isProducts) item.classList.add('active');
+            if (view === 'account' && isAccount) item.classList.add('active');
+        });
+    } catch (e) {}
+}
+// Функция показа/скрытия настроек (перемещена в начало файла)
+
+// Функция закрытия настроек
+function closeSettingsPopup() {
+    console.log('closeSettingsPopup: Закрываем настройки');
+    const popup = document.getElementById('settingsPopup');
+    if (popup) {
+        popup.style.display = 'none';
+    }
+}
+
+// Функция показа попапа с предложением
+function showOfferPopup() {
+    console.log('showOfferPopup: Показываем предложение');
+    const popup = document.getElementById('offerPopup');
+    if (popup) {
+        console.log('showOfferPopup: Элемент найден, добавляем класс show');
+        
+        // Получаем текущий язык
+        const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
+        
+        // Скрываем все языковые версии
+        const ukContent = document.querySelector('.offer-content-uk');
+        const ruContent = document.querySelector('.offer-content-ru');
+        const enContent = document.querySelector('.offer-content-en');
+        
+        if (ukContent) ukContent.classList.remove('active');
+        if (ruContent) ruContent.classList.remove('active');
+        if (enContent) enContent.classList.remove('active');
+        
+        // Показываем нужную языковую версию
+        switch (currentLanguage) {
+            case 'uk':
+                if (ukContent) ukContent.classList.add('active');
+                break;
+            case 'ru':
+                if (ruContent) ruContent.classList.add('active');
+                break;
+            case 'en':
+                if (enContent) enContent.classList.add('active');
+                break;
+        }
+        
+        popup.classList.add('show');
+        popup.style.zIndex = '99999';
+        popup.style.display = 'flex';
+        popup.style.alignItems = 'center';
+        popup.style.justifyContent = 'center';
+        console.log('showOfferPopup: Класс show добавлен, z-index установлен');
+        console.log('showOfferPopup: Текущие классы:', popup.className);
+        console.log('showOfferPopup: Текущий z-index:', popup.style.zIndex);
+    } else {
+        console.error('showOfferPopup: Элемент offerPopup не найден!');
+    }
+}
+
+// Функция закрытия попапа с предложением
+function closeOfferPopup() {
+    console.log('closeOfferPopup: Закрываем предложение');
+    const popup = document.getElementById('offerPopup');
+    if (popup) {
+        popup.classList.remove('show');
+        popup.style.display = 'none';
+        popup.style.zIndex = '';
+        console.log('closeOfferPopup: Окно оферты закрыто');
+    }
+}
+
+// Функция показа попапа для товаров снятых с производства
+function showDiscontinuedPopup() {
+    console.log('showDiscontinuedPopup: Показываем popup для товара снятого с производства');
+    const popup = document.getElementById('discontinuedPopup');
+    if (popup) {
+        popup.style.display = 'flex';
+        popup.style.zIndex = '20000';
+    }
+}
+
+// Функция показа попапа для товаров которых нет в наличии
+function showOutOfStockPopup() {
+    console.log('showOutOfStockPopup: Показываем popup для товара которого нет в наличии');
+    const popup = document.getElementById('outOfStockPopup');
+    if (popup) {
+        popup.style.display = 'flex';
+        popup.style.zIndex = '20000';
+    }
+}
+
+// Функция показа попапа для товаров которые ожидаются
+function showExpectedPopup() {
+    console.log('showExpectedPopup: Показываем popup для товара который ожидается');
+    const popup = document.getElementById('expectedPopup');
+    if (popup) {
+        popup.style.display = 'flex';
+        popup.style.zIndex = '20000';
+    }
+}
+
+// Функция показа попапа для товаров под заказ
+function showOnOrderPopup() {
+    console.log('showOnOrderPopup: Показываем popup для товара под заказ');
+    const popup = document.getElementById('onOrderPopup');
+    if (popup) {
+        popup.style.display = 'flex';
+        popup.style.zIndex = '20000';
+    }
+}
+
+// Функция показа попапа с категориями
+function showCategoryPopup() {
+    console.log('showCategoryPopup: Показываем категории');
+    const popup = document.getElementById('categoryPopup');
+    if (popup) {
+        popup.style.display = 'flex';
+    }
+}
+
+// Функция закрытия попапа с категориями
+function closeCategoryPopup() {
+    console.log('closeCategoryPopup: Закрываем категории');
+    const popup = document.getElementById('categoryPopup');
+    if (popup) {
+        popup.style.display = 'none';
+    }
+}
+
+// Функция показа попапа с поиском
+function showSearchPopup() {
+    console.log('showSearchPopup: Показываем поиск');
+    const popup = document.getElementById('searchPopup');
+    if (popup) {
+        popup.style.display = 'flex';
+    }
+}
+
+// Функция закрытия попапа с поиском
+function closeSearchPopup() {
+    console.log('closeSearchPopup: Закрываем поиск');
+    const popup = document.getElementById('searchPopup');
+    if (popup) {
+        popup.style.display = 'none';
+    }
+}
+
+// Функция поиска товаров
+async function searchProducts(query) {
+    console.log('searchProducts: Поиск товаров по запросу:', query);
+    
+    let currentSearchTerm = query.toLowerCase().trim();
+    isSearchActive = currentSearchTerm.length > 0;
+    
+    if (!isSearchActive) {
+        console.log('searchProducts: Поиск отменен, загружаем все товары');
+        await loadProducts();
+        return;
+    }
+    
+         // Нормализуем поисковые запросы для лучшего поиска
+     if (currentSearchTerm.includes('d\'addario') || currentSearchTerm.includes('d\'addario') || currentSearchTerm.includes('daddario')) {
+         currentSearchTerm = 'addario';
+         console.log('searchProducts: Нормализован запрос D\'Addario в:', currentSearchTerm);
+     }
+     
+     // Нормализуем поисковые запросы для DR
+     if (currentSearchTerm === 'dr' || currentSearchTerm === 'DR') {
+         currentSearchTerm = 'DR';
+         console.log('searchProducts: Нормализован запрос DR в:', currentSearchTerm);
+     }
+     
+     // Нормализуем поисковые запросы для La Bella
+     if (currentSearchTerm === 'la bella' || currentSearchTerm === 'la bella' || currentSearchTerm === 'labella' || 
+         currentSearchTerm === 'La Bella' || currentSearchTerm === 'La bella' || currentSearchTerm === 'LABELLA') {
+         currentSearchTerm = 'La Bella';
+         console.log('searchProducts: Нормализован запрос La Bella в:', currentSearchTerm);
+     }
+     
+     // Специальная обработка для DR - ищем по нескольким вариантам
+     if (currentSearchTerm === 'DR') {
+         console.log('searchProducts: Специальный поиск для DR - используем несколько вариантов');
+         // Попробуем найти товары DR разными способами
+         await searchDRProducts();
+         return;
+     }
+     
+     // Специальная обработка для La Bella - ищем по нескольким вариантам
+     if (currentSearchTerm === 'La Bella') {
+         console.log('searchProducts: Специальный поиск для La Bella - используем несколько вариантов');
+         // Попробуем найти товары La Bella разными способами
+         await searchLaBellaProducts();
+         return;
+     }
+    
+    try {
+        // Загружаем ВСЕ найденные товары без ограничений
+        const response = await fetch(`http://localhost:8000/api/products?search=${encodeURIComponent(currentSearchTerm)}&start=0&limit=1000`);
+        const data = await response.json();
+        
+        if (data && data.products && data.products.length > 0) {
+            console.log(`searchProducts: Найдено ${data.products.length} товаров`);
+            displayProducts(data.products);
+        } else {
+            console.log('searchProducts: Товары не найдены');
+            showNoSearchResults(currentSearchTerm);
+        }
+    } catch (error) {
+        console.error('searchProducts: Ошибка поиска:', error);
+        showNoSearchResults(currentSearchTerm);
+    }
+}
+
+// Функция показа результатов поиска
+function showNoSearchResults(searchTerm) {
+    console.log('showNoSearchResults: Показываем сообщение об отсутствии результатов');
+    
+    const container = document.querySelector('.inner');
+    if (!container) return;
+    
+    container.innerHTML = `
+        <div style="padding: 40px; text-align: center;">
+            <i class="fas fa-search" style="font-size: 48px; margin-bottom: 20px; opacity: 0.5;"></i>
+            <h3>По запросу "${searchTerm}" ничего не найдено</h3>
+            <p>Попробуйте изменить поисковый запрос</p>
+            <button class="btn" onclick="clearSearch()" style="margin-top: 20px;">
+                <i class="fas fa-times"></i> Очистить поиск
+            </button>
+        </div>
+    `;
+}
+
+// Функция очистки поиска
 async function clearSearch() {
-    console.log('=== ОЧИСТКА ПОИСКА ===');
+    console.log('clearSearch: Очищаем поиск');
     
     const searchInput = document.querySelector('.search-input');
     if (searchInput) {
@@ -635,4294 +2233,6381 @@ async function clearSearch() {
     
     searchTerm = '';
     isSearchActive = false;
+    isCategoryFilterActive = false;
     
-    console.log('Поиск очищен, показываем все загруженные товары');
-    console.log(`Всего загружено товаров: ${allProducts.length}`);
+    // Сбрасываем состояние бесконечной прокрутки
+    currentPage = 0;
+    hasMoreProducts = true;
+    loadedProductNames.clear();
     
-    // Показываем все загруженные товары (не только первые 60)
-    await displayProducts(allProducts);
-    
-    // Восстанавливаем индикатор загрузки для бесконечной прокрутки
-    if (hasMoreProducts) {
-        showLoadingIndicator();
-        console.log('clearSearch: Восстановлен индикатор загрузки для бесконечной прокрутки');
-    }
-    
-    // Восстанавливаем обычный режим загрузки товаров
-    console.log('clearSearch: Восстановлен обычный режим загрузки товаров');
+    // Загружаем все товары
+    await loadProducts(0, false);
 }
 
-// Функция показа индикатора загрузки для бесконечной прокрутки
-function showLoadingIndicator() {
-    let indicator = document.getElementById('loading-indicator');
-    if (!indicator) {
-        // Создаем индикатор загрузки, если его нет
-        indicator = document.createElement('div');
-        indicator.id = 'loading-indicator';
-        indicator.innerHTML = `
-            <div class="loading-spinner">
-                <div class="spinner"></div>
-                <p>Загрузка товаров...</p>
-            </div>
-        `;
-        indicator.style.cssText = `
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-            margin: 20px 0;
-        `;
-        
-        // Добавляем в контейнер товаров
-        const container = document.querySelector('.inner');
-        if (container) {
-            container.appendChild(indicator);
-            console.log('Индикатор загрузки создан и добавлен');
-        } else {
-            console.warn('Контейнер товаров не найден для добавления индикатора');
-            return;
-        }
-    }
-    
-    indicator.style.display = 'block';
-    
-    // Автоматически скрываем индикатор через 2 секунды, если загрузка происходит быстро
-    setTimeout(() => {
-        if (indicator && !isLoading) {
-            indicator.style.display = 'none';
-            console.log('Индикатор загрузки автоматически скрыт (быстрая загрузка)');
-        }
-    }, 2000);
-    
-    console.log('Показан индикатор загрузки для бесконечной прокрутки');
-}
-
-// Функция скрытия индикатора загрузки для бесконечной прокрутки
-function hideLoadingIndicator() {
-    const indicator = document.getElementById('loading-indicator');
-    if (indicator) {
-        indicator.style.display = 'none';
-        console.log('Скрыт индикатор загрузки для бесконечной прокрутки');
-    }
-}
-
-// Функция скрытия экрана загрузки
-function hideLoadingScreen() {
-    const loadingScreen = document.querySelector('.loading-screen');
-    if (loadingScreen) {
-        loadingScreen.style.display = 'none';
-        console.log('Экран загрузки скрыт');
-    }
-    
-    // Скрываем индикатор загрузки
-    const loadingIndicator = document.getElementById('loading-indicator');
-    if (loadingIndicator) {
-        loadingIndicator.style.display = 'none';
-        console.log('Индикатор загрузки скрыт');
-    }
-}
-
-// ОПТИМИЗАЦИЯ: Функция предварительной загрузки следующей страницы товаров
-async function preloadNextPage() {
-    if (isLoading || !hasMoreProducts || isSearchActive) return;
-    
-    try {
-        const nextPage = currentPage + 1;
-        const start = nextPage * productsPerPage;
-        
-        // Загружаем данные в фоне без блокировки интерфейса
-        const response = await fetch(`http://localhost:8000/api/products?start=${start}&limit=${productsPerPage}`);
-        
-        if (response.ok) {
-            const data = await response.json();
-            if (data.success && data.products && data.products.length > 0) {
-                // Сохраняем предзагруженные товары
-                window.preloadedProducts = data.products;
-                console.log(`preloadNextPage: Предзагружено ${data.products.length} товаров для страницы ${nextPage}`);
-            }
-        }
-    } catch (error) {
-        console.log('preloadNextPage: Ошибка предзагрузки (не критично):', error);
-    }
-}
-
-// Функция показа экрана загрузки
-function showLoadingScreen() {
-    const loadingScreen = document.querySelector('.loading-screen');
-    if (loadingScreen) {
-        loadingScreen.style.display = 'flex';
-        console.log('Экран загрузки показан');
-    }
-}
-
-// Функция показа сообщения о конце списка
-function showEndMessage() {
-    let endMessage = document.querySelector('.end-message');
-    if (!endMessage) {
-        endMessage = document.createElement('div');
-        endMessage.className = 'end-message';
-        endMessage.innerHTML = `
-            <p>Все товары загружены</p>
-        `;
-        document.querySelector('.inner').appendChild(endMessage);
-    }
-    endMessage.style.display = 'block';
-    
-    // Скрываем индикатор загрузки
-    const loadingIndicator = document.getElementById('loading-indicator');
-    if (loadingIndicator) {
-        loadingIndicator.style.display = 'none';
-    }
-    
-    console.log('Показано сообщение о конце списка товаров');
-}
-
-// Функция загрузки реальных товаров с сайта
-async function loadRealProducts() {
-    try {
-        console.log('Начинаем загрузку товаров...');
-        
-        const data = await fetchProductData(0);
-        
-        if (data && data.products && data.products.length > 0) {
-            console.log(`Загружено ${data.products.length} товаров`);
-            console.log(`Сервер вернул total=${data.total}, hasMore=${data.hasMore}`);
-            
-            // Ограничиваем отображение первыми 60 товарами
-            const firstPageProducts = data.products.slice(0, 60);
-            
-            // Обновляем глобальные переменные
-            maxProducts = data.total || data.products.length;
-            // ИСПРАВЛЕНИЕ: Полагаемся на hasMore с сервера, а не на клиентскую логику
-            hasMoreProducts = data.hasMore !== undefined ? data.hasMore : true;
-            
-            console.log(`Максимум товаров: ${maxProducts}, есть еще: ${hasMoreProducts}`);
-            console.log(`Сервер вернул hasMore: ${data.hasMore}`);
-            
-            // Сохраняем названия загруженных товаров
-            firstPageProducts.forEach(product => {
-                loadedProductNames.add(product.name);
-            });
-            
-            // Очищаем контейнер и отображаем товары
-            const container = document.querySelector('.inner');
-            container.innerHTML = '';
-            
-            firstPageProducts.forEach((product, index) => {
-                const productCard = createProductCardFromSiteData(product, `btn${index + 1}`);
-                container.appendChild(productCard);
-            });
-            
-            // Скрываем экран загрузки
-            hideLoadingScreen();
-            
-            // Сохраняем состояние
-            saveState();
-            
-            // Настраиваем обработчики для изображений
-            setupImageHandlers();
-            
-            console.log('Товары успешно загружены и отображены');
-        } else {
-            console.error('Не удалось загрузить товары - нет данных');
-            hideLoadingScreen();
-            // Показываем сообщение об ошибке
-            const container = document.querySelector('.inner');
-            container.innerHTML = `
-                <div class="error-message">
-                    <p>Не удалось загрузить товары. Попробуйте обновить страницу.</p>
-                    <button onclick="location.reload()" class="btn">Обновить страницу</button>
-                </div>
-            `;
-        }
-    } catch (error) {
-        console.error('Ошибка загрузки товаров:', error);
-        hideLoadingScreen();
-        // Показываем сообщение об ошибке
-        const container = document.querySelector('.inner');
-        container.innerHTML = `
-            <div class="error-message">
-                <p>Ошибка загрузки товаров: ${error.message}</p>
-                <button onclick="location.reload()" class="btn">Обновить страницу</button>
-            </div>
-        `;
-    }
-}
-
-// Функция загрузки товаров
-async function loadProducts(page = 0) {
-    if (isLoading || !hasMoreProducts) return;
-    
-    isLoading = true;
-    const start = page * productsPerPage;
-    
-    try {
-        const response = await fetch(`http://localhost:8000/api/products?start=${start}&limit=${productsPerPage}`);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            if (data.products && data.products.length > 0) {
-                renderProducts(data.products);
-                currentPage = page;
-                
-                // Устанавливаем максимальное количество товаров
-                if (data.total) {
-                    maxProducts = data.total;
-                }
-                
-                if (!data.hasMore) {
-                    hasMoreProducts = false;
-                }
-            } else {
-                hasMoreProducts = false;
-            }
-        } else {
-            console.error('Ошибка API:', data.error);
-        }
-    } catch (error) {
-        console.error('Ошибка загрузки:', error);
-    } finally {
-        isLoading = false;
-    }
-}
-
-// Функция отображения товаров
-function renderProducts(products) {
-    console.log('renderProducts: Начинаем отображение товаров:', products);
-    
-    const container = document.querySelector('.inner');
-    console.log('renderProducts: Контейнер найден:', container);
-    
-    if (!container) {
-        console.error('renderProducts: Контейнер .inner не найден!');
+// Функция загрузки следующей страницы
+async function loadNextPage() {
+    if (isLoading || !hasMoreProducts || isSearchActive || isCategoryFilterActive) {
+        console.log('loadNextPage: Загрузка невозможна - isLoading:', isLoading, 'hasMoreProducts:', hasMoreProducts, 'isSearchActive:', isSearchActive, 'isCategoryFilterActive:', isCategoryFilterActive);
         return;
     }
     
-    // ОПТИМИЗАЦИЯ: Показываем товары порциями для ускорения отображения
-    const batchSize = 12; // Уменьшено с 15 до 12 для более быстрого отображения
-    let currentIndex = 0;
-    
-    const showNextBatch = () => {
-        const fragment = document.createDocumentFragment();
-        const endIndex = Math.min(currentIndex + batchSize, products.length);
-        
-        for (let i = currentIndex; i < endIndex; i++) {
-            const product = products[i];
-            console.log(`renderProducts: Обрабатываем товар ${i + 1}:`, product);
-            const productCard = createProductCardFromSiteData(product, `btn${loadedProductNames.size + i + 1}`);
-            console.log(`renderProducts: Карточка создана для товара ${i + 1}:`, productCard);
-            fragment.appendChild(productCard);
-            
-            // Добавляем название в множество загруженных
-            loadedProductNames.add(product.name);
-        }
-        
-        container.appendChild(fragment);
-        currentIndex = endIndex;
-        
-        console.log(`renderProducts: Показана порция товаров ${endIndex - batchSize + 1}-${endIndex} из ${products.length}`);
-        
-        // Если есть еще товары, показываем следующую порцию через небольшую задержку
-        if (currentIndex < products.length) {
-            setTimeout(showNextBatch, 2); // Уменьшена задержка с 5мс до 2мс для ускорения
-        } else {
-            // Все товары показаны
-            console.log(`renderProducts: Всего товаров в контейнере после добавления:`, container.children.length);
-            
-            // Настраиваем обработчики для новых изображений
-            setupImageHandlers();
-            
-            console.log(`Отображено ${products.length} товаров. Всего загружено: ${loadedProductNames.size}`);
-            
-            // Сохраняем состояние после добавления новых товаров (только если это не восстановление)
-            if (!window.isRestoring) {
-                saveState();
-            }
-            
-            // Проверяем, нужно ли показать сообщение о конце списка
-            if (!hasMoreProducts) {
-                showEndMessage();
-            }
-        }
-    };
-    
-    // Начинаем показывать товары
-    showNextBatch();
+    console.log('loadNextPage: Загружаем следующую страницу, текущая:', currentPage);
+    const nextPage = currentPage + 1; // Вычисляем следующую страницу
+    console.log('loadNextPage: Следующая страница будет:', nextPage);
+    await loadProducts(nextPage, true);
 }
 
-// Функция создания карточки товара
-function createProductCard(product, btnId) {
-    const card = document.createElement('div');
-    card.className = 'item';
-    card.innerHTML = `
-        <img src="${product.image}" alt="${product.name}">
-        <h3>${product.name}</h3>
-        <p class="price">
-            <span class="old-price">${product.oldPrice}</span>
-            <span class="new-price">${product.newPrice} грн</span>
-        </p>
-        <p class="availability">${product.availability}</p>
-        <button id="${btnId}" class="buy-btn">${getButtonText(product.availability, localStorage.getItem('selectedLanguage') || 'uk')}</button>
-    `;
-    
-    // Добавляем обработчик для кнопки
-    const button = card.querySelector(`#${btnId}`);
-    button.addEventListener('click', () => {
-        tg.MainButton.text = `Выбрано: ${product.name}`;
-        tg.MainButton.show();
-    });
-    
-    return card;
-}
+// Функция обновления онлайн статуса по времени
+function updateOnlineStatus() {
+    const now = new Date();
+    const currentHour = now.getHours();
+    const onlineStatus = document.querySelector('.online-status');
+    const statusDot = document.querySelector('.status-dot');
+    const statusText = document.querySelector('.online-status span');
 
-// Функция создания карточки товара из сохраненных данных
-function createProductCardFromSavedData(productData, btnId) {
-    const card = document.createElement('div');
-    card.className = 'product-card';
-    card.setAttribute('data-product-name', productData.name);
-    
-    // Определяем CSS класс для статуса
-    let statusClass = '';
-    let buttonText = '';
-    
-    // Отладка для конкретного товара
-    if (productData.name && productData.name.includes('Dean Markley 2558A')) {
-        console.log(`=== FRONTEND DEBUG: Creating card from saved data for Dean Markley 2558A ===`);
-        console.log(`ProductData availability: ${productData.availability}`);
-        console.log(`Full productData:`, productData);
+    if (!onlineStatus || !statusDot || !statusText) {
+        console.error('updateOnlineStatus: Элементы статуса не найдены');
+        return;
     }
-    
-    // НОВАЯ ЛОГИКА: Используем индивидуальные кнопки для каждого языка
-    const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
-    
-    if (productData.availability === 'Нет в наличии' || productData.availability === 'Немає в наявності' || productData.availability === 'Out of stock') {
-        statusClass = 'out-of-stock';
-        buttonText = getButtonText(productData.availability, currentLanguage);
-    } else if (productData.availability === 'Ожидается' || productData.availability === 'Очікується' || productData.availability === 'Expected') {
-        statusClass = 'expected';
-        buttonText = getButtonText(productData.availability, currentLanguage);
-    } else if (productData.availability === 'Под заказ' || productData.availability === 'Під замовлення' || productData.availability === 'On order') {
-        statusClass = 'on-order';
-        buttonText = getButtonText(productData.availability, currentLanguage);
-    } else if (productData.availability === 'Снят с производства' || productData.availability === 'Знято з виробництва' || productData.availability === 'Discontinued') {
-        statusClass = 'discontinued';
-        buttonText = getButtonText(productData.availability, currentLanguage);
-    } else {
-        // По умолчанию "В наличии"
-        statusClass = 'in-stock';
-        buttonText = getButtonText(productData.availability, currentLanguage);
-    }
-    
-    // Определяем CSS класс для цены
-    let priceClass = '';
-    if (productData.availability === 'Нет в наличии' || productData.availability === 'Ожидается') {
-        priceClass = 'out-of-stock';
-    } else if (productData.availability === 'Под заказ') {
-        priceClass = 'on-order';
-    } else if (productData.availability === 'Снят с производства') {
-        priceClass = 'discontinued';
-    }
-    
-    // Создаем HTML для карточки товара
-    card.innerHTML = `
-        <div class="product-actions">
-            <button class="favorite-btn" title="Добавить в избранное">
-                <i class="far fa-heart"></i>
-            </button>
-            <button class="compare-btn" title="Добавить к сравнению">
-                <i class="fas fa-balance-scale"></i>
-            </button>
-        </div>
-        
-        <div class="img-container">
-            <img src="${productData.image}" alt="${productData.name}" class="img">
-        </div>
-        
-        <h3 class="product-title">${productData.name}</h3>
-        
-        <div class="product-status ${statusClass}">
-            ${getStatusText(productData.availability)}
-        </div>
-        
-        <div class="compare-checkbox">
-            <input type="checkbox" id="compare-${btnId}">
-            <label for="compare-${btnId}" data-translate="compare">Сравнить</label>
-        </div>
-        
-        <div class="product-prices">
-            ${productData.oldPrice && productData.oldPrice !== '0' && !productData.oldPrice.includes('грн') ? `<span class="old-price">${productData.oldPrice} грн</span>` : 
-              productData.oldPrice && productData.oldPrice !== '0' ? `<span class="old-price">${productData.oldPrice}</span>` : ''}
-            <span class="new-price">${productData.newPrice.includes('грн') ? productData.newPrice : productData.newPrice + ' грн'}</span>
-        </div>
-        
-        <div class="product-rating" data-numeric-rating="${productData.rating}">
-            ${generateRatingStars(productData.rating)}
-        </div>
-        
-        <button id="${btnId}" class="btn ${statusClass}">
-            ${buttonText}
-        </button>
-    `;
-    
-    // Добавляем обработчик для кнопки
-    const button = card.querySelector(`#${btnId}`);
-    button.addEventListener('click', () => {
-        if (productData.availability === 'Снят с производства') {
-            showDiscontinuedPopup();
-        } else if (productData.availability === 'Нет в наличии') {
-            showOutOfStockPopup();
-        } else if (productData.availability === 'Ожидается') {
-            showExpectedPopup();
-        } else if (productData.availability === 'Под заказ') {
-            showOnOrderPopup();
-        } else {
-            // Обычная покупка
-            tg.MainButton.text = `Выбрано: ${productData.name}`;
-            tg.MainButton.show();
-        }
-    });
-    
-    // Добавляем обработчики для кнопок действий
-    const favoriteBtn = card.querySelector('.favorite-btn');
-    favoriteBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        favoriteBtn.classList.toggle('favorited');
-        if (favoriteBtn.classList.contains('favorited')) {
-            favoriteBtn.innerHTML = '<i class="fas fa-heart"></i>';
-        } else {
-            favoriteBtn.innerHTML = '<i class="far fa-heart"></i>';
-        }
-    });
-    
-    const compareBtn = card.querySelector('.compare-btn');
-    compareBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        compareBtn.classList.toggle('active');
-        if (compareBtn.classList.contains('active')) {
-            compareBtn.style.color = 'var(--primary-color)';
-        } else {
-            compareBtn.style.color = 'var(--text-light)';
-        }
-    });
-    
-    return card;
-}
-
-// Функция создания карточки товара из данных сайта
-function createProductCardFromSiteData(product, btnId) {
-    // console.log('createProductCardFromSiteData: Создаем карточку для товара:', product);
-    // console.log('createProductCardFromSiteData: btnId:', btnId);
-    
-    const card = document.createElement('div');
-    card.className = 'product-card';
-    card.setAttribute('data-product-name', product.name);
-    // Сохраняем исходные данные в data-атрибутах для корректного восстановления
-    card.setAttribute('data-original-availability', product.availability);
-    card.setAttribute('data-original-rating', product.rating);
-    
-    // Определяем CSS класс для статуса
-    let statusClass = '';
-    let buttonText = '';
     
     // Получаем текущий язык
     const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
+    const currentTranslations = translations[currentLanguage] || translations.uk;
     
-
+    // Рабочие часы: с 9:00 до 19:00 (9-19)
+    const isWorkingHours = currentHour >= 9 && currentHour < 19;
     
-    // НОВАЯ ЛОГИКА: Используем индивидуальные кнопки для каждого языка
-    if (product.availability === 'Нет в наличии' || product.availability === 'Немає в наявності' || product.availability === 'Out of stock') {
-        statusClass = 'out-of-stock';
-        buttonText = getButtonText(product.availability, currentLanguage);
-    } else if (product.availability === 'Ожидается' || product.availability === 'Очікується' || product.availability === 'Expected') {
-        statusClass = 'expected';
-        buttonText = getButtonText(product.availability, currentLanguage);
-    } else if (product.availability === 'Под заказ' || product.availability === 'Під замовлення' || product.availability === 'On order') {
-        statusClass = 'on-order';
-        buttonText = getButtonText(product.availability, currentLanguage);
-    } else if (product.availability === 'Снят с производства' || product.availability === 'Знято з виробництва' || product.availability === 'Discontinued') {
-        statusClass = 'discontinued';
-        buttonText = getButtonText(product.availability, currentLanguage);
+    if (isWorkingHours) {
+        // Онлайн (зеленый)
+        onlineStatus.classList.remove('offline');
+        onlineStatus.classList.add('online');
+        statusDot.style.background = '#4CAF50'; // Зеленый
+        statusText.textContent = currentTranslations.onlineStatus;
     } else {
-        // По умолчанию "В наличии"
-        statusClass = 'in-stock';
-        buttonText = getButtonText(product.availability, currentLanguage);
+        // Офлайн (синий)
+        onlineStatus.classList.remove('online');
+        onlineStatus.classList.add('offline');
+        statusDot.style.background = '#2196F3'; // Синий
+        statusText.textContent = currentTranslations.onlineStatusOffline;
     }
-    
-    // Определяем CSS класс для цены
-    let priceClass = '';
-    if (product.availability === 'Нет в наличии' || product.availability === 'Ожидается') {
-        priceClass = 'out-of-stock';
-    } else if (product.availability === 'Под заказ') {
-        priceClass = 'on-order';
-    } else if (product.availability === 'Снят с производства') {
-        priceClass = 'discontinued';
-    }
-    
-    // Создаем HTML для карточки товара в новом стиле
-    card.innerHTML = `
-        <div class="product-actions">
-            <button class="favorite-btn" title="Добавить в избранное" data-product-id="${btnId}">
-                <i class="far fa-heart"></i>
-            </button>
-            <button class="compare-btn" title="Добавить к сравнению" data-product-id="${btnId}">
-                <i class="fas fa-balance-scale"></i>
-            </button>
-        </div>
-        
-        <div class="img-container">
-            <img src="${product.image}" alt="${product.name}" class="img">
-        </div>
-        
-        <h3 class="product-title">${product.name}</h3>
-        
-        <div class="product-status ${statusClass}">
-            ${getStatusText(product.availability)}
-        </div>
-        
-        <div class="compare-checkbox">
-            <input type="checkbox" id="compare-${btnId}">
-            <label for="compare-${btnId}" data-translate="compare">Сравнить</label>
-        </div>
-        
-        <div class="product-prices">
-            ${product.oldPrice && product.oldPrice !== '0' && product.oldPrice !== 'null' ? `<span class="old-price">${product.oldPrice} грн</span>` : ''}
-            <span class="new-price">${product.newPrice} грн</span>
-        </div>
-        
-        <div class="product-rating" data-numeric-rating="${product.rating}">
-            ${generateRatingStars(product.rating)}
-        </div>
-        
-        <button id="${btnId}" class="btn ${statusClass}" data-product-availability="${product.availability}" data-product-name="${product.name}">
-            ${buttonText}
-        </button>
-    `;
-    
-    // Добавляем обработчик для кнопки покупки
-    const button = card.querySelector(`#${btnId}`);
-    if (button) {
-        button.addEventListener('click', () => {
-            if (product.availability === 'Снят с производства' || product.availability === 'Знято з виробництва' || product.availability === 'Discontinued') {
-                showDiscontinuedPopup();
-            } else if (product.availability === 'Нет в наличии' || product.availability === 'Немає в наявності' || product.availability === 'Out of stock') {
-                showOutOfStockPopup();
-            } else if (product.availability === 'Ожидается' || product.availability === 'Очікується' || product.availability === 'Expected') {
-                showExpectedPopup();
-            } else if (product.availability === 'Под заказ' || product.availability === 'Під замовлення' || product.availability === 'On order') {
-                showOnOrderPopup();
-            } else {
-                // Товар в наличии - добавляем в корзину
-                addToCart(product);
-            }
-        });
-    }
-    
-    return card;
 }
 
-// Функция генерации звездочек рейтинга (оптимизированная)
-function generateRatingStars(rating) {
-    // Если рейтинг "Нет рейтинга", показываем пустые звезды
-    if (rating === 'Нет рейтинга' || rating === 'null' || rating === null || rating === undefined) {
-        return '<span class="no-rating">Нет рейтинга</span>';
+// Функция показа попапа с поддержкой
+function showSupportPopup() {
+    console.log('showSupportPopup: Показываем поддержку');
+    const popup = document.getElementById('supportPopup');
+    if (popup) {
+        popup.style.display = 'flex';
     }
-    
-    let numericRating = 0;
-    
-    // Если рейтинг пришел как строка с голосами (например "4.6 - 10 голосов")
-    if (typeof rating === 'string') {
-        if (rating.includes('-')) {
-            const ratingMatch = rating.match(/(\d+\.?\d*)/);
-            if (ratingMatch) {
-                numericRating = parseFloat(ratingMatch[1]);
-            }
-        } else {
-            // Пытаемся извлечь число из строки
-            const ratingMatch = rating.match(/(\d+\.?\d*)/);
-            if (ratingMatch) {
-                numericRating = parseFloat(ratingMatch[1]);
-            }
-        }
-    } else if (typeof rating === 'number') {
-        numericRating = rating;
-    }
-    
-    // Проверяем валидность рейтинга
-    if (isNaN(numericRating) || numericRating < 0 || numericRating > 5) {
-        return '<span class="no-rating">Нет рейтинга</span>';
-    }
-    
-    // Округляем рейтинг до ближайшей половины
-    const roundedRating = Math.round(numericRating * 2) / 2;
-    
-    const fullStars = Math.floor(roundedRating);
-    const hasHalfStar = roundedRating % 1 >= 0.5;
-    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
-    
-    let stars = '';
-    
-    // Полные звезды (слева направо)
-    for (let i = 0; i < fullStars; i++) {
-        stars += '<span class="star-filled">★</span>';
-    }
-    
-    // Половина звезды
-    if (hasHalfStar) {
-        stars += '<span class="star-half">★</span>';
-    }
-    
-    // Пустые звезды (справа)
-    for (let i = 0; i < emptyStars; i++) {
-        stars += '<span class="star-empty">☆</span>';
-    }
-    
-    return stars;
 }
 
-// Функция загрузки дополнительных товаров при прокрутке
-async function loadMoreProducts() {
-    // Проверяем инициализацию переменных
-    if (typeof window.loadedProductNames === 'undefined') {
-        console.warn('loadMoreProducts: loadedProductNames не инициализирована, инициализируем...');
-        window.loadedProductNames = new Set();
-        loadedProductNames = window.loadedProductNames;
+// Функция закрытия попапа с поддержкой
+function closeSupportPopup() {
+    console.log('closeSupportPopup: Закрываем поддержку');
+    const popup = document.getElementById('supportPopup');
+    if (popup) {
+        popup.style.display = 'none';
     }
-    
-    // ИСПРАВЛЕНИЕ: Убираем преждевременную проверку loadedProductNames.size >= 377
-    // Полагаемся только на hasMoreProducts, который устанавливается сервером
-    
-    // Не загружаем дополнительные товары во время поиска
-    if (isSearchActive) {
+}
+
+// Функция перехода в корзину
+// Функция перехода в корзину (перемещена в начало файла)
+// Универсальные функции индикатора загрузки
+function showLoadingIndicator() {
+    try {
+        // Если уже есть – не дублируем
+        if (document.getElementById('loading-indicator')) return;
+        const inner = document.querySelector('.inner');
+        if (!inner) return;
+        const wrap = document.createElement('div');
+        wrap.id = 'loading-indicator';
+        wrap.style.cssText = 'display:flex;align-items:center;justify-content:center;padding:20px;margin:10px auto;';
+        wrap.innerHTML = '<i class="fas fa-spinner fa-spin" style="font-size:22px;color:#4CAF50;"></i>';
+        inner.appendChild(wrap);
+    } catch (e) {}
+}
+function hideLoadingIndicator() {
+    try { const ld = document.getElementById('loading-indicator'); if (ld) ld.remove(); } catch (e) {}
+    try { const lo = document.getElementById('loading-overlay'); if (lo) lo.remove(); } catch (e) {}
+}
+// Функция загрузки товаров
+async function loadProducts(page = 0, append = false) {
+    if (isLoading || isSearchActive) {
+        console.log('loadProducts: Загрузка уже идет или активен поиск, пропускаем');
         return;
     }
     
-    if (isLoading || !hasMoreProducts) {
-        return;
-    }
+    // console.log('loadProducts: Загружаем товары, страница:', page, 'добавляем:', append);
     
     isLoading = true;
     
     // Показываем индикатор загрузки
-    showLoadingIndicator();
-    
-    try {
-        const nextPage = currentPage + 1;
-        const start = nextPage * productsPerPage;
-        
-        // ИСПРАВЛЕНИЕ: Добавляем timestamp и заголовки для принудительного обновления кеша
-        const timestamp = Date.now();
-        const cacheBuster = `&_t=${timestamp}&_v=${Math.random()}`;
-        
-        console.log(`loadMoreProducts: Загружаем страницу ${nextPage}, start=${start}, timestamp=${timestamp}`);
-        
-        // Загружаем товары с сервера с принудительным обновлением кеша
-        const response = await fetch(`http://localhost:8000/api/products?start=${start}&limit=${productsPerPage}${cacheBuster}`, {
-            method: 'GET',
-            headers: {
-                'Cache-Control': 'no-cache, no-store, must-revalidate',
-                'Pragma': 'no-cache',
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        });
-        
-        console.log(`loadMoreProducts: Ответ сервера - status=${response.status}, ok=${response.ok}`);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        
-        console.log(`loadMoreProducts: Данные получены - success=${data.success}, products.length=${data.products?.length}, total=${data.total}, hasMore=${data.hasMore}`);
-        
-        if (data.success) {
-            newProducts = data.products;
-        } else {
-            throw new Error('API вернул ошибку');
-        }
-        
-        if (data.success) {
-            if (newProducts && newProducts.length > 0) {
-                console.log(`loadMoreProducts: Получено ${newProducts.length} товаров`);
-                
-                // ОПТИМИЗАЦИЯ: Отображаем новые товары порциями для ускорения
-                const container = document.querySelector('.inner');
-                const batchSize = 15; // Показываем по 15 товаров за раз
-                let currentIndex = 0;
-                
-                const showNextBatch = () => {
-                    const fragment = document.createDocumentFragment();
-                    const endIndex = Math.min(currentIndex + batchSize, newProducts.length);
-                    
-                    for (let i = currentIndex; i < endIndex; i++) {
-                        const product = newProducts[i];
-                        const productCard = createProductCardFromSiteData(product, `btn${loadedProductNames.size + i + 1}`);
-                        fragment.appendChild(productCard);
-                        loadedProductNames.add(product.name);
-                    }
-                    
-                    container.appendChild(fragment);
-                    currentIndex = endIndex;
-                    
-                    // Если есть еще товары, показываем следующую порцию через небольшую задержку
-                    if (currentIndex < newProducts.length) {
-                        setTimeout(showNextBatch, 5); // 5мс задержка между порциями
-                    } else {
-                        // Все товары показаны
-                        console.log('loadMoreProducts: Все новые товары отображены');
-                        
-                        // Обновляем текущую страницу
-                        currentPage = nextPage;
-                        
-                        // Настраиваем обработчики для новых изображений
-                        setupImageHandlers();
-                        
-                        // ИСПРАВЛЕНИЕ: Обновляем переводы для новых карточек товаров
-                        const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
-                        if (typeof window.translations !== 'undefined') {
-                            window.translations.applyTranslations(currentLanguage);
-                        }
-                        
-                        // ИСПРАВЛЕНИЕ: Полагаемся только на hasMore с сервера
-                        hasMoreProducts = data.hasMore;
-                        
-                        console.log(`loadMoreProducts: Обновлено - currentPage=${currentPage}, hasMoreProducts=${hasMoreProducts}, newProducts.length=${newProducts.length}, productsPerPage=${productsPerPage}`);
-                        
-                        if (!hasMoreProducts) {
-                            console.log('loadMoreProducts: Больше товаров нет');
-                            showEndMessage();
-                        }
-                        
-                        // Сохраняем состояние
-                        saveState();
-                        console.log('loadMoreProducts: Состояние сохранено');
-                        
-                        console.log('loadMoreProducts: Товары добавлены успешно');
-                    }
-                };
-                
-                // Начинаем показывать товары порциями
-                showNextBatch();
-            } else {
-                // Пустой список товаров означает конец пагинации
-                console.log('loadMoreProducts: Получен пустой список товаров - конец пагинации');
-                hasMoreProducts = false;
-                showEndMessage();
-            }
-        } else {
-            console.log('loadMoreProducts: Ошибка API');
-            hasMoreProducts = false;
-            showEndMessage();
-        }
-    } catch (error) {
-        console.error('loadMoreProducts: Ошибка загрузки дополнительных товаров:', error);
-        hasMoreProducts = false;
-        showEndMessage();
-    } finally {
-        isLoading = false;
-        hideLoadingIndicator();
-        console.log('loadMoreProducts: Загрузка завершена');
-    }
-}
-
-// Функция загрузки всех товаров
-async function loadAllProducts() {
-    console.log('=== loadAllProducts: Загружаем все товары ===');
-    
-    if (isLoading) {
-        console.log('loadAllProducts: Загрузка уже идет, пропускаем...');
-        return;
-    }
-    
-    try {
-        isLoading = true;
-        showLoadingIndicator();
-        
-        // Скрываем кнопку "Загрузить все" во время загрузки
-        const loadAllBtn = document.getElementById('load-all-btn');
-        if (loadAllBtn) {
-            loadAllBtn.disabled = true;
-            loadAllBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Загружаем все товары...';
-        }
-        
-        console.log('loadAllProducts: Отправляем запрос на загрузку всех товаров...');
-        
-        // Загружаем все товары через API
-        const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log('loadAllProducts: Получены данные:', data);
-        
-        if (data.success && data.products && data.products.length > 0) {
-            console.log(`loadAllProducts: Загружено ${data.products.length} товаров`);
-            
-            // Очищаем контейнер
-            const container = document.querySelector('.inner');
-            container.innerHTML = '';
-            loadedProductNames.clear();
-            
-            // Отображаем все товары
-            data.products.forEach((product, index) => {
-                const productCard = createProductCardFromSiteData(product, `btn${index + 1}`);
-                container.appendChild(productCard);
-                loadedProductNames.add(product.name);
-            });
-            
-            // Обновляем состояние
-            currentPage = 0;
-            hasMoreProducts = data.hasMore !== undefined ? data.hasMore : false;
-            maxProducts = data.total || data.products.length;
-            
-            // Настраиваем обработчики для всех изображений
-            setupImageHandlers();
-            
-            // ИСПРАВЛЕНИЕ БАГА: Обновляем переводы для всех карточек товаров
-            const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
-            if (typeof window.translations !== 'undefined') {
-                window.translations.applyTranslations(currentLanguage);
-            }
-            
-            // Показываем сообщение о завершении
-            showEndMessage();
-            
-            // Сохраняем состояние
-            saveState();
-            
-            console.log('loadAllProducts: Все товары загружены успешно');
-        } else {
-            console.log('loadAllProducts: Получен пустой список товаров');
-            showEndMessage();
-        }
-        
-    } catch (error) {
-        console.error('loadAllProducts: Ошибка загрузки всех товаров:', error);
-        showEndMessage();
-    } finally {
-        isLoading = false;
-        hideLoadingIndicator();
-        
-        // Восстанавливаем кнопку "Загрузить все"
-        if (loadAllBtn) {
-            loadAllBtn.disabled = false;
-            loadAllBtn.innerHTML = '<i class="fas fa-download"></i> Загрузить все товары категории Струны для электрогитары';
-        }
-        
-        console.log('loadAllProducts: Загрузка завершена');
-    }
-}
-
-// Функция обработки прокрутки для бесконечной загрузки
-function handleScroll() {
-    // Проверяем инициализацию переменных
-    if (typeof window.loadedProductNames === 'undefined') {
-        console.warn('handleScroll: loadedProductNames не инициализирована, инициализируем...');
-        window.loadedProductNames = new Set();
-        loadedProductNames = window.loadedProductNames;
-    }
-    
-    // ОПТИМИЗАЦИЯ: Используем requestAnimationFrame для плавного скролла
-    if (window.scrollAnimationFrame) {
-        return; // Пропускаем если анимация уже запланирована
-    }
-    
-    window.scrollAnimationFrame = requestAnimationFrame(() => {
-        console.log(`handleScroll: Проверка - isLoading=${isLoading}, hasMoreProducts=${hasMoreProducts}, currentPage=${currentPage}, loadedProducts=${loadedProductNames.size}`);
-        
-        // ИСПРАВЛЕНИЕ: Убираем преждевременную проверку loadedProductNames.size >= 377
-        // Полагаемся только на hasMoreProducts, который устанавливается сервером
-        
-        if (isLoading || !hasMoreProducts) {
-            if (isLoading) {
-                console.log('handleScroll: Загрузка уже идет, пропускаем...');
-            } else if (!hasMoreProducts) {
-                console.log('handleScroll: Больше товаров нет, пропускаем...');
-            }
-            window.scrollAnimationFrame = null;
-            return;
-        }
-        
-        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-        const windowHeight = window.innerHeight;
-        const documentHeight = document.documentElement.scrollHeight;
-        
-        console.log(`handleScroll: scrollTop=${scrollTop}, windowHeight=${windowHeight}, documentHeight=${documentHeight}`);
-        console.log(`handleScroll: Порог для загрузки: ${documentHeight - 300}`);
-        
-        // Загружаем новые товары когда пользователь приближается к концу страницы
-        if (scrollTop + windowHeight >= documentHeight - 300) {
-            console.log('handleScroll: Достигнут порог для загрузки новых товаров!');
-            console.log(`handleScroll: currentPage=${currentPage}, hasMoreProducts=${hasMoreProducts}, loadedProducts=${loadedProductNames.size}`);
-            loadMoreProducts();
-        }
-        
-        window.scrollAnimationFrame = null;
-    });
-}
-
-// Функция загрузки ВСЕХ товаров с сервера
-async function fetchAllProducts(totalProducts) {
-    try {
-        // ИСПРАВЛЕНИЕ: Загружаем все товары одним запросом
-        const timestamp = Date.now();
-        const response = await fetch(`http://localhost:8000/api/products?start=0&limit=${totalProducts}&_t=${timestamp}`, {
-            method: 'GET',
-            headers: {
-                'Cache-Control': 'no-cache',
-                'Pragma': 'no-cache'
-            }
-        });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        
-        // Проверяем, есть ли товары в ответе
-        if (data.products && data.products.length > 0) {
-            // Добавляем флаг success, если его нет
-            if (data.success === undefined) {
-                data.success = true;
-            }
-            // Добавляем общее количество товаров
-            if (data.total === undefined) {
-                data.total = data.products.length;
-            }
-        } else {
-            data.success = false;
-            data.products = [];
-            data.total = 0;
-        }
-        
-        return data;
-    } catch (error) {
-        console.error('fetchAllProducts: Ошибка получения данных:', error);
-        return {
-            success: false,
-            error: error.message,
-            products: [],
-            total: 0,
-            start: 0,
-            limit: totalProducts
-        };
-    }
-}
-
-// Функция получения данных с сайта
-async function fetchProductData(page = 0) {
-    const start = page * 60;
-    
-    try {
-        // ИСПРАВЛЕНИЕ: Добавляем timestamp для принудительного обновления кеша
-        const timestamp = Date.now();
-        const response = await fetch(`http://localhost:8000/api/products?start=${start}&limit=60&_t=${timestamp}`, {
-            method: 'GET',
-            headers: {
-                'Cache-Control': 'no-cache',
-                'Pragma': 'no-cache'
-            }
-        });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        
-        // Проверяем, есть ли товары в ответе
-        if (data.products && data.products.length > 0) {
-            // Добавляем флаг success, если его нет
-            if (data.success === undefined) {
-                data.success = true;
-            }
-            // Добавляем общее количество товаров
-            if (data.total === undefined) {
-                data.total = data.products.length;
-            }
-        } else {
-            data.success = false;
-            data.products = [];
-            data.total = 0;
-        }
-        
-        return data;
-    } catch (error) {
-        console.error('fetchProductData: Ошибка получения данных:', error);
-        return {
-            success: false,
-            error: error.message,
-            products: [],
-            total: 0,
-            start: start,
-            limit: 60
-        };
-    }
-}
-
-// Функция обновления цен товаров
-async function updateProductPrices() {
-    try {
-        const data = await fetchProductData(0);
-        
-        if (data && data.products && data.products.length > 0) {
-            // Обновляем цены существующих товаров
-            const existingProducts = document.querySelectorAll('.product-card');
-            
-            existingProducts.forEach((card, index) => {
-                if (data.products[index]) {
-                    const priceElement = card.querySelector('.new-price');
-                    if (priceElement) {
-                        priceElement.textContent = data.products[index].newPrice;
-                    }
-                }
-            });
-            
-            console.log('Цены товаров обновлены');
-        }
-    } catch (error) {
-        console.error('Ошибка обновления цен:', error);
-    }
-}
-
-// Функция сохранения состояния
-function saveState() {
-    // Защита от рекурсивных вызовов
-    if (window.isSavingState) {
-        console.log('saveState: Сохранение уже идет, пропускаем...');
-        return;
-    }
-    
-    // Проверяем инициализацию переменных
-    if (typeof window.loadedProductNames === 'undefined') {
-        console.warn('saveState: loadedProductNames не инициализирована, инициализируем...');
-        window.loadedProductNames = new Set();
-        loadedProductNames = window.loadedProductNames;
-    }
-    
-    window.isSavingState = true;
-    console.log('saveState: Начинаем сохранение состояния...');
-    
-    // Сохраняем только имена товаров и позицию скролла
-    const currentScrollPosition = window.pageYOffset || document.documentElement.scrollTop;
-    
-    // ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА: Убеждаемся, что hasMoreProducts корректно установлен
-    let correctHasMoreProducts = hasMoreProducts;
-    // ИСПРАВЛЕНИЕ: Убираем жестко заданное значение 377, полагаемся на сервер
-    // Если hasMoreProducts уже установлен сервером, используем его
-    if (hasMoreProducts === undefined) {
-        // Только если hasMoreProducts не определен, делаем fallback
-        correctHasMoreProducts = true; // По умолчанию предполагаем, что есть еще товары
-        console.log(`saveState: hasMoreProducts не определен, устанавливаем по умолчанию: ${correctHasMoreProducts}`);
-    } else {
-        correctHasMoreProducts = hasMoreProducts;
-        console.log(`saveState: Используем hasMoreProducts с сервера: ${correctHasMoreProducts}`);
-    }
-    
-    const state = {
-        currentPage: currentPage,
-        loadedProductNames: Array.from(loadedProductNames),
-        maxProducts: maxProducts,
-        hasMoreProducts: correctHasMoreProducts,
-        scrollPosition: currentScrollPosition,
-        selectedLanguage: localStorage.getItem('selectedLanguage') || 'uk', // ИСПРАВЛЕНИЕ: Сохраняем текущий язык
-        timestamp: Date.now(),
-        refreshCounter: refreshCounter
-    };
-    
-    localStorage.setItem('gs_bot_state', JSON.stringify(state));
-    console.log('Состояние сохранено:', state);
-    console.log('Позиция скролла сохранена:', currentScrollPosition);
-    
-    // Дополнительная отладка позиции скролла
-    console.log('saveState: Текущая позиция скролла:', currentScrollPosition);
-    console.log('saveState: window.pageYOffset:', window.pageYOffset);
-    console.log('saveState: document.documentElement.scrollTop:', document.documentElement.scrollTop);
-    console.log('saveState: document.body.scrollTop:', document.body.scrollTop);
-    
-    // Сбрасываем флаг сохранения
-    window.isSavingState = false;
-}
-
-// Функция загрузки состояния
-function loadState() {
-    try {
-        // Проверяем инициализацию переменных
-        if (typeof window.loadedProductNames === 'undefined') {
-            console.warn('loadState: loadedProductNames не инициализирована, инициализируем...');
-            window.loadedProductNames = new Set();
-            loadedProductNames = window.loadedProductNames;
-        }
-        
-        const savedState = localStorage.getItem('gs_bot_state');
-        console.log('loadState: Сырые данные из localStorage:', savedState);
-        
-        if (savedState) {
-            const state = JSON.parse(savedState);
-            console.log('loadState: Распарсенные данные:', state);
-            
-            // Проверяем, не устарело ли состояние (24 часа)
-            if (Date.now() - state.timestamp < 24 * 60 * 60 * 1000) {
-                console.log('loadState: Состояние актуально, возвращаем');
-                
-                // Проверяем счетчик обновлений
-                if (state.refreshCounter !== undefined) {
-                    refreshCounter = state.refreshCounter;
-                    console.log(`loadState: Счетчик обновлений загружен из localStorage: ${refreshCounter}`);
-                    console.log(`loadState: MAX_REFRESHES_BEFORE_CLEAR: ${MAX_REFRESHES_BEFORE_CLEAR}`);
-                    
-                    // Если это третье F5 или больше, автоматически очищаем кеш
-                    if (refreshCounter >= MAX_REFRESHES_BEFORE_CLEAR) {
-                        console.log('loadState: Достигнут лимит обновлений, автоматически очищаем кеш');
-                        setTimeout(() => {
-                            clearLocalStorage();
-                        }, 100);
-                        return null;
-                    }
-                } else {
-                    console.log('loadState: Счетчик обновлений не найден в состоянии, устанавливаем 0');
-                    refreshCounter = 0;
-                }
-                
-                return state;
-            } else {
-                console.log('loadState: Состояние устарело');
-            }
-        } else {
-            console.log('loadState: Нет сохраненного состояния');
-        }
-    } catch (error) {
-        console.error('Ошибка загрузки состояния:', error);
-    }
-    return null;
-}
-
-// Функция восстановления всех товаров
-async function restoreAllProducts() {
-    // Защита от повторных вызовов
-    if (window.isRestoringProducts) {
-        console.log('restoreAllProducts: Восстановление уже выполняется, пропускаем...');
-        return false;
-    }
-    
-    window.isRestoringProducts = true;
-    
-    try {
-        // Проверяем инициализацию переменных
-        if (typeof window.loadedProductNames === 'undefined') {
-            console.warn('restoreAllProducts: loadedProductNames не инициализирована, инициализируем...');
-            window.loadedProductNames = new Set();
-            loadedProductNames = window.loadedProductNames;
-        }
-        
-        console.log('restoreAllProducts: Начинаем восстановление...');
-        const state = loadState();
-        if (!state) {
-            console.log('restoreAllProducts: Состояние не найдено в localStorage');
-            return false;
-        }
-        
-        console.log('restoreAllProducts: Состояние найдено:', state);
-        
-        // Проверяем, есть ли товары для восстановления
-        if (!state.loadedProductNames || state.loadedProductNames.length === 0) {
-            console.log('restoreAllProducts: Нет товаров в сохраненном состоянии, очищаем localStorage');
-            localStorage.removeItem('gs_bot_state');
-            return false;
-        }
-        // Восстанавливаем переменные
-        loadedProductNames = new Set(state.loadedProductNames || []);
-        maxProducts = state.maxProducts || 0;
-        
-        // Проверяем, есть ли еще товары для загрузки
-        const totalLoaded = state.loadedProductNames ? state.loadedProductNames.length : 0;
-        // ИСПРАВЛЕНИЕ: Убираем жестко заданное значение 377, полагаемся на сервер
-        // Получаем актуальное количество товаров с сервера
-        const serverData = await fetchProductData(0);
-        const totalProducts = serverData.total || 0;
-        
-        console.log(`restoreAllProducts: Сервер вернул total=${serverData.total}, hasMore=${serverData.hasMore}`);
-        
-        // ИСПРАВЛЕНИЕ БАГА: При восстановлении состояния на другом языке сбрасываем "конец списка"
-        const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
-        const savedLanguage = state.selectedLanguage || 'uk';
-        
-        if (currentLanguage !== savedLanguage && totalLoaded >= totalProducts) {
-            console.log(`restoreAllProducts: Восстановление на другом языке (${currentLanguage} вместо ${savedLanguage}), сбрасываем состояние конца списка`);
-            hasMoreProducts = true;
-            currentPage = 0;
-            loadedProductNames.clear();
-            maxProducts = 0;
-            
-            // Очищаем localStorage для нового языка
-            localStorage.removeItem('gs_bot_state');
-            
-            console.log('restoreAllProducts: Состояние сброшено для нового языка');
-            return false;
-        } else {
-            // ИСПРАВЛЕНИЕ: Полагаемся на hasMore с сервера
-            hasMoreProducts = serverData.hasMore !== undefined ? serverData.hasMore : (totalLoaded < totalProducts);
-            console.log(`restoreAllProducts: hasMoreProducts установлен в ${hasMoreProducts} (с сервера: ${serverData.hasMore}, fallback: ${totalLoaded < totalProducts})`);
-        }
-        
-        // ИСПРАВЛЕНИЕ: Устанавливаем maxProducts из серверных данных
-        maxProducts = totalProducts;
-        console.log(`restoreAllProducts: maxProducts установлен в ${maxProducts}`);
-        
-        // ИСПРАВЛЕНИЕ БАГА: Правильно рассчитываем currentPage на основе количества загруженных товаров
-        currentPage = Math.floor(totalLoaded / productsPerPage);
-        console.log(`restoreAllProducts: Рассчитан currentPage=${currentPage} на основе ${totalLoaded} товаров (${productsPerPage} товаров на страницу)`);
-        
-        console.log(`restoreAllProducts: Загружено товаров: ${totalLoaded}, всего товаров: ${totalProducts}, hasMoreProducts: ${hasMoreProducts}`);
-        
-        // Загружаем ВСЕ товары с сервера (не только первые 60)
-        console.log('restoreAllProducts: Загружаем ВСЕ товары с сервера...');
-        const data = await fetchAllProducts(totalProducts); // Загружаем все товары
-        
-        if (data && data.products && data.products.length > 0) {
-            console.log(`restoreAllProducts: Загружено ${data.products.length} товаров с сервера`);
-            
-            // Фильтруем товары, которые были загружены ранее
-            // ОПТИМИЗАЦИЯ: Преобразуем массив в Set для быстрого поиска
-            const loadedNamesSet = new Set(state.loadedProductNames);
-            const previouslyLoadedProducts = data.products.filter(product => 
-                loadedNamesSet.has(product.name)
-            );
-            
-            console.log(`restoreAllProducts: Найдено ${previouslyLoadedProducts.length} ранее загруженных товаров`);
-            
-            // Восстанавливаем товары из свежих данных
-            const container = document.querySelector('.inner');
-            if (!container) {
-                console.error('restoreAllProducts: Контейнер .inner не найден');
-                return false;
-            }
-            container.innerHTML = '';
-            
-            if (previouslyLoadedProducts.length > 0) {
-                console.log('restoreAllProducts: Начинаем восстановление товаров из свежих данных...');
-                
-                // Создаем все карточки сразу для оптимизации
-                const fragment = document.createDocumentFragment();
-                previouslyLoadedProducts.forEach((productData, index) => {
-                    const productCard = createProductCardFromSiteData(productData, `btn${index + 1}`);
-                    fragment.appendChild(productCard);
-                });
-                
-                // Добавляем все карточки одним разом
-                container.appendChild(fragment);
-                console.log(`restoreAllProducts: Добавлено ${previouslyLoadedProducts.length} карточек товаров`);
-                
-                // ИСПРАВЛЕНИЕ БАГА: Обновляем переводы для восстановленных карточек товаров
-                const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
-                if (typeof window.translations !== 'undefined') {
-                    window.translations.applyTranslations(currentLanguage);
-                }
-                
-                // ИСПРАВЛЕНИЕ БАГА: Принудительно обновляем переводы кнопок для восстановленных товаров
-                if (typeof updateProductButtonTranslations === 'function') {
-                    updateProductButtonTranslations(currentLanguage);
-                }
-                
-                console.log(`Восстановлено ${previouslyLoadedProducts.length} товаров из свежих данных`);
-            } else {
-                console.log('restoreAllProducts: Нет товаров для восстановления');
-                return false;
-            }
-            
-            // Восстанавливаем позицию скролла
-            if (state.scrollPosition > 0) {
-                console.log('restoreAllProducts: Восстанавливаем позицию скролла:', state.scrollPosition);
-                
-                // Функция для надежного восстановления позиции скролла
-                const restoreScrollPosition = (position) => {
-                    try {
-                        console.log('=== ВОССТАНОВЛЕНИЕ СКРОЛЛА ===');
-                        console.log('Пытаемся восстановить позицию:', position);
-                        console.log('Текущая позиция до восстановления:', window.pageYOffset || document.documentElement.scrollTop);
-                        console.log('Высота документа:', document.documentElement.scrollHeight);
-                        console.log('Высота окна:', window.innerHeight);
-                        
-                        // Проверяем, что позиция не превышает максимальную высоту страницы
-                        const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-                        const safePosition = Math.min(position, maxScroll);
-                        
-                        if (safePosition !== position) {
-                            console.log(`Позиция скорректирована с ${position} на ${safePosition} (максимум: ${maxScroll})`);
-                        }
-                        
-                        // Проверяем, что страница достаточно загружена
-                        if (document.documentElement.scrollHeight < window.innerHeight + 100) {
-                            console.log('Страница еще не полностью загружена, откладываем восстановление');
-                            return false;
-                        }
-                        
-                        window.scrollTo(0, safePosition);
-                        console.log('Позиция скролла восстановлена:', safePosition);
-                        
-                        // Проверяем, что скролл действительно восстановился
-                        setTimeout(() => {
-                            const currentScroll = window.pageYOffset || document.documentElement.scrollTop;
-                            console.log('Проверка после восстановления. Текущая позиция:', currentScroll);
-                            if (Math.abs(currentScroll - safePosition) > 10) {
-                                console.log('Позиция скролла не восстановилась корректно, повторяем...');
-                                window.scrollTo(0, safePosition);
-                                return false;
-                            } else {
-                                console.log('Позиция скролла восстановлена успешно!');
-                                return true;
-                            }
-                        }, 50);
-                        
-                        return true;
-                    } catch (error) {
-                        console.error('Ошибка при восстановлении позиции скролла:', error);
-                        return false;
-                    }
-                };
-                
-                // Функция для попыток восстановления с проверкой успеха
-                const attemptRestoreScroll = (position, attempts = 0) => {
-                    if (attempts >= 10) {
-                        console.log('Достигнуто максимальное количество попыток восстановления скролла');
-                        return;
-                    }
-                    
-                    const success = restoreScrollPosition(position);
-                    if (!success) {
-                        console.log(`Попытка ${attempts + 1} не удалась, повторяем через 500мс...`);
-                        setTimeout(() => attemptRestoreScroll(position, attempts + 1), 500);
-                    }
-                };
-                
-                // Используем улучшенную логику восстановления
-                attemptRestoreScroll(state.scrollPosition);
-            }
-            
-            // Скрываем экран загрузки
-            hideLoadingScreen();
-            
-            // Сбрасываем флаг загрузки
-            isLoading = false;
-            
-            // Правильно обрабатываем индикатор загрузки и сообщение о конце
-            if (hasMoreProducts) {
-                // Если есть еще товары, показываем индикатор загрузки
-                showLoadingIndicator();
-                console.log('restoreAllProducts: Показан индикатор загрузки для следующих страниц');
-            } else {
-                // Если товаров больше нет, скрываем индикатор и показываем сообщение о конце
-                hideLoadingIndicator();
-                showEndMessage();
-                console.log('restoreAllProducts: Показано сообщение о конце списка');
-            }
-            
-            // Дополнительная проверка: если все товары загружены, убеждаемся что индикатор скрыт
-            if (!hasMoreProducts) {
-                const loadingIndicator = document.getElementById('loading-indicator');
-                if (loadingIndicator && loadingIndicator.style.display !== 'none') {
-                    loadingIndicator.style.display = 'none';
-                    console.log('restoreAllProducts: Принудительно скрыт индикатор загрузки');
-                }
-            }
-            
-            console.log(`Восстановлено ${state.loadedProductNames.length} товаров. Есть еще: ${hasMoreProducts}`);
-            
-            // ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА: Убеждаемся, что hasMoreProducts корректно установлен
-            const finalTotalLoaded = loadedProductNames.size;
-            // ИСПРАВЛЕНИЕ: Убираем жестко заданное значение 377, полагаемся на сервер
-            // Полагаемся только на серверные данные, а не на клиентские вычисления
-            console.log(`restoreAllProducts: Финальная проверка - загружено: ${finalTotalLoaded}, hasMoreProducts: ${hasMoreProducts} (с сервера)`);
-            
-            // Отладка статусов товаров
-            state.loadedProductNames.forEach((product, index) => {
-                if (product.name && product.name.includes('Dean Markley 2558A')) {
-                    console.log(`=== FRONTEND DEBUG: Dean Markley 2558A found in restored data ===`);
-                    console.log(`Product: ${product.name}`);
-                    console.log(`Status: ${product.status}`);
-                    console.log(`Availability: ${product.availability}`);
-                    console.log(`Full product data:`, product);
-                    console.log(`=== END FRONTEND DEBUG ===`);
-                }
-            });
-            
-            return true;
-        } else {
-            console.log('restoreAllProducts: Нет данных с сервера');
-            return false;
-        }
-    } catch (error) {
-        console.error('Ошибка восстановления товаров:', error);
-        return false;
-    } finally {
-        // Сбрасываем флаг восстановления
-        window.isRestoringProducts = false;
-    }
-}
-
-// Функция загрузки первой страницы
-async function loadFirstPage() {
-    try {
-        // Проверяем инициализацию переменных
-        if (typeof window.loadedProductNames === 'undefined') {
-            console.warn('loadFirstPage: loadedProductNames не инициализирована, инициализируем...');
-            window.loadedProductNames = new Set();
-            loadedProductNames = window.loadedProductNames;
-        }
-        
-        const container = document.querySelector('.inner');
-        if (!container) {
-            console.error('loadFirstPage: КРИТИЧЕСКАЯ ОШИБКА - контейнер .inner не найден!');
-            return;
-        }
-        
-        // ОПТИМИЗАЦИЯ: Показываем первые товары быстрее, не блокируя интерфейс
-        console.log('loadFirstPage: Начинаем загрузку товаров...');
-        
-        // Скрываем экран загрузки сразу для быстрого отображения интерфейса
-        hideLoadingScreen();
-        
-        // Загружаем данные в фоне
-        const dataPromise = fetchProductData(0);
-        
-        // Показываем первые товары сразу, если они есть в кеше
-        if (allProducts && allProducts.length > 0) {
-            console.log('loadFirstPage: Показываем кешированные товары...');
-            displayProducts(allProducts);
-        }
-        
-        // Ждем загрузки свежих данных
-        const data = await dataPromise;
-        
-        if (data && data.products && data.products.length > 0) {
-            console.log(`loadFirstPage: Загружено ${data.products.length} товаров`);
-            
-            // ОПТИМИЗАЦИЯ: Немедленно показываем первые 20 товаров для быстрого отображения
-            const firstBatch = data.products.slice(0, 20);
-            console.log(`loadFirstPage: Немедленно показываем первые ${firstBatch.length} товаров`);
-            
-            // Очищаем контейнер и показываем первые товары
-            container.innerHTML = '';
-            firstBatch.forEach((product, index) => {
-                const productCard = createProductCardFromSiteData(product, `btn${index + 1}`);
-                container.appendChild(productCard);
-            });
-            
-            // Скрываем экран загрузки после показа первых товаров
-            hideLoadingScreen();
-            
-            // Обновляем глобальные переменные
-            maxProducts = data.total || data.products.length;
-            hasMoreProducts = data.hasMore;
-            currentPage = 0; // Сбрасываем страницу на первую
-            
-            // Сохраняем товары в массив для поиска
-            allProducts = [...data.products];
-            
-            // Сохраняем названия загруженных товаров
-            data.products.forEach(product => {
-                loadedProductNames.add(product.name);
-            });
-            
-            // ОПТИМИЗАЦИЯ: Показываем остальные товары порциями для плавности
-            if (data.products.length > 20) {
-                const remainingProducts = data.products.slice(20);
-                console.log(`loadFirstPage: Показываем оставшиеся ${remainingProducts.length} товаров порциями`);
-                
-                const batchSize = 15; // Показываем по 15 товаров за раз
-                let currentIndex = 0;
-                
-                const showNextBatch = () => {
-                    const fragment = document.createDocumentFragment();
-                    const endIndex = Math.min(currentIndex + batchSize, remainingProducts.length);
-                    
-                    for (let i = currentIndex; i < endIndex; i++) {
-                        const productCard = createProductCardFromSiteData(remainingProducts[i], `btn${20 + i + 1}`);
-                        fragment.appendChild(productCard);
-                    }
-                    
-                    container.appendChild(fragment);
-                    currentIndex = endIndex;
-                    
-                    // Если есть еще товары, показываем следующую порцию
-                    if (currentIndex < remainingProducts.length) {
-                        setTimeout(showNextBatch, 5); // Уменьшена задержка до 5мс
-                    } else {
-                        // Все товары показаны, настраиваем обработчики
-                        setupImageHandlers();
-                        console.log(`loadFirstPage: Все ${data.products.length} товаров отображены`);
-                        
-                        // ИСПРАВЛЕНИЕ БАГА: Принудительно обновляем переводы кнопок после отображения всех товаров
-                        const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
-                        if (typeof updateProductButtonTranslations === 'function') {
-                            console.log('loadFirstPage: Обновляем переводы кнопок после отображения всех товаров');
-                            updateProductButtonTranslations(currentLanguage);
-                        }
-                    }
-                };
-                
-                // Запускаем показ оставшихся товаров
-                setTimeout(showNextBatch, 50); // Небольшая задержка для плавности
-            }
-            
-            // Сохраняем состояние
-            saveState();
-            
-            // ИСПРАВЛЕНИЕ БАГА: Принудительно обновляем переводы кнопок после сохранения состояния
-            const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
-            if (typeof updateProductButtonTranslations === 'function') {
-                console.log('loadFirstPage: Обновляем переводы кнопок после сохранения состояния');
-                updateProductButtonTranslations(currentLanguage);
-            }
-            
-            // Скрываем индикатор загрузки после загрузки первых товаров
-            hideLoadingIndicator();
-            
-            // Если товаров больше нет, показываем сообщение о конце
-            if (!hasMoreProducts) {
-                showEndMessage();
-            } else {
-                // ОПТИМИЗАЦИЯ: Запускаем предзагрузку следующей страницы
-                setTimeout(() => {
-                    preloadNextPage();
-                }, 1000); // Запускаем через 1 секунду после загрузки первой страницы
-            }
-        } else {
-            console.error('loadFirstPage: Не удалось загрузить товары - нет данных');
-            
-            // Скрываем индикаторы загрузки
-            hideLoadingScreen();
-            hideLoadingIndicator();
-            
-            // Показываем сообщение об ошибке
-            const container = document.querySelector('.inner');
-            
-            // Сохраняем loading indicator перед очисткой
-            const loadingIndicator = container.querySelector('#loading-indicator');
-            
-            container.innerHTML = `
-                <div class="error-message">
-                    <p>Не удалось загрузить товары. API не вернул данные.</p>
-                    <button class="btn" onclick="location.reload()">Перезагрузить страницу</button>
-                </div>
-            `;
-            
-            // Восстанавливаем loading indicator если он был
-            if (loadingIndicator) {
-                container.appendChild(loadingIndicator);
-            }
-        }
-    } catch (error) {
-        console.error('loadFirstPage: Ошибка загрузки товаров:', error);
-        
-        // Скрываем индикаторы загрузки
-        hideLoadingScreen();
-        hideLoadingIndicator();
-        
-        // Показываем сообщение об ошибке
-        const container = document.querySelector('.inner');
-        
-        // Сохраняем loading indicator перед очисткой
-        const loadingIndicator = container.querySelector('#loading-indicator');
-        
-        container.innerHTML = `
-            <div class="error-message">
-                <p>Произошла ошибка при загрузке товаров: ${error.message}</p>
-                <button class="btn" onclick="location.reload()">Перезагрузить страницу</button>
-            </div>
-        `;
-        
-        // Восстанавливаем loading indicator если он был
-        if (loadingIndicator) {
-            container.appendChild(loadingIndicator);
-        }
-    }
-
-// Функция очистки состояния
-function clearState() {
-    localStorage.removeItem('gs_bot_state');
-    console.log('Состояние очищено');
-}
-
-// Функция автоматического сохранения
-function startAutoSave() {
-    let lastSaveTime = 0;
-    const MIN_SAVE_INTERVAL = 60000; // Увеличиваем до 1 минуты
-    
-    setInterval(() => {
-        const now = Date.now();
-        if (loadedProductNames.size > 0 && (now - lastSaveTime) > MIN_SAVE_INTERVAL) {
-            lastSaveTime = now;
-            console.log('startAutoSave: Автоматическое сохранение состояния');
-            
-            // Добавляем дополнительную защиту от рекурсии
-            if (!window.isSavingState && !window.isLoading) {
-                saveState();
-            } else {
-                console.log('startAutoSave: Пропускаем сохранение, идет загрузка или сохранение');
-            }
-        }
-    }, 300000); // Увеличиваем до 5 минут
-}
-
-// Функция настройки сохранения перед закрытием
-function setupBeforeUnload() {
-    // Сохраняем состояние при закрытии страницы
-    window.addEventListener('beforeunload', () => {
-        if (loadedProductNames.size > 0) {
-            saveState();
-        }
-    });
-    
-    // Сохраняем состояние при изменении видимости страницы (включая F5)
-    document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'hidden' && loadedProductNames.size > 0) {
-            saveState();
-        }
-    });
-    
-    // Сохраняем состояние при потере фокуса окна
-    window.addEventListener('blur', () => {
-        if (loadedProductNames.size > 0) {
-            saveState();
-        }
-    });
-}
-
-// Функция сброса состояния
-function resetState() {
-    clearState();
-    location.reload();
-}
-
-// Основная функция инициализации
-document.addEventListener('DOMContentLoaded', async () => {
-    console.log('=== Инициализация приложения v11.03 ===');
-    console.log('DOM загружен, начинаем инициализацию...');
-    
-    // ИНИЦИАЛИЗАЦИЯ КОРЗИНЫ
-    console.log('=== ИНИЦИАЛИЗАЦИЯ КОРЗИНЫ ===');
-    initializeCart();
-    console.log('Корзина инициализирована');
-    
-    // НЕМЕДЛЕННОЕ ОБНОВЛЕНИЕ ПЕРЕВОДОВ И СТАТУСА
-    console.log('=== НЕМЕДЛЕННОЕ ОБНОВЛЕНИЕ ПЕРЕВОДОВ И СТАТУСА ===');
-    const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
-    console.log(`Немедленно применяем переводы для языка: ${currentLanguage}`);
-    
-    // Применяем переводы немедленно
-    if (typeof window.translations !== 'undefined' && window.translations.applyTranslations) {
-        window.translations.applyTranslations(currentLanguage);
-        console.log('Переводы применены немедленно');
-    } else {
-        console.warn('translations.js не загружен, применяем базовые переводы');
-        // Базовые переводы для критически важных элементов
-        applyBasicTranslations(currentLanguage);
-    }
-    
-    // Обновляем статус менеджера немедленно
-    if (typeof updateSupportButtonStatus === 'function') {
-        updateSupportButtonStatus();
-        console.log('Статус менеджера обновлен немедленно');
-    } else {
-        console.warn('Функция updateSupportButtonStatus не найдена');
-    }
-    console.log('=== КОНЕЦ НЕМЕДЛЕННОГО ОБНОВЛЕНИЯ ===');
-    
-    // НАСТРОЙКА ПОИСКА - перенесена в начало для быстрого доступа
-    console.log('=== НАСТРОЙКА ПОИСКА ===');
-    const searchInput = document.querySelector('.search-input');
-    if (searchInput) {
-        console.log('searchInput найден:', searchInput);
-        
-                    // Обработчик ввода в поисковую строку с debouncing
-            searchInput.addEventListener('input', async (e) => {
-                const query = e.target.value;
-                console.log(`Поисковый запрос: "${query}"`);
-                
-                // Если поиск очищен, немедленно показываем все товары
-                if (!query.trim()) {
-                    console.log('Поиск очищен, немедленно показываем все товары');
-                    
-                    // Очищаем предыдущий таймаут
-                    if (searchTimeout) {
-                        clearTimeout(searchTimeout);
-                    }
-                    
-                    // Очищаем поисковый запрос
-                    searchTerm = '';
-                    window.currentSearchTerm = '';
-                    
-                    // Проверяем состояние allProducts
-                    console.log('Поиск: allProducts.length =', allProducts ? allProducts.length : 'undefined');
-                    console.log('Поиск: hasMoreProducts =', hasMoreProducts);
-                    console.log('Поиск: currentPage =', currentPage);
-                    
-                    // Если allProducts пустой, восстанавливаем состояние
-                    if (!allProducts || allProducts.length === 0) {
-                        console.log('Поиск: allProducts пустой, восстанавливаем состояние...');
-                        await restoreAllProducts();
-                    } else {
-                        // Показываем все загруженные товары
-                        console.log('Поиск: Показываем', allProducts.length, 'товаров');
-                        await displayProducts(allProducts);
-                    }
-                    
-                    // Скрываем сообщение "Товары не найдены" если оно есть
-                    const noResultsElement = document.querySelector('.no-results');
-                    if (noResultsElement) {
-                        noResultsElement.remove();
-                        console.log('Поиск: Немедленно убрано сообщение "Товары не найдены"');
-                    }
-                    
-                    // Восстанавливаем индикатор загрузки для бесконечной прокрутки
-                    if (hasMoreProducts) {
-                        showLoadingIndicator();
-                    }
-                    return;
-                }
-                
-                // Очищаем предыдущий таймаут
-                if (searchTimeout) {
-                    clearTimeout(searchTimeout);
-                }
-                
-                // Устанавливаем новый таймаут (500ms задержка)
-                searchTimeout = setTimeout(async () => {
-                    await searchProducts(query);
-                }, 500);
-            });
-        
-        // Обработчик нажатия Enter
-        searchInput.addEventListener('keypress', async (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                const query = e.target.value;
-                console.log(`Поиск по Enter: "${query}"`);
-                await searchProducts(query);
-            }
-        });
-        
-        // Обработчик клика по иконке поиска
-        const searchIcon = document.querySelector('.search-icon');
-        if (searchIcon) {
-            searchIcon.addEventListener('click', async () => {
-                const query = searchInput.value;
-                console.log(`Поиск по клику на иконку: "${query}"`);
-                await searchProducts(query);
-            });
-        }
-        
-        console.log('Обработчики поиска настроены');
-    } else {
-        console.error('ОШИБКА: Поле поиска не найдено!');
-    }
-    console.log('=== КОНЕЦ НАСТРОЙКИ ПОИСКА ===');
-    
-    try {
-        // Проверяем, есть ли сохранённое состояние
-        const savedState = loadState();
-        
-        if (savedState) {
-            console.log('Найдено сохранённое состояние, пытаемся восстановить...');
-            
-            // ОПТИМИЗАЦИЯ: Проверяем корректность сохраненного состояния
-            if (!savedState.loadedProductNames || !Array.isArray(savedState.loadedProductNames)) {
-                console.log('Состояние повреждено, очищаем localStorage и загружаем заново');
-                clearLocalStorage();
-                await loadFirstPage();
-                return;
-            }
-            
-            // Проверяем, не устарело ли состояние (24 часа)
-            if (Date.now() - savedState.timestamp < 24 * 60 * 60 * 1000) {
-                console.log('Состояние актуально, восстанавливаем...');
-                
-                // Увеличиваем счетчик обновлений после загрузки состояния
-                refreshCounter++;
-                console.log(`Инициализация: Счетчик обновлений увеличен до ${refreshCounter}`);
-                
-                // Проверяем, не нужно ли автоматически очистить кеш
-                if (refreshCounter >= MAX_REFRESHES_BEFORE_CLEAR) {
-                    console.log('Достигнут лимит обновлений, автоматически очищаем кеш и загружаем заново');
-                    clearLocalStorage();
-                    await loadFirstPage();
-                    return;
-                }
-                
-                // Восстанавливаем состояние
-                window.isRestoring = true;
-                const restored = await restoreAllProducts();
-                window.isRestoring = false;
-                
-                if (restored) {
-                    // Затем загружаем свежие данные для обновления статусов и рейтингов
-                    console.log('Загружаем свежие данные для обновления статусов и рейтингов...');
-                    await refreshProductData();
-                    
-                    // Восстанавливаем позицию скролла после обновления данных
-                    if (savedState.scrollPosition > 0) {
-                        console.log('Восстанавливаем позицию скролла после обновления данных:', savedState.scrollPosition);
-                        
-                        // Функция для надежного восстановления позиции скролла
-                        const restoreScrollPosition = (position) => {
-                            try {
-                                console.log('=== ВОССТАНОВЛЕНИЕ СКРОЛЛА ===');
-                                console.log('Пытаемся восстановить позицию:', position);
-                                console.log('Текущая позиция до восстановления:', window.pageYOffset || document.documentElement.scrollTop);
-                                console.log('Высота документа:', document.documentElement.scrollHeight);
-                                console.log('Высота окна:', window.innerHeight);
-                                
-                                // Проверяем, что позиция не превышает максимальную высоту страницы
-                                const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-                                const safePosition = Math.min(position, maxScroll);
-                                
-                                if (safePosition !== position) {
-                                    console.log(`Позиция скорректирована с ${position} на ${safePosition} (максимум: ${maxScroll})`);
-                                }
-                                
-                                // Проверяем, что страница достаточно загружена
-                                if (document.documentElement.scrollHeight < window.innerHeight + 100) {
-                                    console.log('Страница еще не полностью загружена, откладываем восстановление');
-                                    return false;
-                                }
-                                
-                                window.scrollTo(0, safePosition);
-                                console.log('Позиция скролла восстановлена:', safePosition);
-                                
-                                // Проверяем, что скролл действительно восстановился
-                                setTimeout(() => {
-                                    const currentScroll = window.pageYOffset || document.documentElement.scrollTop;
-                                    console.log('Проверка после восстановления. Текущая позиция:', currentScroll);
-                                    if (Math.abs(currentScroll - safePosition) > 10) {
-                                        console.log('Позиция скролла не восстановилась корректно, повторяем...');
-                                        window.scrollTo(0, safePosition);
-                                        return false;
-                                    } else {
-                                        console.log('Позиция скролла восстановлена успешно!');
-                                        return true;
-                                    }
-                                }, 50);
-                                
-                                return true;
-                            } catch (error) {
-                                console.error('Ошибка при восстановлении позиции скролла:', error);
-                                return false;
-                            }
-                        };
-                        
-                        // Функция для попыток восстановления с проверкой успеха
-                        const attemptRestoreScroll = (position, attempts = 0) => {
-                            if (attempts >= 10) {
-                                console.log('Достигнуто максимальное количество попыток восстановления скролла');
-                                return;
-                            }
-                            
-                            const success = restoreScrollPosition(position);
-                            if (!success) {
-                                console.log(`Попытка ${attempts + 1} не удалась, повторяем через 500мс...`);
-                                setTimeout(() => attemptRestoreScroll(position, attempts + 1), 500);
-                            }
-                        };
-                        
-                        // Используем улучшенную логику восстановления
-                        attemptRestoreScroll(savedState.scrollPosition);
-                    }
-                } else {
-                    // Если восстановление не удалось, загружаем с нуля
-                    console.log('Восстановление не удалось, загружаем с нуля...');
-                    await loadFirstPage();
-                }
-            } else {
-                console.log('Состояние устарело или неполное, загружаем с нуля...');
-                await loadFirstPage();
-            }
-        } else {
-            // Если нет сохранённого состояния, загружаем с нуля
-            console.log('Нет сохранённого состояния, загружаем с нуля...');
-            
-            // Увеличиваем счетчик обновлений для первого посещения
-            refreshCounter++;
-            console.log(`Инициализация: Счетчик обновлений увеличен до ${refreshCounter} (первое посещение)`);
-            
-            await loadFirstPage();
-        }
-        
-        // Настраиваем обработчики для изображений
-        setupImageHandlers();
-        console.log('Обработчики изображений настроены');
-        
-        // Настраиваем обработчики для корзины
-        setupCartEventHandlers();
-        console.log('Обработчики корзины настроены');
-        
-        // Запускаем автосохранение состояния
-        startAutoSave();
-        console.log('Автосохранение запущено');
-        
-        // Настраиваем обработчик перед выгрузкой страницы
-        setupBeforeUnload();
-        console.log('Обработчик beforeunload настроен');
-        
-        // Настраиваем обработчик прокрутки для бесконечной загрузки
-        window.addEventListener('scroll', handleScroll);
-        console.log('Обработчик прокрутки настроен');
-        
-        // Настраиваем обработчики для кнопок меню и настроек
-        console.log('=== НАСТРОЙКА КНОПОК МЕНЮ И НАСТРОЕК ===');
-        const menuBtn = document.querySelector('.menu-btn');
-        console.log('menuBtn найден:', menuBtn);
-        if (menuBtn) {
-            console.log('Кнопка меню найдена, обработчики уже настроены через onclick в HTML');
-        } else {
-            console.error('ОШИБКА: Кнопка меню не найдена!');
-        }
-        
-        const settingsBtn = document.querySelector('.settings-btn');
-        console.log('settingsBtn найден:', settingsBtn);
-        if (settingsBtn) {
-            console.log('Кнопка настроек найдена, обработчики уже настроены через onclick в HTML');
-        } else {
-            console.error('ОШИБКА: Кнопка настроек не найдена!');
-        }
-        console.log('=== КОНЕЦ НАСТРОЙКИ КНОПОК ===');
-        
-        // Настраиваем обработчики для переключения языков
-        console.log('=== НАСТРОЙКА ПЕРЕКЛЮЧЕНИЯ ЯЗЫКОВ ===');
-        setupLanguageSwitchers();
-        console.log('Обработчики переключения языков настроены');
-        
-        // Загружаем фото профиля из Telegram (если доступно)
-        console.log('=== ЗАГРУЗКА ФОТО ПРОФИЛЯ ИЗ TELEGRAM ===');
-        loadTelegramProfilePhoto();
-        console.log('Фото профиля загружено (если доступно)');
-        
-        // Настраиваем закрытие всплывающих окон при клике вне их
-        setupPopupClickOutside();
-        console.log('Обработчики закрытия всплывающих окон настроены');
-        
-        // Настраиваем обработчики для меню категорий
-        setupCategoryMenuHandlers();
-        console.log('Обработчики меню категорий настроены');
-        
-        // Проверяем наличие popup контактов
-        const contactsPopup = document.getElementById('contactsPopup');
-        console.log('Проверка popup контактов:', contactsPopup);
-        if (!contactsPopup) {
-            console.error('ОШИБКА: Popup контактов не найден в DOM!');
-        } else {
-            console.log('Popup контактов найден и готов к работе');
-        }
-        
-        // Кнопка "Загрузить все товары" удалена по запросу пользователя
-        
-        // Настраиваем кнопку поддержки
-        const supportButton = document.querySelector('.online-status');
-        if (supportButton) {
-            supportButton.addEventListener('click', () => {
-                openTelegramChat('GuitarStringsUSA');
-            });
-            
-            // Обновляем статус кнопки поддержки
-            updateSupportButtonStatus();
-            
-            // Обновляем статус каждые 10 минут (увеличиваем интервал)
-            setInterval(updateSupportButtonStatus, 10 * 60 * 1000);
-        }
-        
-        // Настраиваем обработчики для нижней навигации
-        console.log('=== НАСТРОЙКА НИЖНЕЙ НАВИГАЦИИ ===');
-        const navItems = document.querySelectorAll('.nav-item');
-        console.log('navItems найдены:', navItems.length);
-        
-        // Устанавливаем начальную активность для кнопки "Товары"
-        if (navItems.length > 0) {
-            navItems[0].classList.add('active');
-            console.log('Установлена начальная активность для кнопки "Товары"');
-        }
-        
-        navItems.forEach((navItem, index) => {
-            // Удаляем старые обработчики если они есть
-            navItem.removeEventListener('click', navItem._clickHandler);
-            
-            // Создаем новый обработчик
-            navItem._clickHandler = (e) => {
-                console.log(`Кнопка нижней навигации ${index + 1} нажата`);
-                e.preventDefault();
-                e.stopPropagation();
-                
-                // Убираем активный класс со всех кнопок
-                navItems.forEach(item => {
-                    item.classList.remove('active');
-                    console.log(`Убран активный класс с кнопки ${item.querySelector('span')?.textContent}`);
-                });
-                
-                // Добавляем активный класс к нажатой кнопке
-                navItem.classList.add('active');
-                console.log(`Добавлен активный класс к кнопке ${navItem.querySelector('span')?.textContent}`);
-                
-                // Здесь можно добавить логику для переключения разделов
-                const navText = navItem.querySelector('span').textContent;
-                console.log(`Переключение на раздел: ${navText}`);
-                
-                // Пока что просто переключаем активный класс без уведомлений
-                // Убираем логику возврата к "Товары" - позволяем кнопкам оставаться активными
-            };
-            
-            // Добавляем обработчик
-            navItem.addEventListener('click', navItem._clickHandler);
-            
-            console.log(`Обработчик для nav-item ${index + 1} настроен`);
-        });
-        console.log('=== КОНЕЦ НАСТРОЙКИ НИЖНЕЙ НАВИГАЦИИ ===');
-        
-        // Настраиваем event delegation для карточек товаров (оптимизация производительности)
-        console.log('=== НАСТРОЙКА EVENT DELEGATION ДЛЯ КАРТОЧЕК ТОВАРОВ ===');
-        const innerContainer = document.querySelector('.inner');
-        if (innerContainer) {
-            innerContainer.addEventListener('click', (e) => {
-                // Обработка кнопок покупки
-                if (e.target.classList.contains('btn') && e.target.id) {
-                    const availability = e.target.getAttribute('data-product-availability');
-                    const productName = e.target.getAttribute('data-product-name');
-                    
-                    console.log(`Кнопка покупки нажата: ${productName}, статус: ${availability}`);
-                    
-                    if (availability === 'Снят с производства') {
-                        showDiscontinuedPopup();
-                    } else if (availability === 'Нет в наличии') {
-                        showOutOfStockPopup();
-                    } else if (availability === 'Ожидается') {
-                        showExpectedPopup();
-                    } else if (availability === 'Под заказ') {
-                        showOnOrderPopup();
-                    } else {
-                        // Обычная покупка
-                        if (window.tg && window.tg.MainButton) {
-                            window.tg.MainButton.text = `Выбрано: ${productName}`;
-                            window.tg.MainButton.show();
-                        }
-                    }
-                }
-                
-                // Обработка кнопок избранного
-                if (e.target.closest('.favorite-btn')) {
-                    e.preventDefault();
-                    const favoriteBtn = e.target.closest('.favorite-btn');
-                    favoriteBtn.classList.toggle('favorited');
-                    const icon = favoriteBtn.querySelector('i');
-                    if (favoriteBtn.classList.contains('favorited')) {
-                        icon.className = 'fas fa-heart';
-                    } else {
-                        icon.className = 'far fa-heart';
-                    }
-                }
-                
-                // Обработка кнопок сравнения
-                if (e.target.closest('.compare-btn')) {
-                    e.preventDefault();
-                    const compareBtn = e.target.closest('.compare-btn');
-                    compareBtn.style.color = compareBtn.style.color === 'var(--primary-color)' ? 'var(--text-light)' : 'var(--primary-color)';
-                }
-            });
-            console.log('Event delegation для карточек товаров настроен');
-        }
-        console.log('=== КОНЕЦ НАСТРОЙКИ EVENT DELEGATION ===');
-        
-        // Настройка поиска перенесена в начало инициализации
-        
-        // ИСПРАВЛЕНИЕ БАГА: Принудительно обновляем переводы кнопок после полной инициализации
-        console.log('=== ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ ПЕРЕВОДОВ КНОПОК ===');
-        const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
-        if (typeof updateProductButtonTranslations === 'function') {
-            console.log(`Принудительно обновляем переводы кнопок для языка: ${currentLanguage}`);
-            updateProductButtonTranslations(currentLanguage);
-        } else {
-            console.warn('Функция updateProductButtonTranslations не найдена');
-        }
-        console.log('=== КОНЕЦ ОБНОВЛЕНИЯ ПЕРЕВОДОВ ===');
-        
-        console.log('Инициализация завершена успешно');
-    } catch (error) {
-        console.error('Ошибка во время инициализации:', error);
-        
-        // Показываем сообщение об ошибке
+    if (!append) {
         const container = document.querySelector('.inner');
         if (container) {
+            // Получаем текущий язык
+            const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
+            let loadingText = 'Загружаем товары...';
+            
+            if (currentLanguage === 'uk') {
+                loadingText = 'Завантажуємо товари...';
+            } else if (currentLanguage === 'en') {
+                loadingText = 'Loading goods...';
+            }
+            
+            // Удаляем предыдущий оверлей если остался
+            try { const old = document.getElementById('loading-overlay'); if (old) old.remove(); } catch (e) {}
+            
             container.innerHTML = `
-                <div class="error-message">
-                    <p>Произошла ошибка при загрузке товаров: ${error.message}</p>
-                    <button class="btn" onclick="location.reload()">Перезагрузить страницу</button>
+                <div id="loading-overlay" style="
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    text-align: center;
+                    z-index: 1000;
+                    background: rgba(255, 255, 255, 0.95);
+                    padding: 30px;
+                    border-radius: 10px;
+                    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+                ">
+                    <i class="fas fa-spinner fa-spin" style="font-size: 32px; color: #4CAF50; margin-bottom: 15px; display: block;"></i>
+                    <p style="margin: 0; font-size: 16px; color: #333; font-weight: 500;">${loadingText}</p>
                 </div>
             `;
         }
     }
-});
-
-// Функция для отображения аватара пользователя
-function displayUserAvatar(photoUrl) {
-    console.log('displayUserAvatar: Загружаем аватар:', photoUrl);
-    
-    const profileImage = document.getElementById('profile-image');
-    const profileIcon = document.getElementById('profile-icon');
-    const profileSvg = document.getElementById('profile-svg');
-    
-    if (profileImage && profileIcon && profileSvg) {
-        profileImage.src = photoUrl;
-        profileImage.style.display = 'block';
-        profileIcon.style.display = 'none';
-        profileSvg.style.display = 'none';
-        
-        // Добавляем обработчик ошибок для изображения
-        profileImage.onerror = () => {
-            console.warn('Не удалось загрузить аватар пользователя, показываем иконку по умолчанию');
-            showDefaultProfileIcon();
-        };
-        
-        profileImage.onload = () => {
-            console.log('Аватар пользователя успешно загружен');
-        };
-    }
-}
-
-// Функция для показа иконки профиля по умолчанию
-function showDefaultProfileIcon() {
-    console.log('showDefaultProfileIcon: Показываем иконку профиля по умолчанию');
-    
-    const profileImage = document.getElementById('profile-image');
-    const profileIcon = document.getElementById('profile-icon');
-    const profileSvg = document.getElementById('profile-svg');
-    
-    if (profileImage && profileIcon && profileSvg) {
-        profileImage.style.display = 'none';
-        profileIcon.style.display = 'block';
-        profileSvg.style.display = 'none';
-    }
-}
-
-// Функция для получения и отображения фото профиля из Telegram
-function loadTelegramProfilePhoto() {
-    console.log('=== loadTelegramProfilePhoto: Начинаем загрузку аватара ===');
-    console.log('window.Telegram:', !!window.Telegram);
-    console.log('window.Telegram.WebApp:', !!window.Telegram?.WebApp);
-    console.log('tg:', !!tg);
-    console.log('tg.initDataUnsafe:', !!tg?.initDataUnsafe);
-    console.log('tg.initDataUnsafe.user:', !!tg?.initDataUnsafe?.user);
-    
-    // Дополнительная проверка - ждем немного, если данные еще не загрузились
-    if (!tg?.initDataUnsafe?.user) {
-        console.log('Данные пользователя еще не загружены, пробуем альтернативные способы...');
-        
-        // Пробуем получить данные через initData
-        if (tg.initData) {
-            try {
-                const initData = new URLSearchParams(tg.initData);
-                const userData = initData.get('user');
-                if (userData) {
-                    console.log('Найдены данные пользователя в initData:', userData);
-                    const user = JSON.parse(decodeURIComponent(userData));
-                    console.log('Парсированные данные пользователя:', user);
-                    
-                    // Если есть фото, загружаем его
-                    if (user.photo_url) {
-                        displayUserAvatar(user.photo_url);
-                        return;
-                    }
-                }
-            } catch (error) {
-                console.warn('Ошибка при парсинге initData:', error);
-            }
-        }
-        
-        // Если все способы не сработали, показываем иконку по умолчанию
-        console.log('Не удалось получить данные пользователя, показываем иконку по умолчанию');
-        showDefaultProfileIcon();
-        return;
-    }
-    
-    if (window.Telegram && window.Telegram.WebApp && tg.initDataUnsafe && tg.initDataUnsafe.user) {
-        const user = tg.initDataUnsafe.user;
-        console.log('Telegram user data:', user);
-        console.log('User photo_url:', user.photo_url);
-        
-        if (user.photo_url) {
-            const profileImage = document.getElementById('profile-image');
-            const profileIcon = document.getElementById('profile-icon');
-            const profileSvg = document.getElementById('profile-svg');
-            
-            console.log('Profile image element:', !!profileImage);
-            console.log('Profile icon element:', !!profileIcon);
-            console.log('Profile SVG element:', !!profileSvg);
-            
-            if (profileImage && profileIcon && profileSvg) {
-                console.log('Устанавливаем src для аватара:', user.photo_url);
-                
-                // Сохраняем данные пользователя в localStorage для использования в веб-версии
-                try {
-                    const userDataToSave = {
-                        id: user.id,
-                        first_name: user.first_name,
-                        last_name: user.last_name,
-                        username: user.username,
-                        photo_url: user.photo_url,
-                        timestamp: Date.now()
-                    };
-                    localStorage.setItem('telegramUserData', JSON.stringify(userDataToSave));
-                    console.log('Данные пользователя Telegram сохранены в localStorage');
-                } catch (error) {
-                    console.warn('Не удалось сохранить данные пользователя в localStorage:', error);
-                }
-                
-                // Отображаем аватар пользователя
-                displayUserAvatar(user.photo_url);
-            } else {
-                console.error('Не найдены элементы аватара в DOM');
-            }
-        } else {
-            console.log('Фото профиля не найдено в данных Telegram пользователя');
-            console.log('Доступные поля пользователя:', Object.keys(user));
-        }
-    } else {
-        console.log('Telegram WebApp недоступен или данные пользователя отсутствуют');
-        console.log('Проверяем tg.initDataUnsafe:', tg?.initDataUnsafe);
-        if (tg?.initDataUnsafe) {
-            console.log('initDataUnsafe keys:', Object.keys(tg.initDataUnsafe));
-        }
-        
-        // Проверяем, есть ли сохраненные данные пользователя в localStorage
-        checkSavedTelegramUser();
-    }
-}
-
-// Функция для проверки сохраненных данных пользователя Telegram
-function checkSavedTelegramUser() {
-    const telegramUserData = localStorage.getItem('telegramUserData');
-    if (telegramUserData) {
-        try {
-            const userData = JSON.parse(telegramUserData);
-            
-            // Проверяем, не устарели ли данные (старше 24 часов)
-            const dataAge = Date.now() - userData.timestamp;
-            const maxAge = 24 * 60 * 60 * 1000; // 24 часа
-            
-            if (dataAge < maxAge && userData.photo_url) {
-                console.log('Найдены актуальные данные пользователя Telegram, загружаем аватар...');
-                displayUserAvatar(userData.photo_url);
-                console.log('Аватар пользователя Telegram загружен из localStorage');
-            } else {
-                console.log('Данные пользователя Telegram устарели, очищаем localStorage');
-                localStorage.removeItem('telegramUserData');
-            }
-        } catch (error) {
-            console.warn('Ошибка при загрузке данных пользователя Telegram из localStorage:', error);
-            localStorage.removeItem('telegramUserData');
-        }
-    }
-}
-
-// Обработчики событий Telegram
-if (window.Telegram && window.Telegram.WebApp) {
-    console.log('=== ИНИЦИАЛИЗАЦИЯ TELEGRAM WEBAPP ===');
-    
-    // Ждем готовности Telegram WebApp
-    tg.ready();
-    console.log('Telegram WebApp готов');
-    
-    // Проверяем данные пользователя
-    console.log('tg.initDataUnsafe:', tg.initDataUnsafe);
-    console.log('tg.initDataUnsafe.user:', tg.initDataUnsafe?.user);
-    console.log('tg.initData:', tg.initData);
-    
-    // Пробуем получить данные пользователя разными способами
-    if (tg.initData) {
-        try {
-            const initData = new URLSearchParams(tg.initData);
-            const userData = initData.get('user');
-            if (userData) {
-                console.log('Данные пользователя из initData:', userData);
-                const user = JSON.parse(decodeURIComponent(userData));
-                console.log('Парсированные данные пользователя:', user);
-                
-                // Если есть фото, сразу загружаем его
-                if (user.photo_url) {
-                    console.log('Найдено фото в initData, загружаем аватар...');
-                    displayUserAvatar(user.photo_url);
-                    
-                    // Сохраняем данные пользователя
-                    try {
-                        const userDataToSave = {
-                            id: user.id,
-                            first_name: user.first_name,
-                            last_name: user.last_name,
-                            username: user.username,
-                            photo_url: user.photo_url,
-                            timestamp: Date.now()
-                        };
-                        localStorage.setItem('telegramUserData', JSON.stringify(userDataToSave));
-                        console.log('Данные пользователя из initData сохранены в localStorage');
-                    } catch (error) {
-                        console.warn('Не удалось сохранить данные пользователя в localStorage:', error);
-                    }
-                }
-            }
-        } catch (error) {
-            console.warn('Ошибка при парсинге initData:', error);
-        }
-    }
-    
-    // Пробуем получить данные через tg.MainButton или другие свойства
-    console.log('tg.MainButton:', !!tg.MainButton);
-    console.log('tg.BackButton:', !!tg.BackButton);
-    console.log('tg.HapticFeedback:', !!tg.HapticFeedback);
-    
-    // Проверяем, есть ли данные в других местах
-    if (tg.MainButton) {
-        console.log('MainButton доступен, проверяем данные...');
-    }
-    
-    // Добавляем обработчик событий Telegram WebApp
-    if (tg.onEvent) {
-        tg.onEvent('viewportChanged', () => {
-            console.log('Viewport изменился, проверяем данные пользователя...');
-            if (tg.initDataUnsafe?.user) {
-                console.log('Данные пользователя доступны, загружаем аватар...');
-                loadTelegramProfilePhoto();
-            }
-        });
-    }
-    
-    // Загружаем фото профиля после готовности Telegram WebApp
-    // Добавляем небольшую задержку для гарантии готовности
-    setTimeout(() => {
-        console.log('Вызываем loadTelegramProfilePhoto...');
-        loadTelegramProfilePhoto();
-    }, 100);
-    
-
-    
-    console.log('Telegram WebApp успешно инициализирован');
-    
-
-} else {
-    console.log('Telegram WebApp не доступен, пропускаем инициализацию');
-}
-
-// Настройка обработчиков изображений
-function setupImageHandlers() {
-    // Обработчик ошибок для изображений товаров
-    const productImages = document.querySelectorAll('.product-image img');
-    
-    productImages.forEach(img => {
-        // Предотвращаем 404 ошибки
-        img.addEventListener('error', function() {
-            console.log(`Изображение не загружено: ${this.src}`);
-            
-            // Скрываем сломанное изображение
-            this.style.display = 'none';
-            
-            // Показываем fallback
-            const productImage = this.closest('.product-image');
-            if (productImage) {
-                productImage.classList.add('image-error');
-            }
-        });
-        
-        // Обработчик успешной загрузки
-        img.addEventListener('load', function() {
-            console.log(`Изображение загружено: ${this.src}`);
-            this.style.display = 'block';
-            
-            const productImage = this.closest('.product-image');
-            if (productImage) {
-                productImage.classList.remove('image-error');
-            }
-        });
-    });
-    
-    console.log('Обработчики изображений настроены');
-}
-
-// Удалено - дублирующий обработчик DOMContentLoaded
-
-// Функция показа сообщения о снятии с производства
-function showDiscontinuedPopup() {
-    console.log('showDiscontinuedPopup: Показываем popup для товара снятого с производства');
-    openPopup('discontinuedPopup');
-}
-
-function showOutOfStockPopup() {
-    console.log('showOutOfStockPopup: Показываем popup для товара которого нет в наличии');
-    openPopup('outOfStockPopup');
-}
-
-function showExpectedPopup() {
-    console.log('showExpectedPopup: Показываем popup для товара который ожидается');
-    openPopup('expectedPopup');
-}
-
-function showOnOrderPopup() {
-    console.log('showOnOrderPopup: Показываем popup для товара под заказ');
-    openPopup('onOrderPopup');
-}
-
-// Функции для показа всплывающих окон меню и настроек
-function showMenuPopup() {
-    console.log('=== showMenuPopup: Проверяем состояние popup меню ===');
-    const popup = document.getElementById('menuPopup');
-    console.log('menuPopup найден:', popup);
-    
-    // Проверяем, открыто ли уже окно меню
-    if (popup && popup.classList.contains('show')) {
-        console.log('showMenuPopup: Окно меню уже открыто, закрываем его');
-        closePopup('menuPopup');
-    } else {
-        console.log('showMenuPopup: Открываем popup меню');
-        openPopup('menuPopup');
-    }
-}
-
-function showSettingsPopup() {
-    console.log('=== showSettingsPopup: Проверяем состояние popup настроек ===');
-    const popup = document.getElementById('settingsPopup');
-    console.log('settingsPopup найден:', popup);
-    
-    // Проверяем, открыто ли уже окно настроек
-    if (popup && popup.classList.contains('show')) {
-        console.log('showSettingsPopup: Окно настроек уже открыто, закрываем его');
-        closePopup('settingsPopup');
-    } else {
-        console.log('showSettingsPopup: Открываем popup настроек');
-        openPopup('settingsPopup');
-    }
-}
-
-// Функция для настройки обработчиков меню категорий
-function setupCategoryMenuHandlers() {
-    console.log('setupCategoryMenuHandlers: Настраиваем обработчики для меню категорий');
-    
-    // Настраиваем обработку ошибок загрузки изображений категорий
-    setupCategoryImageErrorHandling();
-    
-    // Используем event delegation для обработки кликов по категориям
-    document.addEventListener('click', (e) => {
-        const categoryItem = e.target.closest('.category-item');
-        const contactsItem = e.target.closest('.contacts-item');
-        
-        // Игнорируем клики по пункту контактов
-        if (contactsItem) {
-            return;
-        }
-        
-        if (categoryItem) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            const category = categoryItem.getAttribute('data-category');
-            const categoryName = categoryItem.querySelector('span').textContent;
-            
-            console.log(`setupCategoryMenuHandlers: Выбрана категория: ${category} - ${categoryName}`);
-            
-            // Закрываем меню
-            closePopup('menuPopup');
-            
-            // Показываем уведомление о выборе категории
-            showCategorySelectedNotification(categoryName);
-            
-            // Здесь можно добавить логику для фильтрации товаров по категории
-            // Например, отправка запроса к API с параметром категории
-            handleCategorySelection(category);
-        }
-    });
-    
-    console.log('setupCategoryMenuHandlers: Обработчики настроены');
-}
-
-// Функция для обработки ошибок загрузки изображений категорий
-function setupCategoryImageErrorHandling() {
-    console.log('setupCategoryImageErrorHandling: Настраиваем обработку ошибок изображений');
-    
-    // Находим все изображения категорий
-    const categoryImages = document.querySelectorAll('.category-image');
-    
-    categoryImages.forEach((img, index) => {
-        // Добавляем обработчик ошибки загрузки
-        img.addEventListener('error', function() {
-            console.warn(`setupCategoryImageErrorHandling: Ошибка загрузки изображения категории ${index + 1}: ${this.src}`);
-            
-            // Заменяем изображение на иконку по умолчанию
-            this.style.display = 'none';
-            
-            // Создаем иконку по умолчанию
-            const fallbackIcon = document.createElement('i');
-            fallbackIcon.className = 'fas fa-guitar category-fallback-icon';
-            fallbackIcon.style.cssText = `
-                color: var(--accent-color);
-                font-size: 18px;
-                width: 40px;
-                height: 40px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                background: var(--bg-secondary);
-                border: 1px solid var(--border-color);
-                border-radius: 8px;
-                flex-shrink: 0;
-            `;
-            
-            // Вставляем иконку перед текстом
-            this.parentNode.insertBefore(fallbackIcon, this.nextSibling);
-        });
-        
-        // Добавляем обработчик успешной загрузки
-        img.addEventListener('load', function() {
-            console.log(`setupCategoryImageErrorHandling: Изображение категории ${index + 1} успешно загружено: ${this.src}`);
-        });
-    });
-    
-    console.log(`setupCategoryImageErrorHandling: Обработчики настроены для ${categoryImages.length} изображений`);
-}
-
-// Делаем функции глобально доступными
-window.showContactsPopup = showContactsPopup;
-window.closeContactsPopup = closeContactsPopup;
-
-// Тестовая функция для отладки
-window.testContactsPopup = function() {
-    console.log('=== ТЕСТ POPUP КОНТАКТОВ ===');
-    console.log('1. Проверяем наличие элемента...');
-    const popup = document.getElementById('contactsPopup');
-    console.log('Popup элемент:', popup);
-    
-    if (popup) {
-        console.log('2. Проверяем текущие классы...');
-        console.log('Классы:', popup.className);
-        
-        console.log('3. Добавляем класс show...');
-        popup.classList.add('show');
-        
-        console.log('4. Проверяем классы после добавления...');
-        console.log('Классы:', popup.className);
-        
-        console.log('5. Проверяем стили...');
-        const styles = window.getComputedStyle(popup);
-        console.log('display:', styles.display);
-        console.log('visibility:', styles.visibility);
-        console.log('opacity:', styles.opacity);
-        console.log('z-index:', styles.zIndex);
-        
-        alert('Тест завершен! Проверьте консоль.');
-    } else {
-        alert('Popup элемент не найден!');
-    }
-};
-
-// Функция для обработки выбора категории
-function handleCategorySelection(category) {
-    console.log(`handleCategorySelection: Обработка выбора категории: ${category}`);
-    
-    // Получаем текущий язык
-    const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
-    
-    // Формируем URL для категории на соответствующем языке
-    let categoryUrl = '';
-    switch (currentLanguage) {
-        case 'ru':
-            categoryUrl = `https://guitarstrings.com.ua/shop`;
-            break;
-        case 'uk':
-            categoryUrl = `https://guitarstrings.com.ua/ua/shop`;
-            break;
-        case 'en':
-            categoryUrl = `https://guitarstrings.com.ua/en/shop`;
-            break;
-        default:
-            categoryUrl = `https://guitarstrings.com.ua/ua/shop`;
-    }
-    
-    console.log(`handleCategorySelection: URL категории: ${categoryUrl}`);
-    
-    // Здесь можно добавить логику для:
-    // 1. Фильтрации товаров по категории
-    // 2. Отправки запроса к API с параметром категории
-    // 3. Обновления списка товаров
-    // 4. Сохранения выбранной категории в localStorage
-    
-    // Пока что просто сохраняем выбранную категорию
-    localStorage.setItem('selectedCategory', category);
-    console.log(`handleCategorySelection: Категория ${category} сохранена в localStorage`);
-}
-
-// Функции для работы с popup контактов
-function showContactsPopup() {
-    // Защита от рекурсивных вызовов
-    if (window.isShowingContactsPopup) {
-        console.log('showContactsPopup: Popup уже открывается, пропускаем...');
-        return;
-    }
     
     try {
-        window.isShowingContactsPopup = true;
-        console.log('=== showContactsPopup: НАЧАЛО ФУНКЦИИ ===');
+        // Вычисляем start на основе номера страницы (30 товаров на страницу для быстрой загрузки)
+        const start = page * 30;
+        console.log('loadProducts: Отправляем запрос к API:', `/api/products?start=${start}&limit=30`);
+
+        const response = await fetch(`http://localhost:8000/api/products?start=${start}&limit=30`);
+        console.log('loadProducts: Получен ответ от сервера, статус:', response.status);
+
+        if (!response.ok) {
+            console.error('loadProducts: Сервер вернул ошибку:', response.status, response.statusText);
+            throw new Error(`HTTP ошибка! статус: ${response.status} - ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        console.log('loadProducts: Получены данные:', data);
         
-        // ИСПРАВЛЕНИЕ: Используем openPopup для корректного открытия
-        // Это гарантирует, что меню останется открытым
-        openPopup('contactsPopup');
-        
-        console.log('showContactsPopup: Popup контактов успешно открыт через openPopup');
-        
+        if (data && data.products && data.products.length > 0) {
+            // console.log('loadProducts: Загружено', data.products.length, 'товаров');
+            
+            if (append) {
+                // Добавляем товары к существующим
+                appendProducts(data.products);
+            } else {
+                // Отображаем новые товары
+                displayProducts(data.products);
+            }
+            
+            // Обновляем состояние
+            currentPage = page;
+            hasMoreProducts = data.hasMore || false;
+            
+            // Дополнительная проверка для корректности hasMoreProducts
+            if (window.currentProducts && window.currentProducts.length >= 377) {
+                hasMoreProducts = false;
+            }
+            
+            // console.log('loadProducts: Обновлен currentPage на:', currentPage);
+            
+            // console.log('loadProducts: hasMoreProducts:', hasMoreProducts);
+        } else {
+            console.log('loadProducts: Нет товаров для отображения');
+            hasMoreProducts = false;
+        }
     } catch (error) {
-        console.error('showContactsPopup: ОШИБКА В ФУНКЦИИ:', error);
-        alert('ОШИБКА в showContactsPopup: ' + error.message);
+        console.error('loadProducts: Ошибка загрузки товаров:', error);
+        hasMoreProducts = false;
     } finally {
-        // Сбрасываем флаг в любом случае
-        window.isShowingContactsPopup = false;
+        isLoading = false;
+        // Удаляем индикаторы загрузки
+        hideLoadingIndicator();
     }
 }
 
-function closeContactsPopup() {
-    console.log('closeContactsPopup: Закрываем popup контактов');
-    
-    // ИСПРАВЛЕНИЕ: Используем closePopup для корректного закрытия
-    // Это гарантирует, что меню останется открытым
-    closePopup('contactsPopup');
-    
-    console.log('closeContactsPopup: Popup контактов закрыт через closePopup');
-}
-
-// Функция для показа popup оферты
-window.showOfferPopup = function() {
-    const popup = document.getElementById('offerPopup');
-    const offerText = document.getElementById('offerText');
-    
-    if (popup && offerText) {
-        const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
-        
-        // Загружаем текст оферты в зависимости от языка
-        const offerContent = getOfferContent(currentLanguage);
-        offerText.innerHTML = offerContent;
-        
-        // ИСПРАВЛЕНИЕ: Используем openPopup для корректного открытия
-        // Это гарантирует, что меню останется открытым
-        openPopup('offerPopup');
-        
-        // Добавляем обработчики событий для закрытия
-        addOfferPopupEventListeners();
-        
-        console.log('showOfferPopup: Popup оферты успешно открыт через openPopup');
-    } else {
-        console.error('showOfferPopup: Popup оферты или элемент текста не найден');
+// Функция добавления товаров к существующим
+function appendProducts(products) {
+    console.log('appendProducts: Добавляем', products.length, 'товаров');
+    const container = ensureProductsContainer();
+    if (!container) {
+        console.error('appendProducts: Контейнер #productsContainer не найден и не удалось создать');
+        return;
     }
-}
-
-// Функция для добавления обработчиков событий для окна оферты
-function addOfferPopupEventListeners() {
-    const popup = document.getElementById('offerPopup');
     
-    if (!popup) return;
-    
-    // Обработчик клавиши ESC
-    const handleEscKey = (e) => {
-        if (e.key === 'Escape') {
-            closeOfferPopup();
+    // Фильтруем дубликаты перед добавлением
+    const uniqueProducts = [];
+    products.forEach(product => {
+        if (!loadedProductNames.has(product.name)) {
+            uniqueProducts.push(product);
+            loadedProductNames.add(product.name);
+        } else {
+            console.log('appendProducts: Пропускаем дубликат:', product.name);
         }
+    });
+    
+    console.log('appendProducts: Уникальных товаров для добавления:', uniqueProducts.length);
+    
+    // Пересобираем общий список с сортировкой через displayProducts
+    const combined = (window.currentProducts || []).concat(uniqueProducts);
+    displayProducts(combined);
+    console.log('appendProducts: Всего товаров после добавления:', (window.currentProducts || []).length);
+}
+// Функция отображения товаров
+function displayProducts(products) {
+    console.log('displayProducts: Отображаем товары');
+    console.log('displayProducts: Количество товаров:', products.length);
+    // На всякий случай убираем любые индикаторы загрузки
+    hideLoadingIndicator();
+    const container = ensureProductsContainer();
+    if (!container) {
+        console.error('displayProducts: Контейнер #productsContainer не найден и не удалось создать');
+        return;
+    }
+    console.log('displayProducts: Контейнер найден, очищаем содержимое');
+    container.innerHTML = '';
+    
+    // Очищаем список загруженных товаров
+    loadedProductNames.clear();
+    
+    // Удаляем дубликаты товаров перед отображением
+    const uniqueProducts = [];
+    const seenNames = new Set();
+    
+    products.forEach(product => {
+        if (!seenNames.has(product.name)) {
+            seenNames.add(product.name);
+            uniqueProducts.push(product);
+        } else {
+            console.log('displayProducts: Удален дубликат товара:', product.name);
+        }
+    });
+    
+    console.log('displayProducts: После удаления дубликатов осталось товаров:', uniqueProducts.length, 'из', products.length);
+    
+    // Сортировка по политике: В наличии → Ожидается → Под заказ → Снят с производства; внутри — по цене возрастанию
+    const getAvailabilityRank = (availability) => {
+        const a = (availability || '').toLowerCase();
+        if (a === 'в наличии' || a === 'в наличии в одессе') return 0;
+        if (a === 'ожидается' || a === 'ожидается поставка') return 1;
+        if (a === 'под заказ') return 2;
+        if (a === 'снят с производства') return 3;
+        return 4;
     };
-    
-    // Обработчик клика вне окна
-    const handleOutsideClick = (e) => {
-        if (e.target === popup) {
-            closeOfferPopup();
-        }
+    const getNumericPrice = (p) => {
+        const val = (p && (p.newPrice || p.price || 0)).toString().replace(',', '.');
+        const num = parseFloat(val);
+        return isNaN(num) ? Number.POSITIVE_INFINITY : num;
     };
+    uniqueProducts.sort((a, b) => {
+        const ra = getAvailabilityRank(a.availability);
+        const rb = getAvailabilityRank(b.availability);
+        if (ra !== rb) return ra - rb;
+        const pa = getNumericPrice(a);
+        const pb = getNumericPrice(b);
+        if (pa !== pb) return pa - pb;
+        return 0;
+    });
     
-    // Добавляем обработчики
-    document.addEventListener('keydown', handleEscKey);
-    popup.addEventListener('click', handleOutsideClick);
+    // Сохраняем товары в глобальный массив для доступа из обработчиков
+    window.currentProducts = uniqueProducts;
     
-    // Сохраняем ссылки на обработчики для последующего удаления
-    popup._escHandler = handleEscKey;
-    popup._outsideClickHandler = handleOutsideClick;
-}
+    // Добавляем имена товаров в Set для отслеживания дубликатов
+    uniqueProducts.forEach(product => {
+        loadedProductNames.add(product.name);
+    });
+    
+    console.log('displayProducts: Создаем карточки для', uniqueProducts.length, 'товаров');
+    uniqueProducts.forEach((product, index) => {
+        const productCard = createProductCard(product, index);
+        container.appendChild(productCard);
+    });
+    
+    // Навешиваем клики на пометки "09 калибр электро" для быстрого фильтра
+    try {
+        const gaugeBadges = document.querySelectorAll('.product-gauge09');
+        gaugeBadges.forEach(badge => {
+            badge.addEventListener('click', function() {
+                filterProductsByCategory('09-gauge', true);
+            });
+        });
+    } catch (e) {}
 
-// Функция для закрытия окна оферты
-window.closeOfferPopup = function() {
-    const popup = document.getElementById('offerPopup');
+    // Навешиваем клики на пометки "10 калибр электро"
+    try {
+        const gaugeBadges10 = document.querySelectorAll('.product-gauge10');
+        gaugeBadges10.forEach(badge => {
+            badge.addEventListener('click', function() {
+                filterProductsByCategory('10-gauge', true);
+            });
+        });
+    } catch (e) {}
+
+    // Навешиваем клики на пометки "Nickel Plated"
+    try {
+        const npBadges = document.querySelectorAll('.product-nickelplated');
+        npBadges.forEach(badge => {
+            badge.addEventListener('click', function() {
+                filterProductsByCategory('nickel-plated', true);
+            });
+        });
+    } catch (e) {}
+
+    // Навешиваем клики на пометки "Pure Nickel"
+    try {
+        const pnBadges = document.querySelectorAll('.product-purenickel');
+        pnBadges.forEach(badge => {
+            badge.addEventListener('click', function() {
+                filterProductsByCategory('pure-nickel', true);
+            });
+        });
+    } catch (e) {}
+
+    // Навешиваем клики на пометки "Stainless Steel"
+    try {
+        const ssBadges = document.querySelectorAll('.product-stainless');
+        ssBadges.forEach(badge => {
+            badge.addEventListener('click', function() {
+                filterProductsByCategory('stainless-steel', true);
+            });
+        });
+    } catch (e) {}
+
+    // Навешиваем клики на пометки "Cobalt"
+    try {
+        const cbBadges = document.querySelectorAll('.product-cobalt');
+        cbBadges.forEach(badge => {
+            badge.addEventListener('click', function() {
+                filterProductsByCategory('cobalt', true);
+            });
+        });
+    } catch (e) {}
+
+    // Навешиваем клики на пометки "Colored"
+    try {
+        const coloredBadges = document.querySelectorAll('.product-colored');
+        coloredBadges.forEach(badge => {
+            badge.addEventListener('click', function() {
+                filterProductsByCategory('colored', true);
+            });
+        });
+    } catch (e) {}
+
+    // Навешиваем клики на пометки "11 калибр электро"
+    try {
+        const gaugeBadges11 = document.querySelectorAll('.product-gauge11');
+        gaugeBadges11.forEach(badge => {
+            badge.addEventListener('click', function() {
+                filterProductsByCategory('11-gauge', true);
+            });
+        });
+    } catch (e) {}
+
+    // Кликабельные пометки характеристик
+    try {
+        // 7 струн для электрогитары
+        document.querySelectorAll('.product-seven-string').forEach(b => {
+            b.style.cursor = 'pointer';
+            b.addEventListener('click', function() {
+                filterProductsByCategory('7-string', true);
+            });
+        });
+        // 8 струн для электрогитары
+        document.querySelectorAll('.product-eight-string').forEach(b => {
+            b.style.cursor = 'pointer';
+            b.addEventListener('click', function() {
+                filterProductsByCategory('8-string', true);
+            });
+        });
+        // 9 струн для электрогитары
+        document.querySelectorAll('.product-nine-string').forEach(b => {
+            b.style.cursor = 'pointer';
+            b.addEventListener('click', function() {
+                filterProductsByCategory('9-string', true);
+            });
+        });
+        // Струны электро с плоской обмоткой
+        document.querySelectorAll('.product-flatwound').forEach(b => {
+            b.style.cursor = 'pointer';
+            b.addEventListener('click', function() {
+                filterProductsByCategory('flatwound', true);
+            });
+        });
+
+        // Производитель: DR / La Bella (клика по бейджу производителя)
+        document.querySelectorAll('.product-manufacturer').forEach(b => {
+            b.style.cursor = 'pointer';
+            b.addEventListener('click', function() {
+                const txt = (this.textContent || '').toLowerCase();
+                if (txt.includes('dr')) {
+                    filterProductsByCategory('dr', true);
+                } else if (txt.includes('la bella')) {
+                    filterProductsByCategory('la-bella', true);
+                }
+            });
+        });
+    } catch (e) {}
     
-    if (popup) {
-        // Удаляем обработчики событий
-        if (popup._escHandler) {
-            document.removeEventListener('keydown', popup._escHandler);
-            delete popup._escHandler;
+    console.log('displayProducts: Все карточки добавлены. Количество элементов в контейнере:', container.children.length);
+
+    // Синхронизируем видимость баннера/поиска по фактическому состоянию кабинета
+    try {
+        const account = document.getElementById('account-section');
+        const isAccountVisible = !!(account && account.offsetParent !== null && window.getComputedStyle(account).display !== 'none' && window.getComputedStyle(account).visibility !== 'hidden');
+        const banner = document.querySelector('.main-banner');
+        const brands = document.querySelector('.brand-logos');
+        const search = document.querySelector('.search-section');
+        const inner = document.querySelector('.inner');
+
+        if (isAccountVisible) {
+            if (banner) banner.style.setProperty('display', 'none', 'important');
+            if (brands) brands.style.setProperty('display', 'none', 'important');
+            if (search) search.style.setProperty('display', 'none', 'important');
+        } else {
+            if (banner) banner.style.removeProperty('display');
+            if (brands) brands.style.removeProperty('display');
+            if (search) search.style.removeProperty('display');
+            if (inner) {
+                Array.from(inner.children).forEach(child => {
+                    if (child.id !== 'account-section') {
+                        child.style.removeProperty('display');
+                        child.style.removeProperty('visibility');
+                        child.style.removeProperty('opacity');
+                    }
+                });
+            }
         }
-        
-        if (popup._outsideClickHandler) {
-            popup.removeEventListener('click', popup._outsideClickHandler);
-            delete popup._outsideClickHandler;
-        }
-        
-        // ИСПРАВЛЕНИЕ: Используем closePopup для корректного закрытия
-        // Это гарантирует, что меню останется открытым
-        closePopup('offerPopup');
-        
-        console.log('closeOfferPopup: Popup оферты закрыт через closePopup');
-    }
+    } catch (e) {}
 }
 
-// Функция для получения текста оферты на разных языках
-function getOfferContent(language) {
-    const offers = {
-        uk: `
-            <h4>Загальні положення</h4>
-            <p><strong>1.1.</strong> Справжня оферта є офіційною пропозицією «Guitar Strings», далі за текстом — «Продавець», укласти Договір купівлі-продажу товарів дистанційним способом, тобто через Інтернет-магазин, далі за текстом — «Договір», та розміщує Публічну оферту (пропозиція) на офіційному інтернет-сайті Продавця https://guitarstrings.com.ua (далі - Інтернет-сайт).</p>
-            
-            <p><strong>1.2.</strong> Моментом повного та безумовного прийняття Покупцем пропозиції Продавця (акцептом) укласти електронний договір купівлі-продажу товарів, вважається факт оплати Покупцем замовлення на умовах цього Договору, у строки та за цінами, вказаними на Інтернет-сайті Продавця.</p>
-            
-            <h4>Поняття та визначення</h4>
-            <p><strong>2.1.</strong> У цій оферті, якщо контекст не вимагає іншого, наведені нижче терміни мають такі значення:</p>
-            <ul>
-                <li><strong>«товар»</strong> - моделі, аксесуари, комплектуючі та супровідні предмети;</li>
-                <li><strong>«Інтернет-магазин»</strong> - відповідно до Закону України «про електронну комерцію», засіб для подання або реалізації товару, роботи чи послуги шляхом вчинення електронної угоди.</li>
-                <li><strong>«Продавець»</strong> - компанія, що реалізує товари, які представлені на Інтернет-сайті.</li>
-                <li><strong>«Покупець»</strong> - фізична особа, яка уклала з Продавцем Договір на умовах, викладених нижче.</li>
-                <li><strong>«Замовлення»</strong> - вибір окремих позицій із переліку товарів, зазначених Покупцем під час розміщення замовлення та проведення оплати.</li>
-            </ul>
-            
-            <h4>Предмет Договору</h4>
-            <p><strong>3.1.</strong> Продавець зобов'язується передати у власність Покупця Товар, а Покупець зобов'язується сплатити та прийняти Товар на умовах цього Договору.</p>
-            
-            <p>Цей Договір регулює купівлю-продаж товарів в Інтернет-магазині, зокрема:</p>
-            <ul>
-                <li>Добровільний вибір Покупцем товарів в Інтернет-магазині;</li>
-                <li>Самостійне оформлення Покупцем замовлення в Інтернет-магазині;</li>
-                <li>оплата Покупцем замовлення, оформленого в Інтернет-магазині;</li>
-                <li>обробка та доставка замовлення Покупцю у власність на умовах цього Договору.</li>
-            </ul>
-            
-            <h4>Порядок оформлення замовлення</h4>
-            <p><strong>4.1.</strong> Покупець має право оформити замовлення на будь-який товар, представлений на Сайті Інтернет-магазину та наявний.</p>
-            <p><strong>4.2.</strong> Кожна позиція може бути представлена ​​в замовлення у будь-якій кількості.</p>
-            <p><strong>4.3.</strong> За відсутності товару на складі, Менеджер компанії зобов'язаний повідомити Покупця (по телефону або через електронну пошту).</p>
-            <p><strong>4.4.</strong> За відсутності товару Покупець має право замінити його товаром аналогічної моделі, відмовитися від цього товару, анулювати замовлення.</p>
-            
-            <h4>Порядок оплати замовлення</h4>
-            <p><strong>Післяплатою</strong></p>
-            <p><strong>5.1.</strong> Оплата здійснюється за фактом отримання товару у відділенні транспортної компанії за готівку в гривнях.</p>
-            <p><strong>5.2.</strong> При ненадходженні коштів Інтернет-магазин залишає за собою право анулювати замовлення.</p>
-            
-            <h4>Умови доставки замовлення</h4>
-            <p><strong>6.1.</strong> Доставка товарів, придбаних в Інтернет-магазині, здійснюється до складів транспортних компаній, де й провадиться видача замовлень.</p>
-            <p><strong>6.2.</strong> Разом із замовленням Покупцю надаються документи згідно із законодавством України.</p>
-            
-            <h4>Права та обов'язки сторін:</h4>
-            <p><strong>7.1.</strong> Продавець має право:</p>
-            <ul>
-                <li>в односторонньому порядку призупинити надання послуг за цим договором у разі порушення Покупцем умов цього договору.</li>
-            </ul>
-            
-            <p><strong>7.2.</strong> Покупець зобов'язаний:</p>
-            <ul>
-                <li>своєчасно сплатити та отримати замовлення на умовах цього договору.</li>
-            </ul>
-            
-            <p><strong>7.3.</strong> Покупець має право:</p>
-            <ul>
-                <li>Оформити замовлення в Інтернет-магазині;</li>
-                <li>оформити електронний договір;</li>
-                <li>вимагати від Продавця виконання умов цього Договору.</li>
-            </ul>
-            
-            <h4>Відповідальність сторін</h4>
-            <p><strong>8.1.</strong> Сторони несуть відповідальність за невиконання або неналежне виконання умов цього договору у порядку, передбаченому цим договором та чинним законодавством України.</p>
-            
-            <p><strong>8.2.</strong> Продавець не несе відповідальності за:</p>
-            <ul>
-                <li>Змінений виробником зовнішній вигляд Товару;</li>
-                <li>за незначну невідповідність кольорової гами товару, що може відрізнятися від оригіналу товару виключно через різну колірну передачу моніторів персональних комп'ютерів окремих моделей;</li>
-                <li>за зміст та правдивість інформації, що надається Покупцем під час оформлення замовлення;</li>
-                <li>за затримку та перебої у наданні Послуг (обробки замовлення та доставки товару), що відбуваються з причин, що знаходяться поза сферою його контролю;</li>
-                <li>за протиправні незаконні дії, здійснені Покупцем за допомогою цього доступу до мережі Інтернет;</li>
-                <li>за передачу Покупцем своїх мережевих ідентифікаторів - IP, MAC-адреси, логіну та паролю третім особам;</li>
-            </ul>
-            
-            <p><strong>8.3.</strong> Покупець, використовуючи наданий йому доступ до мережі Інтернет, самостійно несе відповідальність за шкоду, заподіяну його діями (особисто, навіть якщо під її логіном перебувала інша особа) особам або їхньому майну, юридичним особам, державі чи моральним принципам моральності.</p>
-            
-            <p><strong>8.4.</strong> У разі настання обставин непереборної сили сторони звільняються від виконання умов цього договору. Під обставинами непереборної сили для цілей цього договору розуміються події, що мають надзвичайний, непередбачуваний характер, які виключають або об'єктивно заважають виконанню цього договору, настання яких Сторони не могли передбачити та запобігти розумним способам.</p>
-            
-            <p><strong>8.5.</strong> Сторони докладають максимум зусиль для вирішення будь-яких суперечностей виключно шляхом переговорів.</p>
-            
-            <h4>Інші умови</h4>
-            <p><strong>9.1.</strong> Інтернет-магазин залишає за собою право в односторонньому порядку вносити зміни до цього договору за умови його попередньої публікації на сайті https://guitarstrings.com.ua</p>
-            
-            <p><strong>9.2.</strong> Інтернет-магазин створінь для організації дистанційного способу продажу товарів через Інтернет.</p>
-            
-            <p><strong>9.3.</strong> Покупець несе відповідальність за достовірність зазначеної під час оформлення замовлення інформації. При цьому, при здійсненні акцепту (оформлення замовлення та подальшої оплати товару) Покупець надає Продавцю свою беззастережну згоду на збирання, обробку, зберігання, використання своїх персональних даних у розумінні ЗУ «Про захист персональних даних».</p>
-            
-            <p><strong>9.4.</strong> Оплата Покупцем оформленого в Інтернет магазині замовлення означає повну згоду Покупця з умовами договору купівлі-продажу (публічної оферти)</p>
-            
-            <p><strong>9.5.</strong> Фактичною датою електронної угоди між сторонами є дата прийняття умов відповідно до ст. 11 Закону України "Про електронну комерцію"</p>
-            
-            <p><strong>9.6.</strong> Використання ресурсу Інтернет-магазину для попереднього перегляду товару, а також оформлення замовлення для Покупця є безкоштовним.</p>
-            
-            <p><strong>9.7.</strong> Інформація, що надається Покупцем, є конфіденційною. Інтернет-магазин використовує інформацію про Покупця виключно з метою обробки замовлення, відправлення повідомлень Покупцю, доставки товару, здійснення взаєморозрахунків та ін.</p>
-            
-            <h4>Порядок повернення товару належної якості</h4>
-            <p><strong>10.1.</strong> Повернення товару до Інтернет-магазину здійснюється відповідно до чинного законодавства України.</p>
-            <p><strong>10.2.</strong> Повернення товару до Інтернет-магазину здійснюється за рахунок Покупця.</p>
-            <p><strong>10.3.</strong> При поверненні Покупцем товару належної якості Інтернет-магазин повертає йому сплачену за товар грошову суму за фактом повернення товару за вирахуванням компенсації витрат Інтернет-магазину, пов'язаних з доставкою товару Покупцю.</p>
-            
-            <h4>Строк дії договору</h4>
-            <p><strong>11.1.</strong> Електронний договір вважається укладеним з моменту отримання особою, яка направила пропозицію укласти такий договір, відповіді про прийняття цього пропозиції в порядку, визначеному частиною шостою статті 11 Закону України "Про електронну комерцію".</p>
-            
-            <p><strong>11.2.</strong> До закінчення строку дії цей Договір може бути розірваний за взаємною згодою сторін до моменту фактичної доставки товару шляхом повернення коштів</p>
-            
-            <p><strong>11.3.</strong> Сторони мають право розірвати цей договір в односторонньому порядку, в разі невиконання однієї із сторін умов цього Договору та у випадках, передбачених чинним законодавством України.</p>
-            
-            <p>Звертаємо ваше увагу, що інтернет-магазин «GuitarStrings.com.ua» на офіційному інтернет-сайті https://guitarstrings.com.ua має право, відповідно до законодавства України, надавати право користування інтернет платформою ФОП та юридичним особам для реалізації товару.</p>
-        `,
-        ru: `
-            <h4>Общие положения</h4>
-            <p><strong>1.1.</strong> Настоящая оферта является официальным предложением «Guitar Strings», далее по тексту — «Продавець», заключить Договор купли-продажи товаров дистанционным способом, то есть через Интернет-магазин, далее по тексту — «Договор» и размещает Публичную оферту (предложение) на официальном интернет-сайте Продавца https://guitarstrings.com.ua (далее - Интернет-сайт).</p>
-            
-            <p><strong>1.2.</strong> Моментом полного и безусловного принятия Покупателем предложения Продавца (акцептом) заключить электронный договор купли-продажи товаров считается факт оплаты Покупателем заказа на условиях настоящего Договора, в сроки и по ценам, указанным на Интернет-сайте Продавца.</p>
-            
-            <h4>Понятие и определение</h4>
-            <p><strong>2.1.</strong> В этой оферте, если контекст не требует другого, следующие термины имеют следующие значения:</p>
-            <ul>
-                <li><strong>«товар»</strong> – модели, аксессуары, комплектующие и сопроводительные предметы;</li>
-                <li><strong>«Интернет-магазин»</strong> - в соответствии с Законом Украины «об электронной коммерции», средством предоставления или реализации товара, работы или услугами путем совершения электронного соглашения.</li>
-                <li><strong>«Продавець»</strong> – компания, реализующая товары, представленные на Интернет-сайте.</li>
-                <li><strong>«Покупатель»</strong> - физическое лицо, заключившее с Продавцом Договор на условиях, изложенных ниже.</li>
-                <li><strong>«Заказ»</strong> - выбор отдельных позиций по перечню товаров, указанных Покупателем при размещении заказа и оплате.</li>
-            </ul>
-            
-            <h4>Предмет Договора</h4>
-            <p><strong>3.1.</strong> Продавец обязуется передать в собственность Покупателя Товар, а Покупатель обязуется уплатить и принять Товар на условиях настоящего Договора.</p>
-            
-            <p>Настоящий Договор регулирует куплю-продажу товаров в Интернет-магазине, в частности:</p>
-            <ul>
-                <li>добровольный выбор Покупателем товаров в Интернет-магазине;</li>
-                <li>самостоятельное оформление Покупателем заказа в Интернет-магазине;</li>
-                <li>оплата Покупателем заказа, оформленного в Интернет-магазине;</li>
-                <li>обработка и доставка заказа Покупателю в собственность на условиях настоящего Договора.</li>
-            </ul>
-            
-            <h4>Порядок оформления заказа</h4>
-            <p><strong>4.1.</strong> Покупатель имеет право оформить заказ на любой товар, представленный на Сайте Интернет-магазина и имеющийся.</p>
-            <p><strong>4.2.</strong> Каждая позиция может быть представлена в заказ в любом количестве.</p>
-            <p><strong>4.3.</strong> При отсутствии товара на складе, Менеджер компании обязан сообщить Покупателю (по телефону или по электронной почте).</p>
-            <p><strong>4.4.</strong> При отсутствии товара Покупатель имеет право заменить товар аналогичной модели, отказаться от этого товара, аннулировать заказ.</p>
-            
-            <h4>Порядок оплаты заказа</h4>
-            <p><strong>Наложенным платежом</strong></p>
-            <p><strong>5.1.</strong> Оплата производится по факту получения товара в отделении транспортной компании за наличные в гривнах.</p>
-            <p><strong>5.2.</strong> При неприходе средств Интернет-магазин оставляет за собой право аннулировать заказ.</p>
-            
-            <h4>Условия доставки заказа</h4>
-            <p><strong>6.1.</strong> Доставка товаров, приобретенных в Интернет-магазине, осуществляется в склады транспортных компаний, где и производится выдача заказов.</p>
-            <p><strong>6.2.</strong> Вместе с заказом Покупателю предоставляются документы согласно законодательству Украины.</p>
-            
-            <h4>Права и обязанности сторон:</h4>
-            <p><strong>7.1.</strong> Продавец имеет право:</p>
-            <ul>
-                <li>в одностороннем порядке приостановить предоставление услуг по настоящему договору в случае нарушения Покупателем условий настоящего договора.</li>
-            </ul>
-            
-            <p><strong>7.2.</strong> Покупатель обязан:</p>
-            <ul>
-                <li>своевременно оплатить и получить заказы на условиях настоящего договора.</li>
-            </ul>
-            
-            <p><strong>7.3.</strong> Покупатель имеет право:</p>
-            <ul>
-                <li>оформить заказ в Интернет-магазине;</li>
-                <li>оформить электронный договор;</li>
-                <li>требовать от Продавца выполнения условий настоящего Договора.</li>
-            </ul>
-            
-            <h4>Ответственность сторон</h4>
-            <p><strong>8.1.</strong> Стороны несут ответственность за неисполнение или ненадлежащее исполнение условий настоящего договора в порядке, предусмотренном настоящим договором и действующим законодательством Украины.</p>
-            
-            <p><strong>8.2.</strong> Продавец не несет ответственности за:</p>
-            <ul>
-                <li>измененный производителем внешний вид Товара;</li>
-                <li>за незначительное несоответствие цветовой гаммы товара, что может отличаться от оригинала товара исключительно из-за разной цветовой передачи мониторов персональных компьютеров отдельных моделей;</li>
-                <li>за содержание и правдивость информации, предоставляемой Покупателем при оформлении заказа;</li>
-                <li>за задержку и перебои в предоставлении Услуг (обработки заказа и доставки товара), происходящие по причинам, находящимся вне его контроля;</li>
-                <li>за противоправные незаконные действия, совершенные Покупателем посредством этого доступа в Интернет;</li>
-                <li>за передачу Покупателем своих сетевых идентификаторов - IP, MAC-адреса, логина и пароля третьим лицам;</li>
-            </ul>
-            
-            <p><strong>8.3.</strong> Покупатель, используя предоставленный ему доступ к сети Интернет, самостоятельно несет ответственность за ущерб, причиненный его действиями (лично, даже если под его логином находилось другое лицо) лицам или их имуществу, юридическим лицам, государству или моральным принципам нравственности.</p>
-            
-            <p><strong>8.4.</strong> При наступлении обстоятельств непреодолимой силы стороны освобождаются от выполнения условий настоящего договора. Под обстоятельствами непреодолимой силы для целей настоящего договора понимаются события, имеющие чрезвычайный, непредсказуемый характер, исключающие или объективно мешающие выполнению настоящего договора, наступление которых Стороны не могли предусмотреть и предотвратить разумным способам.</p>
-            
-            <p><strong>8.5.</strong> Стороны прилагают максимум усилий для разрешения любых противоречий исключительно путем переговоров.</p>
-            
-            <h4>Другие условия</h4>
-            <p><strong>9.1.</strong> Интернет-магазин оставляет за собой права в одностороннем порядке вносить изменения в этот договор при условии его предварительной публикации на сайте https://guitarstrings.com.ua</p>
-            
-            <p><strong>9.2.</strong> Интернет-магазин созданий для организации дистанционного способа продаж товаров через Интернет.</p>
-            
-            <p><strong>9.3.</strong> Покупатель несет ответственность за достоверность указанной при оформлении заказа информации. При этом при осуществлении акцепта (оформления заказа и последующей оплаты товара) Покупатель предоставляет Продавцу свое безоговорочное согласие на сбор, обработку, хранение, использование своих персональных данных в понимании ЗУ «О защите персональных данных».</p>
-            
-            <p><strong>9.4.</strong> Оплата Покупателем оформленного в Интернет магазине заказа означает полное согласие Покупателя с условиями договора купли-продажи (публичной оферты)</p>
-            
-            <p><strong>9.5.</strong> Фактической датой электронного соглашения между сторонами дата принятия условий в соответствии со ст. 11 Закона Украины "Об электронной коммерции"</p>
-            
-            <p><strong>9.6.</strong> Использование ресурса Интернет-магазина для предварительного просмотра товара, а также оформление заказа для Покупателя бесплатно.</p>
-            
-            <p><strong>9.7.</strong> Информация, предоставляемая Покупателем, является конфиденциальной. Интернет-магазин использует информацию о Покупателе исключительно для обработки заказа, отправки сообщений Покупателю, доставки товара, осуществления взаиморасчетов и т.д.</p>
-            
-            <h4>Порядок возврата товара надлежащего качества</h4>
-            <p><strong>10.1.</strong> Возврат товара в Интернет-магазин осуществляется в соответствии с действующим законодательством Украины.</p>
-            <p><strong>10.2.</strong> Возврат товара в Интернет-магазин осуществляется за счет Покупателя.</p>
-            <p><strong>10.3.</strong> При возврате Покупателем товара надлежащего качества Интернет-магазин возвращает ему уплаченную за товар денежную сумму по факту возврата товара за вычетом компенсации расходов Интернет-магазина, связанных с доставкой товара Покупателю.</p>
-            
-            <h4>Срок действия договора</h4>
-            <p><strong>11.1.</strong> Электронный договор считается заключенным с момента получения лицом, направившим предложение заключить такой договор, ответы о принятии этого предложения в порядке, определенном частью шестой статьи 11 Закона Украины "Об электронной коммерции".</p>
-            
-            <p><strong>11.2.</strong> До истечения срока действия настоящий Договор может быть расторгнут по взаимному согласию сторон к моменту фактической доставки товара путем возврата средств</p>
-            
-            <p><strong>11.3.</strong> Стороны имеют право расторгнуть настоящий договор в одностороннем порядке, в случае невыполнения одной из сторон условий настоящего Договора и случаях, предусмотренных действующим законодательством Украины.</p>
-            
-            <p>Обращаем ваше внимание, что интернет-магазин «GuitarStrings.com.ua» на официальном интернет-сайте https://guitarstrings.com.ua имеет право в соответствии с законодательством Украины предоставлять право пользования интернет платформой ФЛП и юридическим лицам для реализации товара.</p>
-        `,
-        en: `
-            <h4>General provisions</h4>
-            <p><strong>1.1.</strong> This offer is an official offer of "Guitar Strings", hereinafter referred to as the "Seller", to conclude a Contract for the sale and purchase of goods remotely, i.e. through the Online Store, hereinafter referred to as the "Agreement", and places a Public Offer (Offer) on the Seller's official website https://guitarstrings.com.ua (hereinafter referred to as the Website).</p>
-            
-            <p><strong>1.2.</strong> The moment of full and unconditional acceptance by the Buyer of the Seller's offer (acceptance) to conclude an electronic contract for the sale and purchase of goods is considered the fact of payment by the Buyer for the order under the terms of this Agreement, within the terms and at the prices specified on the Seller's Website.</p>
-            
-            <h4>Concepts and definitions</h4>
-            <p><strong>2.1.</strong> In this offer, unless the context requires otherwise, the terms below have the following meanings:</p>
-            <ul>
-                <li><strong>"goods"</strong> - models, accessories, components and accompanying items;</li>
-                <li><strong>"Online store"</strong> - in accordance with the Law of Ukraine "On Electronic Commerce", a means for presenting or selling goods, work or services by concluding an electronic transaction.</li>
-                <li><strong>"Seller"</strong> - a company that sells goods presented on the Internet site.</li>
-                <li><strong>"Buyer"</strong> - an individual who has concluded an Agreement with the Seller on the terms set out below.</li>
-                <li><strong>"Order"</strong> - a selection of individual items from the list of goods specified by the Buyer when placing an order and making payment.</li>
-            </ul>
-            
-            <h4>Subject of the Agreement</h4>
-            <p><strong>3.1.</strong> The Seller undertakes to transfer the ownership of the Goods to the Buyer, and the Buyer undertakes to pay for and accept the Goods under the terms of this Agreement.</p>
-            
-            <p>This Agreement regulates the purchase and sale of goods in the Online Store, in particular:</p>
-            <ul>
-                <li>Voluntary selection by the Buyer of goods in the Online Store;</li>
-                <li>Independent registration by the Buyer of an order in the Online Store;</li>
-                <li>payment by the Buyer of an order placed in the Online Store;</li>
-                <li>processing and delivery of the order to the Buyer in the ownership under the terms of this Agreement.</li>
-            </ul>
-            
-            <h4>Order processing procedure</h4>
-            <p><strong>4.1.</strong> The Buyer has the right to place an order for any product presented on the Online Store Website and available.</p>
-            <p><strong>4.2.</strong> Each item can be presented in the order in any quantity.</p>
-            <p><strong>4.3.</strong> In the absence of the product in stock, the Company Manager is obliged to notify the Buyer (by phone or e-mail).</p>
-            <p><strong>4.4.</strong> In the absence of the product, the Buyer has the right to replace it with a product of a similar model, refuse this product, cancel the order.</p>
-            
-            <h4>Order payment procedure</h4>
-            <p><strong>Postpaid</strong></p>
-            <p><strong>5.1.</strong> Payment is made upon receipt of the product at the transport company's branch for cash in hryvnias.</p>
-            <p><strong>5.2.</strong> In the event of non-receipt of funds, the Online Store reserves the right to cancel the order.</p>
-            
-            <h4>Order delivery terms</h4>
-            <p><strong>6.1.</strong> Delivery of goods purchased in the Online Store is carried out to the warehouses of transport companies, where orders are issued.</p>
-            <p><strong>6.2.</strong> Together with the order, the Buyer is provided with documents in accordance with the legislation of Ukraine.</p>
-            
-            <h4>Rights and obligations of the parties:</h4>
-            <p><strong>7.1.</strong> The Seller has the right:</p>
-            <ul>
-                <li>unilaterally suspend the provision of services under this Agreement in the event of the Buyer's violation of the terms of this Agreement.</li>
-            </ul>
-            
-            <p><strong>7.2.</strong> The Buyer is obliged to:</p>
-            <ul>
-                <li>timely pay and receive the order under the terms of this Agreement.</li>
-            </ul>
-            
-            <p><strong>7.3.</strong> The Buyer has the right:</p>
-            <ul>
-                <li>Place an order in the Online Store;</li>
-                <li>draw up an electronic agreement;</li>
-                <li>demand that the Seller fulfill the terms of this Agreement.</li>
-            </ul>
-            
-            <h4>Liability of the Parties</h4>
-            <p><strong>8.1.</strong> The Parties are liable for failure to fulfill or improper fulfillment of the terms of this Agreement in the manner prescribed by this Agreement and the current legislation of Ukraine.</p>
-            
-            <p><strong>8.2.</strong> The Seller is not responsible for:</p>
-            <ul>
-                <li>The appearance of the Goods changed by the manufacturer;</li>
-                <li>for a minor discrepancy in the color scheme of the Goods, which may differ from the original Goods solely due to different color rendering of personal computer monitors of individual models;</li>
-                <li>for the content and veracity of the information provided by the Buyer when placing an order;</li>
-                <li>for delays and interruptions in the provision of Services (order processing and delivery of goods) occurring for reasons beyond its control;</li>
-                <li>for unlawful illegal actions committed by the Buyer using this access to the Internet;</li>
-                <li>for the transfer by the Buyer of his network identifiers - IP, MAC address, login and password to third parties;</li>
-            </ul>
-            
-            <p><strong>8.3.</strong> The Buyer, using the access to the Internet provided to him, is independently responsible for the damage caused by his actions (personally, even if another person was under his login) to persons or their property, legal entities, the state or moral principles of morality.</p>
-            
-            <p><strong>8.4.</strong> In the event of force majeure circumstances, the parties are released from the fulfillment of the terms of this agreement. For the purposes of this agreement, force majeure circumstances are understood to mean events of an extraordinary, unforeseeable nature that exclude or objectively impede the fulfillment of this agreement, the occurrence of which the Parties could not foresee and prevent by reasonable means.</p>
-            
-            <p><strong>8.5.</strong> The Parties shall make every effort to resolve any disputes exclusively through negotiations.</p>
-            
-            <h4>Other conditions</h4>
-            <p><strong>9.1.</strong> The online store reserves the right to unilaterally make changes to this agreement subject to its prior publication on the website https://guitarstrings.com.ua</p>
-            
-            <p><strong>9.2.</strong> Online store of creations for organizing a remote method of selling goods via the Internet.</p>
-            
-            <p><strong>9.3.</strong> The Buyer is responsible for the accuracy of the information specified when placing an order. At the same time, when accepting (placing an order and subsequent payment for the goods), the Buyer gives the Seller his unconditional consent to the collection, processing, storage, and use of his personal data within the meaning of the Law of Ukraine "On the Protection of Personal Data".</p>
-            
-            <p><strong>9.4.</strong> Payment by the Buyer of an order placed in the Online Store means the Buyer's full consent to the terms of the purchase and sale agreement (public offer)</p>
-            
-            <p><strong>9.5.</strong> The actual date of the electronic agreement between the parties is the date of acceptance of the terms in accordance with Art. 11 of the Law of Ukraine "On Electronic Commerce"</p>
-            
-            <p><strong>9.6.</strong> The use of the Online Store resource for previewing the product, as well as placing an order for the Buyer is free of charge.</p>
-            
-            <p><strong>9.7.</strong> The information provided by the Buyer is confidential. The Online Store uses information about the Buyer solely for the purpose of processing the order, sending messages to the Buyer, delivering the product, making mutual settlements, etc.</p>
-            
-            <h4>Procedure for returning goods of proper quality</h4>
-            <p><strong>10.1.</strong> The return of goods to the Online Store is carried out in accordance with the current legislation of Ukraine.</p>
-            <p><strong>10.2.</strong> The return of goods to the Online Store is carried out at the expense of the Buyer.</p>
-            <p><strong>10.3.</strong> When the Buyer returns goods of proper quality, the Online Store returns the amount paid for the goods upon the fact of returning the goods, minus compensation for the expenses of the Online Store associated with delivering the goods to the Buyer.</p>
-            
-            <h4>Term of the Agreement</h4>
-            <p><strong>11.1.</strong> An electronic agreement is considered concluded from the moment the person who sent the offer to conclude such an agreement receives a response on acceptance of this offer in the manner specified in Part Six of Article 11 of the Law of Ukraine "On Electronic Commerce".</p>
-            
-            <p><strong>11.2.</strong> Before the expiration of the term of validity, this Agreement may be terminated by mutual consent of the parties until the actual delivery of the goods by refunding the funds</p>
-            
-            <p><strong>11.3.</strong> The parties have the right to terminate this agreement unilaterally, in the event of non-fulfillment of the terms of this Agreement by one of the parties and in cases provided for by the current legislation of Ukraine.</p>
-            
-            <p>Please note that the online store "GuitarStrings.com.ua" on the official website https://guitarstrings.com.ua has the right, in accordance with the legislation of Ukraine, to grant the right to use the Internet platform to individual entrepreneurs and legal entities for the sale of goods.</p>
-        `,
-        en: `
-            <h4>General provisions</h4>
-            <p><strong>1.1.</strong> This offer is an official offer of "Guitar Strings", hereinafter referred to as the "Seller", to conclude a Contract for the sale and purchase of goods remotely, i.e. through the Online Store, hereinafter referred to as the "Agreement", and places a Public Offer (Offer) on the Seller's official website https://guitarstrings.com.ua (hereinafter referred to as the Website).</p>
-            
-            <p><strong>1.2.</strong> The moment of full and unconditional acceptance by the Buyer of the Seller's offer (acceptance) to conclude an electronic contract for the sale and purchase of goods is considered the fact of payment by the Buyer for the order under the terms of this Agreement, within the terms and at the prices specified on the Seller's Website.</p>
-            
-            <h4>Concepts and definitions</h4>
-            <p><strong>2.1.</strong> In this offer, unless the context requires otherwise, the terms below have the following meanings:</p>
-            <ul>
-                <li><strong>"goods"</strong> - models, accessories, components and accompanying items;</li>
-                <li><strong>"Online store"</strong> - in accordance with the Law of Ukraine "On Electronic Commerce", a means for presenting or selling goods, work or services by concluding an electronic transaction.</li>
-                <li><strong>"Seller"</strong> - a company that sells goods presented on the Internet site.</li>
-                <li><strong>"Buyer"</strong> - an individual who has concluded an Agreement with the Seller on the terms set out below.</li>
-                <li><strong>"Order"</strong> - a selection of individual items from the list of goods specified by the Buyer when placing an order and making payment.</li>
-            </ul>
-            
-            <h4>Subject of the Agreement</h4>
-            <p><strong>3.1.</strong> The Seller undertakes to transfer the ownership of the Goods to the Buyer, and the Buyer undertakes to pay for and accept the Goods under the terms of this Agreement.</p>
-            
-            <p>This Agreement regulates the purchase and sale of goods in the Online Store, in particular:</p>
-            <ul>
-                <li>Voluntary selection by the Buyer of goods in the Online Store;</li>
-                <li>Independent registration by the Buyer of an order in the Online Store;</li>
-                <li>payment by the Buyer of an order placed in the Online Store;</li>
-                <li>processing and delivery of the order to the Buyer in the ownership under the terms of this Agreement.</li>
-            </ul>
-            
-            <h4>Order processing procedure</h4>
-            <p><strong>4.1.</strong> The Buyer has the right to place an order for any product presented on the Online Store Website and available.</p>
-            <p><strong>4.2.</strong> Each item can be presented in the order in any quantity.</p>
-            <p><strong>4.3.</strong> In the absence of the product in stock, the Company Manager is obliged to notify the Buyer (by phone or e-mail).</p>
-            <p><strong>4.4.</strong> In the absence of the product, the Buyer has the right to replace it with a product of a similar model, refuse this product, cancel the order.</p>
-            
-            <h4>Order payment procedure</h4>
-            <p><strong>Postpaid</strong></p>
-            <p><strong>5.1.</strong> Payment is made upon receipt of the product at the transport company's branch for cash in hryvnias.</p>
-            <p><strong>5.2.</strong> In the event of non-receipt of funds, the Online Store reserves the right to cancel the order.</p>
-            
-            <h4>Order delivery terms</h4>
-            <p><strong>6.1.</strong> Delivery of goods purchased in the Online Store is carried out to the warehouses of transport companies, where orders are issued.</p>
-            <p><strong>6.2.</strong> Together with the order, the Buyer is provided with documents in accordance with the legislation of Ukraine.</p>
-            
-            <h4>Rights and obligations of the parties:</h4>
-            <p><strong>7.1.</strong> The Seller has the right:</p>
-            <ul>
-                <li>unilaterally suspend the provision of services under this Agreement in the event of the Buyer's violation of the terms of this Agreement.</li>
-            </ul>
-            
-            <p><strong>7.2.</strong> The Buyer is obliged to:</p>
-            <ul>
-                <li>timely pay and receive the order under the terms of this Agreement.</li>
-            </ul>
-            
-            <p><strong>7.3.</strong> The Buyer has the right:</p>
-            <ul>
-                <li>Place an order in the Online Store;</li>
-                <li>draw up an electronic agreement;</li>
-                <li>demand that the Seller fulfill the terms of this Agreement.</li>
-            </ul>
-            
-            <h4>Liability of the Parties</h4>
-            <p><strong>8.1.</strong> The Parties are liable for failure to fulfill or improper fulfillment of the terms of this Agreement in the manner prescribed by this Agreement and the current legislation of Ukraine.</p>
-            
-            <p><strong>8.2.</strong> The Seller is not responsible for:</p>
-            <ul>
-                <li>The appearance of the Goods changed by the manufacturer;</li>
-                <li>for a minor discrepancy in the color scheme of the Goods, which may differ from the original Goods solely due to different color rendering of personal computer monitors of individual models;</li>
-                <li>for the content and veracity of the information provided by the Buyer when placing an order;</li>
-                <li>for delays and interruptions in the provision of Services (order processing and delivery of goods) occurring for reasons beyond its control;</li>
-                <li>for unlawful illegal actions committed by the Buyer using this access to the Internet;</li>
-                <li>for the transfer by the Buyer of his network identifiers - IP, MAC address, login and password to third parties;</li>
-            </ul>
-            
-            <p><strong>8.3.</strong> The Buyer, using the access to the Internet provided to him, is independently responsible for the damage caused by his actions (personally, even if another person was under his login) to persons or their property, legal entities, the state or moral principles of morality.</p>
-            
-            <p><strong>8.4.</strong> In the event of force majeure circumstances, the parties are released from the fulfillment of the terms of this agreement. For the purposes of this agreement, force majeure circumstances are understood to mean events of an extraordinary, unforeseeable nature that exclude or objectively impede the fulfillment of this agreement, the occurrence of which the Parties could not foresee and prevent by reasonable means.</p>
-            
-            <p><strong>8.5.</strong> The Parties shall make every effort to resolve any disputes exclusively through negotiations.</p>
-            
-            <h4>Other conditions</h4>
-            <p><strong>9.1.</strong> The online store reserves the right to unilaterally make changes to this agreement subject to its prior publication on the website https://guitarstrings.com.ua</p>
-            
-            <p><strong>9.2.</strong> Online store of creations for organizing a remote method of selling goods via the Internet.</p>
-            
-            <p><strong>9.3.</strong> The Buyer is responsible for the accuracy of the information specified when placing an order. At the same time, when accepting (placing an order and subsequent payment for the goods), the Buyer gives the Seller his unconditional consent to the collection, processing, storage, and use of his personal data within the meaning of the Law of Ukraine "On the Protection of Personal Data".</p>
-            
-            <p><strong>9.4.</strong> Payment by the Buyer of an order placed in the Online Store means the Buyer's full consent to the terms of the purchase and sale agreement (public offer)</p>
-            
-            <p><strong>9.5.</strong> The actual date of the electronic agreement between the parties is the date of acceptance of the terms in accordance with Art. 11 of the Law of Ukraine "On Electronic Commerce"</p>
-            
-            <p><strong>9.6.</strong> The use of the Online Store resource for previewing the product, as well as placing an order for the Buyer is free of charge.</p>
-            
-            <p><strong>9.7.</strong> The information provided by the Buyer is confidential. The Online Store uses information about the Buyer solely for the purpose of processing the order, sending messages to the Buyer, delivering the product, making mutual settlements, etc.</p>
-            
-            <h4>Procedure for returning goods of proper quality</h4>
-            <p><strong>10.1.</strong> The return of goods to the Online Store is carried out in accordance with the current legislation of Ukraine.</p>
-            <p><strong>10.2.</strong> The return of goods to the Online Store is carried out at the expense of the Buyer.</p>
-            <p><strong>10.3.</strong> When the Buyer returns goods of proper quality, the Online Store returns the amount paid for the goods upon the fact of returning the goods, minus compensation for the expenses of the Online Store associated with delivering the goods to the Buyer.</p>
-            
-            <h4>Term of the Agreement</h4>
-            <p><strong>11.1.</strong> An electronic agreement is considered concluded from the moment the person who sent the offer to conclude such an agreement receives a response on acceptance of this offer in the manner specified in Part Six of Article 11 of the Law of Ukraine "On Electronic Commerce".</p>
-            
-            <p><strong>11.2.</strong> Before the expiration of the term of validity, this Agreement may be terminated by mutual consent of the parties until the actual delivery of the goods by refunding the funds</p>
-            
-            <p><strong>11.3.</strong> The parties have the right to terminate this agreement unilaterally, in the event of non-fulfillment of the terms of this Agreement by one of the parties and in cases provided for by the current legislation of Ukraine.</p>
-            
-            <p>Please note that the online store "GuitarStrings.com.ua" on the official website https://guitarstrings.com.ua has the right, in accordance with the legislation of Ukraine, to grant the right to use the Internet platform to individual entrepreneurs and legal entities for the sale of goods.</p>
-        `
-    };
+// Функция показа уведомления о добавлении в корзину
+function showAddToCartNotification(productName) {
+    console.log('showAddToCartNotification: Показываем уведомление для', productName);
     
-    return offers[language] || offers.uk;
-}
-
-// Функция для показа уведомления о выборе категории
-function showCategorySelectedNotification(categoryName) {
-    console.log(`showCategorySelectedNotification: Показываем уведомление для категории: ${categoryName}`);
-    
-    // Проверяем инициализацию переменных
-    if (typeof window.loadedProductNames === 'undefined') {
-        console.warn('showCategorySelectedNotification: loadedProductNames не инициализирована, инициализируем...');
-        window.loadedProductNames = new Set();
-        loadedProductNames = window.loadedProductNames;
-    }
-    
-    // Создаем временное уведомление
+    // Создаем уведомление
     const notification = document.createElement('div');
-    notification.className = 'category-notification';
-    notification.innerHTML = `
-        <div class="notification-content">
-            <i class="fas fa-check-circle"></i>
-            <span>Выбрана категория: ${categoryName}</span>
-        </div>
-    `;
-    
-    // Добавляем стили
+    notification.className = 'add-to-cart-notification';
     notification.style.cssText = `
         position: fixed;
         top: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: var(--accent-color);
+        right: 20px;
+        background: #4CAF50;
         color: white;
-        padding: 12px 20px;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        z-index: 3000;
-        font-size: 14px;
-        font-weight: 500;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        animation: slideInDown 0.3s ease-out;
+        padding: 15px 20px;
+        border-radius: 5px;
+        z-index: 10000;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        animation: slideIn 0.3s ease-out;
     `;
+    // Локализованный текст уведомления
+    let lang = 'uk';
+    try {
+        if (typeof getCurrentLanguage === 'function') {
+            lang = getCurrentLanguage();
+        } else {
+            lang = localStorage.getItem('selectedLanguage') || 'uk';
+        }
+    } catch (e) {
+        lang = 'uk';
+    }
+    const messages = {
+        ru: `Товар "${productName}" добавлен в корзину!`,
+        uk: `Товар "${productName}" додано до кошика!`,
+        en: `Product "${productName}" added to cart!`
+    };
+    notification.textContent = messages[lang] || messages.uk;
     
-    // Добавляем в DOM
+    // Добавляем стили для анимации
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(style);
+    
+    // Добавляем уведомление на страницу
     document.body.appendChild(notification);
     
-    // Удаляем через 3 секунды
-    setTimeout(() => {
-        if (notification.parentNode) {
-            notification.style.animation = 'slideOutUp 0.3s ease-out';
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.parentNode.removeChild(notification);
-                }
-            }, 300);
-        }
+    // Удаляем уведомление через 3 секунды
+    setTimeout(function() {
+        notification.style.animation = 'slideOut 0.3s ease-in';
+        setTimeout(function() {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
     }, 3000);
 }
 
-// Функция для закрытия всех всплывающих окон при клике вне их
-function setupPopupClickOutside() {
-    // Обработчик клика вне popup
-    document.addEventListener('click', (e) => {
-        const menuPopup = document.getElementById('menuPopup');
-        const settingsPopup = document.getElementById('settingsPopup');
+// Список Pure Nickel Electric Strings (эталонные названия)
+const PURE_NICKEL_ELECTRIC = new Set([
+    'Ernie Ball 2250 Pure Nickel Power Slinky 11-48',
+    'Ernie Ball 2251 Pure Nickel Regular Slinky 10-46',
+    'Ernie Ball 2253 Pure Nickel Super Slinky 9-42',
+    'Ernie Ball 2252 Pure Nickel Hybrid Slinky 9-46',
+    'DAddario EPN120 Pure Nickel Wound Super Light 9-41',
+    'DAddario EPN115 Pure Nickel Wound Medium 11-48',
+    'DAddario EPN110 Pure Nickel Wound Regular Light 10-45',
+    'GHS BCL Big Core Nickel Rockers Pure Nickel 10.5-48 Light',
+    'GHS BCCL Big Core Nickel Rockers Pure Nickel 9.5-48 Custom Light',
+    'Gibson SEG-LES10 Les Paul Premium Silk-Wrapped Pure Nickel 10-46 Light',
+    'Gibson SEG-LES9 Les Paul Premium Silk-Wrapped Pure Nickel 9-42 Ultra L',
+    'Pyramid R454 100 Pure Nickel Classics Round Core 12-54 Regular',
+    'Pyramid R408 100 Pure Nickel Superior Round Core 8-String 9-64',
+    'Ernie Ball 2251 Pure Nickel Regular Slinky 10-46 12 sets',
+    'Pyramid R451 100 Pure Nickel Classics Round Core 10-46 Regular',
+    'Pyramid R451 100 Pure Nickel Classics Round Core 10-46 15 sets'
+].map(s => s.toLowerCase()));
+
+// Нормализованный (loose) набор для устойчивого совпадения (без апострофов/дефисов)
+const PURE_NICKEL_ELECTRIC_LOOSE = new Set(Array.from(PURE_NICKEL_ELECTRIC).map(name => normalizeLooseName(name)));
+
+// Список Stainless Steel Electric Strings (эталонные названия)
+const STAINLESS_STEEL_ELECTRIC = new Set([
+    'Ernie Ball 2245 Custom Gauge Stainless Steel 11-48',
+    'Ernie Ball 2247 Custom Gauge Stainless Steel 9-46',
+    'Ernie Ball 2248 Custom Gauge Stainless Steel 9-42',
+    'Ernie Ball 2246 Custom Gauge Stainless Steel 10-46',
+    'Dean Markley 2552 Blue Steel Light 9-42',
+    'Dean Markley 2556 Blue Steel Regular 10-46',
+    'Dean Markley 2562 Blue Steel Medium 11-52',
+    'DAddario EHR370 Half Rounds Semi-Flat Wound Stainless Steel 11-49',
+    'DAddario ECG23-3D Chromes Flat Wound 10-48 1 set',
+    'DAddario ECG24-3D Chromes Flat Wound 11-50 1 set',
+    'DAddario ECG24 Chromes Flat Wound Jazz Light 11-50',
+    'Ernie Ball Synyster Gates Signature Stainless Steel RPS Strings 10-52',
+    'DAddario ECG24-7 Chromes Flat Wound Jazz Light 7-String 11-65',
+    'Ernie Ball 2582 Flatwound Stainless Steel Flats Medium 12-52',
+    'Ernie Ball Synyster Gates Signature Stainless Steel RPS 7-String 10-60',
+    'Ernie Ball 2580 Flatwound Stainless Steel Flats Light 11-50',
+    'DAddario ECG24-3D Chromes Flat Wound 11-50 3 sets',
+    'DAddario ECG23-3D Chromes Flat Wound 10-48 3 sets',
+    'Dean Markley 2554 Blue Steel Custom Light 9-46',
+    'Dean Markley 2558 Blue Steel LTHB 10-52',
+    'Dean Markley 2555 Blue Steel Jazz 12-54'
+].map(s => s.toLowerCase()));
+const STAINLESS_STEEL_ELECTRIC_LOOSE = new Set(Array.from(STAINLESS_STEEL_ELECTRIC).map(name => normalizeLooseName(name)));
+
+// Список Cobalt Electric Strings (эталонные названия)
+const COBALT_ELECTRIC = new Set([
+    'Ernie Ball 2720 Cobalt Slinky 11-48',
+    'Ernie Ball 2721 Cobalt Slinky 10-46',
+    'Ernie Ball 2722 Cobalt Slinky 9-46',
+    'Ernie Ball 2723 Cobalt Slinky 9-42',
+    'Ernie Ball 2715 Cobalt Slinky 10-52',
+    'Ernie Ball 2726 Cobalt Slinky 12-56',
+    'Ernie Ball 2727 Cobalt Slinky 11-54',
+    'Ernie Ball 2716 Cobalt Burly Slinky 11-52',
+    'Ernie Ball 2714 Cobalt Mammoth Slinky 12-62',
+    'Ernie Ball 2725 Cobalt Slinky 8-38',
+    'Ernie Ball 2712 Cobalt Primo Slinky 9.5-44',
+    'Ernie Ball 2717 Cobalt Ultra Slinky 10-48',
+    'Ernie Ball 2728 7-String Cobalt Slinky 10-56',
+    'Ernie Ball 2729 7-String Cobalt Slinky 11-58',
+    'Ernie Ball 2730 7-String Cobalt Slinky 10-62',
+    'Ernie Ball 3826 Paradigm Tim Henson Signature Electric Strings 9.5-46',
+    'Ernie Ball 2591 Flatwound Cobalt Regular Slinky 10-46',
+    'Ernie Ball 2593 Flatwound Cobalt Super Slinky 9-42',
+    'Ernie Ball 2590 Flatwound Cobalt Power Slinky 11-48',
+    'Ernie Ball 2722 Cobalt Slinky 9-46 6 sets',
+    'Ernie Ball 2721 Cobalt Slinky 10-46 6 sets',
+    'Ernie Ball 2715 Cobalt Slinky 10-52 6 sets',
+    'Ernie Ball 2723 Cobalt Slinky 9-42 6 sets',
+    'Ernie Ball 2720 Cobalt Slinky 11-48 6 sets'
+].map(s => s.toLowerCase()));
+const COBALT_ELECTRIC_LOOSE = new Set(Array.from(COBALT_ELECTRIC).map(name => normalizeLooseName(name)));
+
+// Список Colored Electric Strings (эталонные названия)
+const COLORED_ELECTRIC = new Set([
+    'DR NGE-11 Hi-Def Neon Green K3 Coated Medium 11-50',
+    'DR NGE-9 Hi-Def Neon Green K3 Coated Light 9-42',
+    'DR NGE-9/46 Hi-Def Neon Green K3 Coated Light Top Heavy Bottom 9-46',
+    'DR NGE-10 Hi-Def Neon Green K3 Coated Medium 10-46',
+    'DR BKE7-11 Black Beauties K3 Coated 7-String Extra Heavy 11-60'
+].map(s => s.toLowerCase()));
+const COLORED_ELECTRIC_LOOSE = new Set(Array.from(COLORED_ELECTRIC).map(name => normalizeLooseName(name)));
+// Функция создания карточки товара
+function createProductCard(product, index) {
+    // console.log('createProductCard: Создаем карточку для товара:', product.name, 'индекс:', index);
+    // console.log('createProductCard: Данные товара:', product);
+    
+    const card = document.createElement('div');
+    card.className = 'product-card';
+    
+    // Получаем текущий язык
+    const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
+    const currentTranslations = translations[currentLanguage] || translations.uk;
+    
+    // Определяем статус товара с переводами и создаем кнопку
+    let statusClass = 'in-stock';
+    let statusText = currentTranslations.inStock;
+    let statusButton = '';
+    
+    if (product.availability === 'Нет в наличии') {
+        statusClass = 'out-of-stock';
+        statusText = currentTranslations.outOfStock;
+        statusButton = `<button class="btn status-btn out-of-stock" onclick="showOutOfStockPopup()">${statusText}</button>`;
+    } else if (product.availability === 'Под заказ') {
+        statusClass = 'on-order';
+        statusText = currentTranslations.onOrder;
+        statusButton = `<button class="btn status-btn on-order" onclick="showOnOrderPopup()">${statusText}</button>`;
+    } else if (product.availability === 'Ожидается') {
+        statusClass = 'expected';
+        statusText = currentTranslations.expected;
+        statusButton = `<button class="btn status-btn expected" onclick="showExpectedPopup()">${statusText}</button>`;
+    } else if (product.availability === 'Снят с производства') {
+        statusClass = 'discontinued';
+        statusText = currentTranslations.discontinued;
+        statusButton = `<button class="btn status-btn discontinued" onclick="showDiscontinuedPopup()">${statusText}</button>`;
+    } else {
+        // Для товаров в наличии - обычная кнопка покупки
+        statusButton = `<button class="btn add-to-cart-btn" data-index="${index}">${currentTranslations.buyButton}</button>`;
+    }
+    
+    // Получаем цены из правильных полей API
+    const newPrice = product.newPrice || product.price || 0;
+    const oldPrice = product.oldPrice || 0;
+    
+    // Формируем HTML для старой цены (красная зачеркнутая цена)
+    const oldPriceHtml = oldPrice && oldPrice > 0 && oldPrice !== newPrice ? 
+        '<div class="old-price">' + oldPrice + ' ' + getCurrency() + '</div>' : '';
+    
+    // Формируем HTML для рейтинга
+    const ratingHtml = createRatingHtml(product.rating, currentTranslations);
+    
+    // Определяем производителя для товаров DR и La Bella, а также информацию о 7-струнных и 8-струнных товарах
+    let manufacturerHtml = '';
+    let sevenStringHtml = '';
+    let eightStringHtml = '';
+    let nineStringHtml = '';
+    let flatwoundHtml = '';
+    let gauge10Html = '';
+    
+    // Проверяем, является ли товар одним из товаров DR (гибкий поиск)
+    const isDRProduct = (() => {
+        const productName = product.name.toLowerCase();
+        return productName.startsWith('dr ') || productName.includes(' dr ');
+    })();
+    
+    // Проверяем, является ли товар одним из товаров La Bella (гибкий поиск)
+    const isLaBellaProduct = (() => {
+        const productName = product.name.toLowerCase();
+        return productName.includes('la bella');
+    })();
+    
+    // Проверяем, является ли товар 7-струнным (по пометке в карточке, а не по названию)
+    const is7StringProduct = (() => {
+        const productName = product.name.toLowerCase();
+        return productName.includes('7-string') || 
+               productName.includes('7 string') ||
+               productName.includes('7-струн для электрогитары') ||
+               productName.includes('7 струн для электрогитары');
+    })();
+    
+    // Проверяем, является ли товар 8-струнным (по пометке в карточке, а не по названию)
+    const is8StringProduct = (() => {
+        const productName = product.name.toLowerCase();
+        
+        // Исключения: некоторые товары явно 6-струнные, но могут ошибочно помечаться
+        // Dunlop BG1268 String Lab Bjorn Gelotte In Flames Drop Bb 12-68 — 6-струнный набор
+        const suppressEightString = (
+            productName.includes('bg1268') ||
+            productName.includes('bjorn gelotte') ||
+            productName.includes('in flames') ||
+            productName.includes('drop bb')
+        );
+        if (suppressEightString) return false;
+        
+        // Определяем 8-струнные товары только по явным пометкам в названии
+        // Это должны быть именно 8-струнные наборы, а не товары с диапазонами струн
+        return productName.includes('8-string') || 
+               productName.includes('8 string') ||
+               productName.includes('8-струн для электрогитары') ||
+               productName.includes('8 струн для электрогитары');
+    })();
+
+    // Проверяем, является ли товар 9-струнным (по явным пометкам)
+    const is9StringProduct = (() => {
+        const productName = product.name.toLowerCase();
+        return productName.includes('9-string') ||
+               productName.includes('9 string') ||
+               productName.includes('9-струн для электрогитары') ||
+               productName.includes('9 струн для электрогитары') ||
+               productName.includes('9-string 9-') ||
+               productName.includes('9-стр') ||
+               productName.includes(' nine-string');
+    })();
+
+    // Проверяем, плоская обмотка электро (flatwound/half rounds/chromes)
+    const isFlatwoundElectric = (() => {
+        const name = product.name.toLowerCase();
+        return (
+            name.includes('flatwound') ||
+            name.includes('flat wound') ||
+            name.includes('stainless steel flats') ||
+            name.includes('half rounds') ||
+            name.includes('semi-flat') ||
+            name.includes('chromes flat wound') ||
+            name.includes('chromes')
+        );
+    })();
+    
+    if (isDRProduct) {
+        manufacturerHtml = `<span class="product-manufacturer">DR</span>`;
+    } else if (isLaBellaProduct) {
+        manufacturerHtml = `<span class="product-manufacturer">La Bella</span>`;
+    }
+
+    // Пометка для 09 калибра (электро) — кликабельная для фильтра
+    let gauge09Html = '';
+    try {
+        const normalizedName = (product.name || '').toLowerCase().trim();
+
+        // Точное соответствие по эталонному списку
+        let isGauge09 = GAUGE_09_ELECTRIC.has(normalizedName);
+
+        // Дополнительные алиасы/эвристики для проблемных позиций (Dunlop 3PDEN0942 / DEN0942 9-42)
+        // Цель: пометить и 1 set, и 3 sets (3-Pack) варианты.
+        if (!isGauge09) {
+            const has942 = normalizedName.includes('9-42') || normalizedName.includes('9 42') || normalizedName.includes('9.42');
+            const has3p = normalizedName.includes('3p') || normalizedName.includes('3-pack') || normalizedName.includes('3 pack') || normalizedName.includes('3sets') || normalizedName.includes('3 sets');
+            const hasDen0942 = normalizedName.includes('den0942') || normalizedName.includes('3pden0942');
+            // Правило для 3 sets (3-Pack)
+            const isDunlop3Pack = hasDen0942 && has942 && has3p;
+            // Правило для 1 set (обычный комплект)
+            const isDunlopSingle = hasDen0942 && has942 && (!has3p);
+            if (isDunlop3Pack || isDunlopSingle) {
+                isGauge09 = true;
+            }
+        }
+
+        if (isGauge09) {
+            const badgeText = (translations[(localStorage.getItem('selectedLanguage')||'uk')]?.gauge09Info) || '09 калибр электро';
+            const badgeTitle = (translations[(localStorage.getItem('selectedLanguage')||'uk')]?.gauge09ShowAll) || 'Показать все 09 калибр электро';
+            gauge09Html = `<span class="product-gauge09" title="${badgeTitle}">${badgeText}</span>`;
+        }
+    } catch (e) {}
+
+    // Пометка для 10 калибра (электро)
+    try {
+        const normalizedName10 = (product.name || '').toLowerCase().trim();
+        let isGauge10 = GAUGE_10_ELECTRIC.has(normalizedName10);
+        if (!isGauge10) {
+            const has1046 = normalizedName10.includes('10-46') || normalizedName10.includes('10 46');
+            const has1052 = normalizedName10.includes('10-52') || normalizedName10.includes('10 52');
+            const has3p = normalizedName10.includes('3p') || normalizedName10.includes('3-pack') || normalizedName10.includes('3 pack') || normalizedName10.includes('3sets') || normalizedName10.includes('3 sets');
+            const hasDen1046 = normalizedName10.includes('den1046') || normalizedName10.includes('3pden1046');
+            const denMatch = hasDen1046 && (has1046 || has1052);
+            if (denMatch) isGauge10 = true;
+        }
+        if (isGauge10) {
+            const badgeText10 = (translations[(localStorage.getItem('selectedLanguage')||'uk')]?.gauge10Info) || '10 калибр электро';
+            const badgeTitle10 = (translations[(localStorage.getItem('selectedLanguage')||'uk')]?.gauge10ShowAll) || 'Показать все 10 калибр электро';
+            gauge10Html = `<span class="product-gauge10" title="${badgeTitle10}">${badgeText10}</span>`;
+        }
+    } catch (e) {}
+    
+    // Добавляем информацию о 7-струнных товарах
+    if (is7StringProduct) {
+        sevenStringHtml = `<span class="product-seven-string">${currentTranslations.sevenStringInfo}</span>`;
+    }
+    
+    // Добавляем информацию о 8-струнных товарах
+    if (is8StringProduct) {
+        eightStringHtml = `<span class="product-eight-string">${currentTranslations.eightStringInfo}</span>`;
+    }
+    // Добавляем информацию о 9-струнных товарах
+    if (is9StringProduct) {
+        nineStringHtml = `<span class="product-nine-string">${currentTranslations.nineStringInfo}</span>`;
+    }
+    if (isFlatwoundElectric) {
+        flatwoundHtml = `<span class="product-flatwound">${currentTranslations.flatwoundInfo}</span>`;
+    }
+    
+    const cardHtml = 
+        '<div class="product-card-top">' +
+            '<div class="product-actions">' +
+                '<button class="favorite-btn" data-index="' + index + '"><i class="far fa-heart"></i></button>' +
+                '<button class="compare-btn" data-index="' + index + '"><i class="fas fa-balance-scale"></i></button>' +
+            '</div>' +
+            '<div class="img-container">' +
+                '<img class="img" src="' + product.image + '" alt="' + product.name + '" onerror="this.src=\'./images/Discontinued.jpg\'">' +
+            '</div>' +
+            (function(){
+                const fullName = product.name || '';
+                const patterns = [
+                    /nickel[ -]?plated/i,
+                    /pure\s*nickel/i,
+                    /stainless\s*steel/i,
+                    /cobalt/i,
+                    /colored/i,
+                    /flat\s*wound|flatwound|half\s*rounds|chromes/i,
+                    /\b[789]-string\b/i
+                ];
+                let idx = -1;
+                patterns.forEach(re => { const m = fullName.match(re); if (m && (idx === -1 || m.index < idx)) idx = m.index; });
+                if (idx > 0) {
+                    const line1 = fullName.slice(0, idx).trim();
+                    const line2 = fullName.slice(idx).trim();
+                    return '<div class="product-title"><span class="title-line1">' + line1 + '</span><br><span class="title-line2">' + line2 + '</span></div>';
+                }
+                return '<div class="product-title">' + fullName + '</div>';
+            })() +
+            '<div class="product-status ' + statusClass + '">' + statusText + '</div>' +
+            '<div class="product-subtitle">' +
+                manufacturerHtml +
+                sevenStringHtml +
+                eightStringHtml +
+                nineStringHtml +
+                flatwoundHtml +
+                gauge09Html +
+                gauge10Html +
+                (function(){
+                    // Пометка для 11 калибра (электро)
+                    try {
+                        const normalizedName11 = (product.name || '').toLowerCase().trim();
+                        let isGauge11 = GAUGE_11_ELECTRIC.has(normalizedName11);
+                        if (!isGauge11) {
+                            // Простая эвристика: наличие 11-48/11-49/11-50/11-52/11-54/11-56
+                            const has11xx = /(\b|\s)11[-\s]?(48|49|50|52|54|56)(\b|\s)/.test(normalizedName11);
+                            isGauge11 = has11xx;
+                        }
+                        if (isGauge11) {
+                            const badgeText11 = (translations[(localStorage.getItem('selectedLanguage')||'uk')]?.gauge11Info) || '11 калибр электро';
+                            const badgeTitle11 = (translations[(localStorage.getItem('selectedLanguage')||'uk')]?.gauge11ShowAll) || 'Показать все 11 калибр электро';
+                            return `<span class="product-gauge11" title="${badgeTitle11}">${badgeText11}</span>`;
+                        }
+                    } catch (e) {}
+                    return '';
+                })() +
+                (function(){
+                    // Пометка для Nickel Plated
+                    try {
+                        const normalized = (product.name||'').toLowerCase().trim();
+                        const normalizedLoose = normalizeLooseName(product.name);
+                        let isNP = NICKEL_PLATED_ELECTRIC.has(normalized) || NICKEL_PLATED_ELECTRIC.has(normalizedLoose);
+                        if (!isNP) {
+                            // эвристика: nickel plated | nickel-plated | nickel wound
+                            if ((/nickel[ -]?plated/.test(normalized) || /nickel[ -]?wound/.test(normalized) || /nickel/.test(normalized))
+                                && !/pure nickel|stainless steel|flat ?wound/.test(normalized)) {
+                                isNP = true;
+                            }
+                        }
+                        if (isNP) {
+                            const t = (translations[(localStorage.getItem('selectedLanguage')||'uk')]||{});
+                            const badge = (t.nickelPlatedInfo)||'Nickel Plated';
+                            const title = (t.nickelPlatedShowAll)||'Показать все Nickel Plated';
+                            return `<span class="product-nickelplated" title="${title}">${badge}</span>`;
+                        }
+                    } catch(e) {}
+                    return '';
+                })() +
+                (function(){
+                    // Пометка для Pure Nickel
+                    try {
+                        const normalized = (product.name||'').toLowerCase().trim();
+                        const normalizedLoose = normalizeLooseName(product.name);
+                        let isPN = PURE_NICKEL_ELECTRIC.has(normalized) || PURE_NICKEL_ELECTRIC.has(normalizedLoose) || PURE_NICKEL_ELECTRIC_LOOSE.has(normalizedLoose);
+                        if (!isPN) {
+                            // эвристика: pure nickel, nickel rockers (серия GHS), исключаем plated/flat/stainless/cobalt/colored
+                            if ((/pure\s*nickel/.test(normalized) || /nickel\s*rockers/.test(normalized))
+                                && !/plated|flat ?wound|stainless|cobalt|colored/.test(normalized)) {
+                                isPN = true;
+                            }
+                        }
+                        if (isPN) {
+                            const t = (translations[(localStorage.getItem('selectedLanguage')||'uk')]||{});
+                            const badge = (t.pureNickelInfo)||'Pure Nickel';
+                            const title = (t.pureNickelShowAll)||'Показать все Pure Nickel';
+                            return `<span class="product-purenickel" title="${title}">${badge}</span>`;
+                        }
+                    } catch(e) {}
+                    return '';
+                })() +
+                (function(){
+                    // Пометка для Stainless Steel
+                    try {
+                        const normalized = (product.name||'').toLowerCase().trim();
+                        const normalizedLoose = normalizeLooseName(product.name);
+                        let isSS = STAINLESS_STEEL_ELECTRIC.has(normalized) || STAINLESS_STEEL_ELECTRIC.has(normalizedLoose) || STAINLESS_STEEL_ELECTRIC_LOOSE.has(normalizedLoose);
+                        if (!isSS) {
+                            // эвристика: stainless steel, blue steel, chromes/flat wound RPS synyster
+                            if ((/stainless\s*steel/.test(normalized) || /blue\s*steel/.test(normalized) || /chromes\s*flat\s*wound/.test(normalized) || /synyster\s*gates.*stainless/.test(normalized)) && !/nickel/.test(normalized)) {
+                                isSS = true;
+                            }
+                        }
+                        if (isSS) {
+                            const t = (translations[(localStorage.getItem('selectedLanguage')||'uk')]||{});
+                            const badge = (t.stainlessSteelInfo)||'Stainless Steel';
+                            const title = (t.stainlessSteelShowAll)||'Показать все Stainless Steel';
+                            return `<span class="product-stainless" title="${title}">${badge}</span>`;
+                        }
+                    } catch(e) {}
+                    return '';
+                })() +
+                (function(){
+                    // Пометка для Cobalt
+                    try {
+                        const normalized = (product.name||'').toLowerCase().trim();
+                        const normalizedLoose = normalizeLooseName(product.name);
+                        let isCobalt = COBALT_ELECTRIC.has(normalized) || COBALT_ELECTRIC.has(normalizedLoose) || COBALT_ELECTRIC_LOOSE.has(normalizedLoose);
+                        if (!isCobalt) {
+                            if (/\bcobalt\b/.test(normalized)) {
+                                isCobalt = true;
+                            }
+                        }
+                        if (isCobalt) {
+                            const t = (translations[(localStorage.getItem('selectedLanguage')||'uk')]||{});
+                            const badge = (t.cobaltInfo)||'Cobalt';
+                            const title = (t.cobaltShowAll)||'Показать все Cobalt';
+                            return `<span class="product-cobalt" title="${title}">${badge}</span>`;
+                        }
+                    } catch(e) {}
+                    return '';
+                })() +
+                (function(){
+                    // Пометка для Colored Strings
+                    try {
+                        const normalized = (product.name||'').toLowerCase().trim();
+                        const normalizedLoose = normalizeLooseName(product.name);
+                        let isColored = COLORED_ELECTRIC.has(normalized) || COLORED_ELECTRIC.has(normalizedLoose) || COLORED_ELECTRIC_LOOSE.has(normalizedLoose);
+                        if (!isColored) {
+                            if (/\b(neon|colored|k3\s*coated|black\s*beauties)\b/.test(normalized)) {
+                                isColored = true;
+                            }
+                        }
+                        if (isColored) {
+                            const t = (translations[(localStorage.getItem('selectedLanguage')||'uk')]||{});
+                            const badge = (t.coloredInfo)||'Colored Strings';
+                            const title = (t.coloredShowAll)||'Показать все Colored Strings';
+                            return `<span class="product-colored" title="${title}">${badge}</span>`;
+                        }
+                    } catch(e) {}
+                    return '';
+                })() +
+            '</div>' +
+            '<div class="product-meta-row">' +
+                '<div class="meta-left">' + oldPriceHtml + '</div>' +
+                '<div class="meta-right product-rating">' + ratingHtml + '</div>' +
+            '</div>' +
+            '<div class="product-buy-row">' +
+                '<div class="new-price">' + newPrice + ' ' + getCurrency() + '</div>' +
+                statusButton +
+            '</div>' +
+        '</div>' +
+        '';
+    
+    // console.log('createProductCard: HTML карточки создан:', cardHtml);
+    card.innerHTML = cardHtml;
+    
+    // console.log('createProductCard: Карточка создана и возвращена');
+    return card;
+}
+
+// Функция создания HTML для рейтинга
+function createRatingHtml(rating, currentTranslations) {
+    if (!rating || rating === 'Нет рейтинга') {
+        return '<span class="no-rating">' + (currentTranslations.noRating || 'Нет рейтинга') + '</span>';
+    }
+    
+    const ratingValue = parseFloat(rating);
+    if (isNaN(ratingValue)) {
+        return '<span class="no-rating">' + (currentTranslations.noRating || 'Нет рейтинга') + '</span>';
+    }
+    
+    let html = '';
+    const fullStars = Math.floor(ratingValue);
+    const hasHalfStar = ratingValue % 1 >= 0.5;
+    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+    
+    // Добавляем полные звезды
+    for (let i = 0; i < fullStars; i++) {
+        html += '<span class="star-filled">★</span>';
+    }
+    
+    // Добавляем половинную звезду
+    if (hasHalfStar) {
+        html += '<span class="star-half">★</span>';
+    }
+    
+    // Добавляем пустые звезды
+    for (let i = 0; i < emptyStars; i++) {
+        html += '<span class="star-empty">★</span>';
+    }
+    
+    return html;
+}
+
+// Функция переключения языка
+function switchLanguage(lang) {
+    console.log('switchLanguage: Переключаем на язык:', lang);
+    
+    // Проверяем, что translations загружен
+    if (typeof translations === 'undefined') {
+        console.error('switchLanguage: translations не загружен, пропускаем переключение языка');
+        return;
+    }
+    
+    // Сохраняем выбранный язык в localStorage
+    localStorage.setItem('selectedLanguage', lang);
+    
+    // Обновляем все элементы с data-translate
+    const elements = document.querySelectorAll('[data-translate]');
+    console.log(`switchLanguage: Найдено ${elements.length} элементов для перевода`);
+    
+    elements.forEach(element => {
+        const key = element.getAttribute('data-translate');
+        if (translations[lang] && translations[lang][key]) {
+            if (key === 'offerText') {
+                element.innerHTML = translations[lang][key];
+                console.log(`switchLanguage: Обновлен ${key} (innerHTML):`, translations[lang][key]);
+            } else if (key === 'searchPlaceholder') {
+                // Специальная обработка для placeholder поиска
+                element.placeholder = translations[lang][key];
+                console.log(`switchLanguage: Обновлен ${key} (placeholder):`, translations[lang][key]);
+            } else if (key === 'bonusInfo' || element.id === 'headerBonusBalance') {
+                // Для бонусов не применяем автоматический перевод - он обрабатывается в updateBonusDisplay
+                console.log('switchLanguage: Пропускаем перевод для бонусов - будет обработано в updateBonusDisplay', element.id, key);
+            } else {
+                const oldText = element.textContent;
+                element.textContent = translations[lang][key];
+                console.log(`switchLanguage: Обновлен ${key}: "${oldText}" → "${translations[lang][key]}"`);
+            }
+        } else {
+            console.warn(`switchLanguage: Перевод не найден для ключа "${key}" на языке "${lang}"`);
+        }
+    });
+    
+    // Обновляем все элементы с data-translate-placeholder
+    const placeholderElements = document.querySelectorAll('[data-translate-placeholder]');
+    placeholderElements.forEach(element => {
+        const key = element.getAttribute('data-translate-placeholder');
+        if (translations[lang] && translations[lang][key]) {
+            element.placeholder = translations[lang][key];
+        }
+    });
+    
+    // Обновляем атрибут lang у html
+    document.documentElement.lang = lang;
+
+    // Обновляем сообщения валидации для нового языка
+    setValidationMessages(lang);
+
+    // Если есть активная категория, не рендерим промежуточно все товары, сразу пере-применяем фильтр
+    if (currentCategory) {
+        console.log('switchLanguage: Активный фильтр есть, сразу пере-применяем категорию без промежуточного рендера:', currentCategory);
+        filterProductsByCategory(currentCategory, true);
+    } else if (window.currentProducts && window.currentProducts.length > 0) {
+        console.log('switchLanguage: Пересоздаем карточки товаров с новым языком (фильтр не активен)');
+        displayProducts(window.currentProducts);
+    }
+    
+    // Обновляем онлайн статус
+    updateOnlineStatus();
+    
+    console.log('switchLanguage: Язык переключен на:', lang);
+	// Синхронизуем кнопку языка в кабинете
+	try { updateAccountLangButton(lang); } catch (e) {}
+    // Обновляем валюту и статусы заказов в кабинете
+    try { if (typeof updateAccountOrdersLocale === 'function') updateAccountOrdersLocale(); } catch (e) {}
+
+    // Обновляем отображение бонусов в шапке после смены языка
+    try {
+        const currentUser = window.__authState && window.__authState.profile ?
+            (window.__authState.profile.username || window.__authState.profile.displayName || 'guest') : 'guest';
+        const bonusBalance = getUserBonusBalance();
+        console.log('switchLanguage: Обновляем бонусы после смены языка:', bonusBalance, 'для пользователя:', currentUser);
+        updateBonusDisplay(bonusBalance);
+    } catch (e) {
+        console.error('switchLanguage: Ошибка обновления бонусов после смены языка:', e);
+    }
+}
+
+// Функция инициализации языка
+function initializeLanguage() {
+    console.log('initializeLanguage: Инициализируем язык');
+    
+    // Получаем сохраненный язык или используем украинский по умолчанию
+    const savedLanguage = localStorage.getItem('selectedLanguage') || 'uk';
+    console.log('initializeLanguage: Сохраненный язык:', savedLanguage);
+    
+    // Переключаем на сохраненный язык
+    switchLanguage(savedLanguage);
+    
+    // Дополнительно обновляем активное состояние кнопок языка
+    // Это нужно для случая, когда DOM еще не полностью загружен
+    setTimeout(() => {
+        console.log('initializeLanguage: Дополнительно обновляем активное состояние кнопок языка');
+        updateLanguageButtons(savedLanguage);
+    }, 100);
+    
+    // Дополнительная проверка заголовка через 1 секунду (без повторного switchLanguage)
+    setTimeout(() => {
+        console.log('initializeLanguage: Финальная проверка переводов');
+        const bannerTitle = document.querySelector('[data-translate="bannerTitle"]');
+        if (bannerTitle) {
+            console.log('initializeLanguage: Текущий текст заголовка баннера:', bannerTitle.textContent);
+            console.log('initializeLanguage: Ожидаемый текст для языка', savedLanguage, ':', translations[savedLanguage]?.bannerTitle);
+            if (bannerTitle.textContent !== translations[savedLanguage]?.bannerTitle) {
+                console.log('initializeLanguage: Обновляем только текст заголовка баннера без повторного switchLanguage');
+                bannerTitle.textContent = translations[savedLanguage]?.bannerTitle || bannerTitle.textContent;
+            }
+        }
+    }, 1000);
+    
+    console.log('initializeLanguage: Язык инициализирован:', savedLanguage);
+}
+// Функция настройки переключателей языка
+function setupLanguageSwitchers() {
+    console.log('setupLanguageSwitchers: Настраиваем переключатели языка');
+    
+    // Находим кнопки переключения языка
+    const ukButton = document.querySelector('[data-lang="uk"]');
+    const ruButton = document.querySelector('[data-lang="ru"]');
+    const enButton = document.querySelector('[data-lang="en"]');
+    
+    console.log('setupLanguageSwitchers: Найдены кнопки языка:', { ukButton, ruButton, enButton });
+    
+    if (ukButton) {
+        ukButton.addEventListener('click', function() {
+            console.log('setupLanguageSwitchers: Переключаем на украинский');
+            switchLanguage('uk');
+            updateLanguageButtons('uk');
+        });
+    }
+    
+    if (ruButton) {
+        ruButton.addEventListener('click', function() {
+            console.log('setupLanguageSwitchers: Переключаем на русский');
+            switchLanguage('ru');
+            updateLanguageButtons('ru');
+        });
+    }
+    
+    if (enButton) {
+        enButton.addEventListener('click', function() {
+            console.log('setupLanguageSwitchers: Переключаем на английский');
+            switchLanguage('en');
+            updateLanguageButtons('en');
+        });
+    }
+    
+    // Устанавливаем активное состояние для текущего языка
+    const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
+    console.log('setupLanguageSwitchers: Текущий язык:', currentLanguage);
+    updateLanguageButtons(currentLanguage);
+    
+    console.log('setupLanguageSwitchers: Переключатели языка настроены');
+}
+
+// Функция обновления активного состояния кнопок языка
+function updateLanguageButtons(activeLang) {
+    console.log('updateLanguageButtons: Обновляем активное состояние для языка:', activeLang);
+    
+    const ukButton = document.querySelector('[data-lang="uk"]');
+    const ruButton = document.querySelector('[data-lang="ru"]');
+    const enButton = document.querySelector('[data-lang="en"]');
+    
+    console.log('updateLanguageButtons: Найдены кнопки языка:', { ukButton, ruButton, enButton });
+    
+    // Убираем активное состояние со всех кнопок
+    if (ukButton) {
+        ukButton.classList.remove('active');
+        console.log('updateLanguageButtons: Убран класс active с украинской кнопке');
+    }
+    if (ruButton) {
+        ruButton.classList.remove('active');
+        console.log('updateLanguageButtons: Убран класс active с русской кнопке');
+    }
+    if (enButton) {
+        enButton.classList.remove('active');
+        console.log('updateLanguageButtons: Убран класс active с английской кнопке');
+    }
+    
+    // Добавляем активное состояние к выбранной кнопке
+    switch (activeLang) {
+        case 'uk':
+            if (ukButton) {
+                ukButton.classList.add('active');
+                console.log('updateLanguageButtons: Добавлен класс active к украинской кнопке');
+            }
+            break;
+        case 'ru':
+            if (ruButton) {
+                ruButton.classList.add('active');
+                console.log('updateLanguageButtons: Добавлен класс active к русской кнопке');
+            }
+            break;
+        case 'en':
+            if (enButton) {
+                enButton.classList.add('active');
+                console.log('updateLanguageButtons: Добавлен класс active к английской кнопке');
+            }
+            break;
+    }
+    
+    console.log('updateLanguageButtons: Активное состояние обновлено для языка:', activeLang);
+}
+
+// Инициализация при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM загружен, инициализируем приложение');
+    
+    // Маркируем окружение Telegram WebApp (только при наличии реальных данных пользователя)
+    try {
+        const isTelegramEnv = !!(
+            window.Telegram &&
+            window.Telegram.WebApp &&
+            window.Telegram.WebApp.initDataUnsafe &&
+            window.Telegram.WebApp.initDataUnsafe.user &&
+            window.Telegram.WebApp.initDataUnsafe.user.id
+        );
+        if (isTelegramEnv) {
+            document.body.classList.add('is-telegram');
+        } else {
+            document.body.classList.remove('is-telegram');
+        }
+    } catch (e) {}
+    
+    // Инициализируем язык
+    initializeLanguage();
+    
+    // Инициализируем корзину
+    initializeCart();
+
+    // Инициализируем баланс бонусов (с задержкой для загрузки данных пользователя)
+    setTimeout(() => {
+        initializeUserBonus();
+    }, 500);
+
+    // Сбрасываем состояние бесконечной прокрутки
+    currentPage = 0;
+    hasMoreProducts = true;
+    loadedProductNames.clear();
+    
+    // Синхронизируем состояние авторизации заранее (чтобы дропдаун профиля не мигал формой)
+    try {
+        const tgQs0 = getTelegramQueryString();
+        fetch('/api/user_profile' + tgQs0, { credentials: 'include' })
+            .then(r => r.ok ? r.json() : { success: false })
+            .then(data => {
+                const authed = isAuthenticatedData(data);
+                window.__authState = { isAuthenticated: authed, profile: authed ? (data.profile || data) : null };
+                // Обновим аватар в хедере, если есть фото
+                try {
+                    const headerImg = document.getElementById('profile-image');
+                    const headerSvg = document.getElementById('profile-svg');
+                    const headerIcon = document.getElementById('profile-icon');
+                    const p = (data && (data.profile || data)) || {};
+                    if (headerImg && authed && p.photoUrl) {
+                        headerImg.src = p.photoUrl;
+                        headerImg.style.display = 'block';
+                        if (headerSvg) headerSvg.style.display = 'none';
+                        if (headerIcon) headerIcon.style.display = 'none';
+                    }
+                } catch (e) {}
+            })
+            .catch(() => {});
+    } catch (e) {}
+    
+    // Определяем сохранённый вид
+    let savedView = 'products';
+    try { savedView = localStorage.getItem('currentView') || 'products'; } catch (e) {}
+    if (savedView === 'account') {
+        // Настраиваем обработчики и открываем кабинет без загрузки товаров
+        setupEventHandlers();
+        setupCabinetNav();
+        showAccountView();
+    } else {
+        // Если сохранён фильтр категории — сразу применяем его вместо первичной загрузки 30 товаров
+        let savedCategory = '';
+        try { savedCategory = localStorage.getItem('currentCategory') || ''; } catch (e) {}
+        if (savedCategory) {
+            try { localStorage.setItem('currentView', 'products'); } catch (e) {}
+            setupEventHandlers();
+            setupCabinetNav();
+            try {
+                isCategoryFilterActive = true;
+                currentCategory = savedCategory;
+                lastCategorySearch = '';
+            } catch (e) {}
+            filterProductsByCategory(savedCategory, true);
+        } else {
+            // Сразу фиксируем, что стартуем в товарах
+            try { localStorage.setItem('currentView', 'products'); } catch (e) {}
+    // Автоматически загружаем товары
+    loadProducts(0, false).then(() => {
+        // Настраиваем обработчики событий после загрузки товаров
+        setupEventHandlers();
+                setupCabinetNav();
+    });
+        }
+    }
+    
+    // Обновляем онлайн статус
+    updateOnlineStatus();
+    
+    // Обновляем статус каждые 5 минут (было каждую минуту)
+    setInterval(updateOnlineStatus, 300000);
+
+    // Инициализируем заказы из localStorage
+    initializeUserOrders();
+
+    // Перед перезагрузкой сохраняем фактический видимый раздел
+    window.addEventListener('beforeunload', function() {
+        try {
+            const view = getVisibleView();
+            localStorage.setItem('currentView', view);
+        } catch (e) {}
+    });
+});
+
+// Функция инициализации заказов пользователя из localStorage
+function initializeUserOrders() {
+    try {
+        console.log('initializeUserOrders: Инициализация заказов из localStorage');
+
+        // Получаем username текущего пользователя
+        const currentUser = window.__authState && window.__authState.profile ?
+            (window.__authState.profile.username || window.__authState.profile.displayName || 'guest') : 'guest';
+
+        // Получаем заказы из localStorage для конкретного пользователя
+        const userOrdersKey = `userOrders_${currentUser}`;
+        const orders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
+
+        // Сохраняем в глобальную переменную
+        window.userOrders = orders;
+
+        console.log('initializeUserOrders: Загружено заказов:', orders.length);
+
+    } catch (error) {
+        console.error('initializeUserOrders: Ошибка инициализации заказов', error);
+        window.userOrders = [];
+    }
+}
+
+// Функция настройки обработчиков событий
+function setupEventHandlers() {
+    console.log('setupEventHandlers: Настраиваем обработчики событий');
+    
+    // Обработчик клавиши ESC для закрытия попапов
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            // Закрываем корзину
+            const cartPopup = document.getElementById('cartPopup');
+            if (cartPopup && cartPopup.style.display === 'flex') {
+                closeCartPopup();
+                return;
+            }
+            
+            // Закрываем меню
+            const menuPopup = document.getElementById('menuPopup');
+            if (menuPopup && menuPopup.style.display === 'flex') {
+                menuPopup.style.display = 'none';
+                return;
+            }
+            
+            // Закрываем настройки
+            const settingsPopup = document.getElementById('settingsPopup');
+            if (settingsPopup && settingsPopup.style.display === 'flex') {
+                settingsPopup.style.display = 'none';
+                return;
+            }
+            
+                         // Закрываем контакты
+             const contactsPopup = document.getElementById('contactsPopup');
+             if (contactsPopup && (contactsPopup.classList.contains('show') || contactsPopup.style.display === 'flex')) {
+                 closeContactsPopup();
+                 return;
+             }
+            
+                         // Закрываем оферту
+             const offerPopup = document.getElementById('offerPopup');
+             if (offerPopup && (offerPopup.classList.contains('show') || offerPopup.style.display === 'flex')) {
+                 closeOfferPopup();
+                 return;
+             }
+        }
+    });
+    
+    // Обработчик переключения языков
+    setupLanguageSwitchers();
+    // Логика форм логина/регистрации + капча
+    try {
+        const loginForm = document.getElementById('loginForm');
+        const loginMessage = document.getElementById('loginMessage');
+        const dropdownLoginSection = document.getElementById('dropdownLoginSection');
+        const dropdownLogoutSection = document.getElementById('dropdownLogoutSection');
+        const dropdownLogoutBtn = document.getElementById('dropdownLogoutBtn');
+        const showRegisterLink = document.getElementById('showRegisterLink');
+        const showLoginLink = document.getElementById('showLoginLink');
+        const showSmsLoginLink = document.getElementById('showSmsLoginLink');
+        const showSmsFromRegisterLink = document.getElementById('showSmsFromRegisterLink');
+        const showPasswordLoginLink = document.getElementById('showPasswordLoginLink');
+        const showRegisterFromSmsLink = document.getElementById('showRegisterFromSmsLink');
+        const smsSection = document.getElementById('dropdownSmsLoginSection');
+        const smsLoginForm = document.getElementById('smsLoginForm');
+        const smsPhoneInput = document.getElementById('smsPhoneInput');
+        const smsSendCodeBtn = document.getElementById('smsSendCodeBtn');
+        const smsResendCodeBtn = document.getElementById('smsResendCodeBtn');
+        const smsCodeRow = document.getElementById('smsCodeRow');
+        const smsCodeInput = document.getElementById('smsCodeInput');
+        const smsConfirmCodeBtn = document.getElementById('smsConfirmCodeBtn');
+        const smsLoginMessage = document.getElementById('smsLoginMessage');
+        const registerForm = document.getElementById('registerForm');
+        const registerMessage = document.getElementById('registerMessage');
+
+        // Состояние капчи
+        let loginCaptchaId = null;
+        let registerCaptchaId = null;
+
+        async function fetchCaptcha(target) {
+            try {
+                const resp = await fetch('http://localhost:8000/api/captcha');
+                const data = await resp.json();
+                if (!data.success) return;
+                if (target === 'login') {
+                    loginCaptchaId = data.captchaId;
+                    const row = document.getElementById('loginCaptchaRow');
+                    const label = document.getElementById('loginCaptchaQuestion');
+                    const currentLang = localStorage.getItem('selectedLanguage') || 'uk';
+                    const prefix = getTranslation('captchaQuestionPrefix', currentLang);
+                    if (row && label) {
+                        row.style.display = 'block';
+                        label.textContent = `${prefix} ${data.question}?`;
+                        console.log(`Captcha login: "${label.textContent}"`);
+                    }
+                } else if (target === 'register') {
+                    registerCaptchaId = data.captchaId;
+                    const row = document.getElementById('registerCaptchaRow');
+                    const label = document.getElementById('registerCaptchaQuestion');
+                    const currentLang = localStorage.getItem('selectedLanguage') || 'uk';
+                    const prefix = getTranslation('captchaQuestionPrefix', currentLang);
+                    if (row && label) {
+                        row.style.display = 'block';
+                        label.textContent = `${prefix} ${data.question}?`;
+                        console.log(`Captcha register: "${label.textContent}"`);
+                    }
+                }
+            } catch (e) { /* ignore */ }
+        }
+
+        // Переключение UI
+        if (showRegisterLink && showLoginLink) {
+            showRegisterLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                document.getElementById('dropdownLoginSection').style.display = 'none';
+                document.getElementById('dropdownRegisterSection').style.display = 'block';
+                registerMessage.textContent = '';
+                fetchCaptcha('register');
+            });
+            showLoginLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                document.getElementById('dropdownRegisterSection').style.display = 'none';
+                document.getElementById('dropdownLoginSection').style.display = 'block';
+                loginMessage.textContent = '';
+                fetchCaptcha('login');
+                // Загружаем сохраненные данные при возврате к форме логина
+                setTimeout(() => {
+                    loadSavedLoginData();
+                }, 50);
+            });
+        }
+
+        // Переключения на SMS-вход и обратно
+        function showSmsLogin() {
+            if (dropdownLoginSection) dropdownLoginSection.style.display = 'none';
+            const reg = document.getElementById('dropdownRegisterSection');
+            if (reg) reg.style.display = 'none';
+            if (smsSection) smsSection.style.display = 'block';
+            smsLoginMessage.textContent = '';
+            if (smsPhoneInput && !smsPhoneInput.value) smsPhoneInput.value = '+380';
+        }
+        function showPasswordLogin() {
+            if (smsSection) smsSection.style.display = 'none';
+            const reg = document.getElementById('dropdownRegisterSection');
+            if (reg) reg.style.display = 'none';
+            if (dropdownLoginSection) dropdownLoginSection.style.display = 'block';
+            loginMessage.textContent = '';
+        }
+        function showRegisterFromSms() {
+            if (smsSection) smsSection.style.display = 'none';
+            if (dropdownLoginSection) dropdownLoginSection.style.display = 'none';
+            const reg = document.getElementById('dropdownRegisterSection');
+            if (reg) reg.style.display = 'block';
+            registerMessage.textContent = '';
+        }
+
+        if (showSmsLoginLink) showSmsLoginLink.addEventListener('click', (e) => { e.preventDefault(); showSmsLogin(); });
+        if (showSmsFromRegisterLink) showSmsFromRegisterLink.addEventListener('click', (e) => { e.preventDefault(); showSmsLogin(); });
+        if (showPasswordLoginLink) showPasswordLoginLink.addEventListener('click', (e) => { e.preventDefault(); showPasswordLogin(); });
+        if (showRegisterFromSmsLink) showRegisterFromSmsLink.addEventListener('click', (e) => { e.preventDefault(); showRegisterFromSms(); });
+
+        // Отправка и подтверждение SMS‑кода
+        async function requestSmsCode() {
+            if (!smsPhoneInput) return;
+            const phone = (smsPhoneInput.value || '').trim();
+            if (!phone) { smsLoginMessage.textContent = 'Введите номер телефона'; return; }
+            smsLoginMessage.textContent = '';
+            try {
+                const resp = await fetch('/api/sms/request_code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone, lang: getCurrentLanguage() })
+                });
+                const data = await resp.json();
+                if (!data.success) { smsLoginMessage.textContent = data.error || 'Не удалось отправить SMS'; return; }
+                smsLoginMessage.textContent = 'Код отправлен';
+                if (smsCodeRow) smsCodeRow.style.display = 'block';
+                if (smsResendCodeBtn) smsResendCodeBtn.style.display = 'inline-block';
+            } catch (e) {
+                smsLoginMessage.textContent = 'Сервер недоступен';
+            }
+        }
+
+        async function confirmSmsCode() {
+            if (!smsPhoneInput || !smsCodeInput) return;
+            const phone = (smsPhoneInput.value || '').trim();
+            const code = (smsCodeInput.value || '').trim();
+            if (!phone || !code) { smsLoginMessage.textContent = 'Введите телефон и код'; return; }
+            smsLoginMessage.textContent = '';
+            try {
+                // Telegram номер/аватар (если доступно)
+                let tgPhone = null, tgPhotoUrl = null;
+                try {
+                    if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
+                        tgPhone = window.Telegram.WebApp.initDataUnsafe.user.phone_number || null;
+                        tgPhotoUrl = window.Telegram.WebApp.initDataUnsafe.user.photo_url || null;
+                    }
+                } catch (e) {}
+
+                const resp = await fetch('/api/sms/confirm', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ phone, code, lang: getCurrentLanguage(), tg_phone: tgPhone, tg_photo_url: tgPhotoUrl })
+                });
+                const data = await resp.json();
+                if (!data.success) { smsLoginMessage.textContent = data.error || 'Неверный код'; return; }
+                // Успех: показать кабинет
+                if (smsSection) smsSection.style.display = 'none';
+                if (dropdownLogoutSection) dropdownLogoutSection.style.display = 'block';
+                if (dropdownLoginSection) dropdownLoginSection.style.display = 'none';
+                // Кэш авторизации
+                try { window.__authState = { isAuthenticated: true, profile: data.profile || { phone } }; } catch (e) {}
+                showAccountView();
+            } catch (e) {
+                smsLoginMessage.textContent = 'Сервер недоступен';
+            }
+        }
+
+        if (smsSendCodeBtn) smsSendCodeBtn.addEventListener('click', requestSmsCode);
+        if (smsResendCodeBtn) smsResendCodeBtn.addEventListener('click', requestSmsCode);
+        if (smsConfirmCodeBtn) smsConfirmCodeBtn.addEventListener('click', confirmSmsCode);
+
+        // Кнопки обновления капчи
+        const loginCaptchaRefresh = document.getElementById('loginCaptchaRefresh');
+        const registerCaptchaRefresh = document.getElementById('registerCaptchaRefresh');
+        if (loginCaptchaRefresh) loginCaptchaRefresh.addEventListener('click', () => fetchCaptcha('login'));
+        if (registerCaptchaRefresh) registerCaptchaRefresh.addEventListener('click', () => fetchCaptcha('register'));
+
+        if (loginForm && dropdownLogoutBtn && dropdownLoginSection && dropdownLogoutSection) {
+        // Загружаем сохраненные данные входа при открытии формы
+        loadSavedLoginData();
+
+        // Устанавливаем сообщения валидации
+        const currentLang = localStorage.getItem('selectedLanguage') || 'uk';
+        setValidationMessages(currentLang);
+
+        // Подгружаем капчу при открытии меню (первый показ)
+        fetchCaptcha('login');
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const username = (document.getElementById('loginUsername').value || '').trim();
+                const password = (document.getElementById('loginPassword').value || '').trim();
+                const remember = document.getElementById('loginRemember').checked;
+                const captchaAnswer = (document.getElementById('loginCaptchaAnswer').value || '').trim();
+                loginMessage.textContent = '';
+                if (!username || !password) {
+                    loginMessage.textContent = 'Введите логин и пароль';
+                    return;
+                }
+                try {
+                    const resp = await fetch('/api/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ displayName: username, username, password, remember, captchaId: loginCaptchaId, captchaAnswer })
+                    });
+                    const data = await resp.json();
+                    if (!data.success) {
+                        // Переводим сообщение об ошибке капчи
+                        let errorMessage = data.error || 'Ошибка входа';
+                        if (errorMessage.includes('Неверная капча') || errorMessage.includes('Incorrect captcha') || errorMessage.includes('Неправильна капча')) {
+                            const currentLang = localStorage.getItem('selectedLanguage') || 'uk';
+                            errorMessage = getTranslation('captchaError', currentLang);
+                        }
+                        loginMessage.textContent = errorMessage;
+                        // Обновим капчу при ошибке
+                        fetchCaptcha('login');
+                        return;
+                    }
+                    // Переключаем на логаут
+                    dropdownLoginSection.style.display = 'none';
+                    dropdownLogoutSection.style.display = 'block';
+                    // Кэш авторизации
+                    try { window.__authState = { isAuthenticated: true, profile: data.profile || { username } }; } catch (e) {}
+
+                    // Сохраняем данные входа, если галочка "запомнить" установлена
+                    if (remember) {
+                        saveLoginData(username, password);
+                    } else {
+                        // Если галочка не установлена, очищаем сохраненные данные
+                        clearSavedLoginData();
+                    }
+
+                    // Выполняем миграцию заказов при входе пользователя
+                    try {
+                        migrateUserOrders();
+                    } catch (e) {
+                        console.error('Ошибка миграции заказов при входе:', e);
+                    }
+
+                    // Открываем кабинет
+                    showAccountView();
+                } catch (err) {
+                    loginMessage.textContent = 'Сервер недоступен';
+                    console.error(err);
+                }
+            });
+
+            dropdownLogoutBtn.addEventListener('click', async () => {
+                try {
+                    await fetch('/api/logout', { method: 'POST', credentials: 'include' });
+                } catch (e) {}
+                // Сбрасываем кэш авторизации
+                try { window.__authState = { isAuthenticated: false, profile: null }; } catch (e) {}
+                console.log('logout: Состояние авторизации сброшено:', window.__authState);
+
+                // UI
+                dropdownLogoutSection.style.display = 'none';
+                dropdownLoginSection.style.display = 'block';
+
+                // Обновляем отображение бонусов после выхода (после сброса состояния авторизации)
+                if (typeof updateBonusDisplay === 'function') {
+                    console.log('logout: Вызываем updateBonusDisplay после сброса авторизации');
+                    updateBonusDisplay(0);
+                }
+                // НЕ очищаем сохраненные данные входа при выходе
+                // Данные остаются сохраненными для следующего входа
+                // clearSavedLoginData();
+                // Сбрасываем поиск/фильтры как при нажатии «Товары»
+                try {
+                    isSearchActive = false;
+                    searchTerm = '';
+                    isCategoryFilterActive = false;
+                    currentCategory = '';
+                    localStorage.removeItem('currentCategory');
+                    const searchInput = document.querySelector('.search-input');
+                    if (searchInput) searchInput.value = '';
+                } catch (e) {}
+                try { clearCategoryFilter(); } catch (e) {}
+                // Переключаемся в товары и подсвечиваем нижнюю навигацию
+                showProductsView();
+                try { setActiveBottomNav('products'); } catch (e) {}
+            });
+        }
+        // Регистрация
+        if (registerForm) {
+            registerForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = (document.getElementById('registerEmail').value || '').trim();
+                const username = (document.getElementById('registerUsername').value || '').trim();
+                const password = (document.getElementById('registerPassword').value || '').trim();
+                const password2 = (document.getElementById('registerPassword2').value || '').trim();
+                const captchaAnswer = (document.getElementById('registerCaptchaAnswer').value || '').trim();
+                registerMessage.textContent = '';
+                if (!email || !username || !password || !password2) {
+                    registerMessage.textContent = 'Заполните все поля';
+                    return;
+                }
+                if (password !== password2) {
+                    registerMessage.textContent = 'Пароли не совпадают';
+                    return;
+                }
+                try {
+                    const resp = await fetch('/api/register', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ email, username, password, captchaId: registerCaptchaId, captchaAnswer })
+                    });
+                    const data = await resp.json();
+                    if (!data.success) {
+                        // Переводим сообщение об ошибке капчи
+                        let errorMessage = data.error || 'Ошибка регистрации';
+                        if (errorMessage.includes('Неверная капча') || errorMessage.includes('Incorrect captcha') || errorMessage.includes('Неправильна капча')) {
+                            const currentLang = localStorage.getItem('selectedLanguage') || 'uk';
+                            errorMessage = getTranslation('captchaError', currentLang);
+                        }
+                        registerMessage.textContent = errorMessage;
+                        fetchCaptcha('register');
+                        return;
+                    }
+                    // Успех: переключаемся на кабинет и закрываем регистрацию
+                    document.getElementById('dropdownRegisterSection').style.display = 'none';
+                    dropdownLoginSection.style.display = 'none';
+                    dropdownLogoutSection.style.display = 'block';
+                    // Кэш авторизации
+                    try { window.__authState = { isAuthenticated: true, profile: data.profile || { username, email } }; } catch (e) {}
+                    showAccountView();
+                } catch (err) {
+                    registerMessage.textContent = 'Сервер недоступен';
+                    console.error(err);
+                }
+            });
+        }
+    } catch (e) {}
+    // Дополнительно обновляем активное состояние кнопок языка после настройки обработчиков
+    const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
+    setTimeout(() => {
+        console.log('setupEventHandlers: Дополнительно обновляем активное состояние кнопок языка:', currentLanguage);
+        updateLanguageButtons(currentLanguage);
+    }, 200);
+    // Обработчик клика вне попапов
+    document.addEventListener('click', function(event) {
+        // Убираем лишний лог - он срабатывает при каждом клике
+        // console.log('setupEventHandlers: Обработчик клика вне попапов сработал');
+        
+        // Проверяем, открыты ли контакты или оферта
         const contactsPopup = document.getElementById('contactsPopup');
         const offerPopup = document.getElementById('offerPopup');
+        const isContactsOpen = contactsPopup && (contactsPopup.classList.contains('show') || contactsPopup.style.display === 'flex');
+        const isOfferOpen = offerPopup && (offerPopup.classList.contains('show') || offerPopup.style.display === 'flex');
         
-        // Закрываем настройки если клик не по кнопке настроек и не по содержимому настроек
-        if (settingsPopup && settingsPopup.classList.contains('show')) {
-            const settingsBtn = document.querySelector('.settings-btn');
-            if (!settingsBtn.contains(e.target) && !settingsPopup.contains(e.target)) {
-                closePopup('settingsPopup');
-            }
-        }
-        
-        // Закрываем popup контактов если клик не по содержимому popup
-        if (contactsPopup && contactsPopup.classList.contains('show')) {
-            console.log('setupPopupClickOutside: Popup контактов открыт, проверяем клик...');
-            
-            // Проверяем, что клик действительно вне popup
-            const isClickInsidePopup = contactsPopup.contains(e.target);
-            
-            // Проверяем, что это не клик по кнопке "Контакты" в меню
-            const contactsMenuItem = document.querySelector('.contacts-item');
-            const isClickOnContactsMenuItem = contactsMenuItem && contactsMenuItem.contains(e.target);
-            
-            // Проверяем, что это не клик по крестику
-            const isClickOnCloseBtn = e.target.closest('.close-btn');
-            
-            // Закрываем окно контактов при клике вне его
-            if (!isClickInsidePopup && !isClickOnContactsMenuItem && !isClickOnCloseBtn) {
-                console.log('setupPopupClickOutside: Клик вне popup контактов, закрываем...');
-                closeContactsPopup();
-            } else {
-                console.log('setupPopupClickOutside: Клик внутри popup или по кнопкам, не закрываем');
-            }
-        }
-        
-        // Закрываем popup оферты если клик не по содержимому popup
-        if (offerPopup && offerPopup.classList.contains('show')) {
-            console.log('setupPopupClickOutside: Popup оферты открыт, проверяем клик...');
-            
-            // Проверяем, что клик действительно вне popup
-            const isClickInsidePopup = offerPopup.contains(e.target);
-            
-            // Проверяем, что это не клик по кнопке "Оферта" в меню
-            const offerMenuItem = document.querySelector('.offer-item');
-            const isClickOnOfferMenuItem = offerMenuItem && offerMenuItem.contains(e.target);
-            
-            // Проверяем, что это не клик по крестику
-            const isClickOnCloseBtn = e.target.closest('.close-btn');
-            
-            // Закрываем окно оферты при клике вне его
-            if (!isClickInsidePopup && !isClickOnOfferMenuItem && !isClickOnCloseBtn) {
-                console.log('setupPopupClickOutside: Клик вне popup оферты, закрываем...');
-                closeOfferPopup();
-            } else {
-                console.log('setupPopupClickOutside: Клик внутри popup оферты или по кнопкам, не закрываем');
-            }
-        }
-        
-        // МЕНЮ ЗАКРЫВАЕТСЯ ТОЛЬКО ПРИ ЯВНОМ КЛИКЕ ВНЕ МЕНЮ (не зависит от других окон)
-        if (menuPopup && menuPopup.classList.contains('show')) {
-            const menuBtn = document.querySelector('.menu-btn');
-            const isClickOnMenuBtn = menuBtn && menuBtn.contains(e.target);
-            const isClickInsideMenu = menuPopup.contains(e.target);
-            
-            // Меню закрывается только если клик не по кнопке меню и не по содержимому меню
-            // И НЕ по кнопкам других окон
-            const isClickOnOtherButtons = 
-                (contactsPopup && contactsPopup.classList.contains('show') && contactsPopup.contains(e.target)) ||
-                (offerPopup && offerPopup.classList.contains('show') && offerPopup.contains(e.target)) ||
-                (settingsPopup && settingsPopup.classList.contains('show') && settingsPopup.contains(e.target));
-            
-            if (!isClickOnMenuBtn && !isClickInsideMenu && !isClickOnOtherButtons) {
-                console.log('setupPopupClickOutside: Клик вне меню, закрываем меню...');
-                closePopup('menuPopup');
-            }
-        }
-    });
-    
-    // Обработчик клавиши ESC для закрытия popup
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            const menuPopup = document.getElementById('menuPopup');
-            const settingsPopup = document.getElementById('settingsPopup');
-            const contactsPopup = document.getElementById('contactsPopup');
-            const offerPopup = document.getElementById('offerPopup');
-            
-            // Закрываем popup контактов при нажатии ESC
-            if (contactsPopup && contactsPopup.classList.contains('show')) {
-                console.log('setupPopupClickOutside: Нажата клавиша ESC, закрываем popup контактов');
-                closeContactsPopup();
-            }
-            
-            // Закрываем popup оферты при нажатии ESC
-            if (offerPopup && offerPopup.classList.contains('show')) {
-                console.log('setupPopupClickOutside: Нажата клавиша ESC, закрываем popup оферты');
-                closeOfferPopup();
-            }
-            
-            // Закрываем другие popup при нажатии ESC
-            if (menuPopup && menuPopup.classList.contains('show')) {
-                closePopup('menuPopup');
-            }
-            
-            if (settingsPopup && settingsPopup.classList.contains('show')) {
-                closePopup('settingsPopup');
-            }
-        }
-    });
-}
-
-// Функция проверки онлайн статуса пользователя в Telegram
-async function checkTelegramUserStatus(username) {
-    // ОПТИМИЗАЦИЯ: Используем Киевское время (UTC+3) для правильного отображения статуса
-    const now = new Date();
-    
-    // Получаем время в Киевском часовом поясе (UTC+3)
-    const kievTime = new Date(now.getTime() + (3 * 60 * 60 * 1000)); // UTC+3 для Киева
-    const currentHour = kievTime.getUTCHours();
-    const currentMinute = kievTime.getUTCMinutes();
-    
-    // Рабочие часы 9:00-19:00 по Киевскому времени
-    const isWorkingHours = currentHour >= 9 && currentHour <= 19;
-    
-    console.log(`Статус поддержки по Киевскому времени:`, {
-        localTime: `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`,
-        kievTime: `${currentHour}:${currentMinute.toString().padStart(2, '0')}`,
-        isWorkingHours,
-        isOnline: isWorkingHours
-    });
-    
-    return { 
-        isOnline: isWorkingHours, 
-        username: username,
-        debug: {
-            localTime: `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`,
-            kievTime: `${currentHour}:${currentMinute.toString().padStart(2, '0')}`,
-            isWorkingHours
-        }
-    };
-}
-
-// Функция открытия чата в Telegram
-function openTelegramChat(username) {
-    try {
-        // Открываем чат с пользователем в Telegram
-        const telegramUrl = `https://t.me/${username}`;
-        
-        // Если мы в Telegram Web App, используем встроенные методы
-        if (window.Telegram && window.Telegram.WebApp) {
-            // Открываем внешнюю ссылку
-            tg.openTelegramLink(telegramUrl);
-        } else {
-            // Для обычного браузера открываем в новой вкладке
-            window.open(telegramUrl, '_blank');
-        }
-        
-        console.log(`Открыт чат с @${username}`);
-    } catch (error) {
-        console.error('Ошибка открытия чата в Telegram:', error);
-        // Fallback - открываем в новой вкладке
-        window.open(`https://t.me/${username}`, '_blank');
-    }
-}
-
-
-
-// Функция обновления статуса кнопки поддержки
-async function updateSupportButtonStatus() {
-    const supportButton = document.querySelector('.online-status');
-    if (!supportButton) {
-        console.log('Кнопка поддержки не найдена');
-        return;
-    }
-    
-    const statusDot = supportButton.querySelector('.status-dot');
-    const statusText = supportButton.querySelector('span');
-    
-    if (!statusDot || !statusText) {
-        console.log('Элементы статуса не найдены');
-        return;
-    }
-    
-    try {
-        // Определяем статус по времени (9:00 - 19:00 = онлайн, 19:00 - 9:00 = оффлайн)
-        const now = new Date();
-        const hour = now.getHours();
-        const isOnline = hour >= 9 && hour < 19;
-        
-        const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
-        
-        if (isOnline) {
-            // Если время рабочее (9:00-19:00), показываем зеленый статус
-            statusDot.style.background = '#4CAF50'; // Зеленый цвет для онлайн
-            statusText.textContent = window.translations ? window.translations.getTranslation('onlineStatus', currentLanguage) : 'Напишите нам, мы онлайн!';
-            supportButton.classList.add('online');
-            supportButton.classList.remove('offline');
-            console.log('updateSupportButtonStatus: Время рабочее, статус: ОНЛАЙН');
-        } else {
-            // Если время нерабочее (19:00-9:00), показываем синий статус
-            statusDot.style.background = '#2196F3'; // Синий цвет для оффлайн
-            statusText.textContent = window.translations ? window.translations.getTranslation('onlineStatusOffline', currentLanguage) : 'Напишите нам, мы позже ответим';
-            supportButton.classList.add('offline');
-            supportButton.classList.remove('online');
-            console.log('updateSupportButtonStatus: Время нерабочее, статус: ОФФЛАЙН');
-        }
-    } catch (error) {
-        console.error('Ошибка обновления статуса поддержки:', error);
-        // По умолчанию показываем оффлайн статус
-        statusDot.style.background = '#2196F3';
-        statusText.textContent = 'Напишите нам, мы позже ответим';
-        supportButton.classList.add('offline');
-        supportButton.classList.remove('online');
-    }
-}
-
-// Функция обновления данных товаров (статусы, рейтинги) без перезагрузки списка
-async function refreshProductData() {
-    try {
-        console.log('Начинаем обновление данных товаров...');
-        
-        // Получаем текущие загруженные товары
-        const currentProducts = Array.from(loadedProductNames);
-        if (currentProducts.length === 0) {
-            console.log('Нет товаров для обновления');
+        // Если открыты контакты или оферта, НЕ закрываем меню по клику вне
+        if (isContactsOpen || isOfferOpen) {
+            console.log('setupEventHandlers: Контакты или оферта открыты, меню остается открытым');
             return;
         }
         
-        // Загружаем свежие данные с API для обновления
-        const response = await fetch('http://localhost:8000/api/products');
+        // Дополнительная проверка: если оферта только что закрылась, не закрываем меню
+        if (offerPopup && offerPopup.style.display === 'none' && offerPopup.classList.contains('show') === false) {
+            console.log('setupEventHandlers: Оферта только что закрылась, меню остается открытым');
+            return;
+        }
+        
+        // Закрытие меню аватара
+        const avatarMenu = document.querySelector('.avatar-dropdown');
+        const profilePic = document.querySelector('.profile-pic');
+        
+        if (avatarMenu && (avatarMenu.classList.contains('show') || avatarMenu.style.display === 'block')) {
+            if (!profilePic.contains(event.target) && !avatarMenu.contains(event.target)) {
+                closeAvatarMenu();
+                console.log('toggleAvatarMenu: Меню аватара закрыто (клик вне)');
+            }
+        }
+        
+        // Закрытие меню (только если не открыты контакты/оферта)
+        const menuPopup = document.getElementById('menuPopup');
+        const menuBtn = document.querySelector('.menu-btn');
+        
+        if (menuPopup && menuPopup.style.display === 'flex') {
+            if (!menuBtn.contains(event.target) && !menuPopup.contains(event.target)) {
+                menuPopup.style.display = 'none';
+                console.log('showMenuPopup: Меню закрыто (клик вне)');
+            }
+        }
+        
+        // Закрытие настроек
+        const settingsPopup = document.getElementById('settingsPopup');
+        const settingsBtn = document.querySelector('.settings-btn');
+        
+        if (settingsPopup && settingsPopup.style.display === 'flex') {
+            if (!settingsBtn.contains(event.target) && !settingsPopup.contains(event.target)) {
+                settingsPopup.style.display = 'none';
+                console.log('showSettingsPopup: Настройки закрыты (клик вне)');
+            }
+        }
+        
+        // Закрытие корзины
+        const cartPopup = document.getElementById('cartPopup');
+        const cartBtn = document.querySelector('.cart-btn');
+        
+        if (cartPopup && cartPopup.style.display === 'flex') {
+            if (cartBtn && !cartBtn.contains(event.target) && !cartPopup.contains(event.target)) {
+                closeCartPopup();
+                console.log('showCartPopup: Корзина закрыта (клик вне)');
+            }
+        }
+    });
+
+    // Клик по заголовку баннера → поведение как "Струны для электрогитары"
+    const bannerTitleEl = document.querySelector('.banner-title');
+    if (bannerTitleEl) {
+        bannerTitleEl.addEventListener('click', function() {
+            console.log('setupEventHandlers: Клик по заголовку баннера → electricGuitarStrings');
+            clearCategoryFilter();
+        });
+        bannerTitleEl.setAttribute('title', 'Струны для электрогитары');
+    } else {
+        console.warn('setupEventHandlers: Заголовок баннера .banner-title не найден');
+    }
+    
+    // Обработчик кликов по кнопкам добавления в корзину
+    document.addEventListener('click', function(event) {
+        if (event.target.classList.contains('add-to-cart-btn')) {
+            const index = parseInt(event.target.getAttribute('data-index'));
+            console.log('Клик по кнопке добавления в корзину, индекс:', index);
+            
+            // Получаем данные товара из глобального массива
+            if (window.currentProducts && window.currentProducts[index]) {
+                const product = window.currentProducts[index];
+                addToCart(product);
+                
+                // Показываем уведомление
+                showAddToCartNotification(product.name);
+            }
+        }
+        
+        // Обработчик кнопки избранного
+        if (event.target.closest('.favorite-btn')) {
+            const btn = event.target.closest('.favorite-btn');
+            const index = parseInt(btn.getAttribute('data-index'));
+            console.log('Клик по кнопке избранного, индекс:', index);
+            
+            // Переключаем состояние
+            btn.classList.toggle('active');
+            const icon = btn.querySelector('i');
+            if (btn.classList.contains('active')) {
+                icon.className = 'fas fa-heart';
+                icon.style.color = '#ff6b6b';
+            } else {
+                icon.className = 'far fa-heart';
+                icon.style.color = '';
+            }
+        }
+        
+                                   // Обработчик кнопки сравнения
+        if (event.target.closest('.compare-btn')) {
+            const btn = event.target.closest('.compare-btn');
+            const index = parseInt(btn.getAttribute('data-index'));
+            console.log('Клик по кнопке сравнения, индекс:', index);
+            
+            // Находим соответствующую карточку товара
+            const productCard = btn.closest('.product-card');
+            const checkbox = productCard.querySelector('.compare-checkbox');
+            
+            // Переключаем состояние кнопки весов
+            btn.classList.toggle('active');
+            const icon = btn.querySelector('i');
+            if (btn.classList.contains('active')) {
+                // Активное состояние - желтые весы
+                icon.className = 'fas fa-balance-scale';
+                icon.style.color = '#FFD700';
+                // Активируем галочку
+                checkbox.checked = true;
+            } else {
+                // Неактивное состояние - серые весы
+                icon.className = 'fas fa-balance-scale';
+                icon.style.color = '#666';
+                // Деактивируем галочку
+                checkbox.checked = false;
+            }
+            
+            // Обрабатываем логику сравнения
+            if (window.currentProducts && window.currentProducts[index]) {
+                const product = window.currentProducts[index];
+                if (checkbox.checked) {
+                    console.log('Товар добавлен в список сравнения:', product.name);
+                    // Здесь можно добавить логику для сохранения в localStorage
+                } else {
+                    console.log('Товар удален из списка сравнения:', product.name);
+                    // Здесь можно добавить логику для удаления из localStorage
+                }
+            }
+        }
+        
+        // Обработчик чекбокса сравнения
+        if (event.target.classList.contains('compare-checkbox')) {
+            const checkbox = event.target;
+            const index = parseInt(checkbox.getAttribute('data-index'));
+            console.log('Клик по чекбоксу сравнения, индекс:', index);
+            
+            // Находим соответствующую кнопку весов
+            const productCard = checkbox.closest('.product-card');
+            const compareBtn = productCard.querySelector('.compare-btn');
+            const icon = compareBtn.querySelector('i');
+            
+            // Синхронизируем состояние кнопки весов с галочкой
+            if (checkbox.checked) {
+                // Активируем кнопку весов
+                compareBtn.classList.add('active');
+                icon.className = 'fas fa-balance-scale';
+                icon.style.color = '#FFD700';
+            } else {
+                // Деактивируем кнопку весов
+                compareBtn.classList.remove('active');
+                icon.className = 'fas fa-balance-scale';
+                icon.style.color = '#666';
+            }
+            
+            // Обрабатываем логику сравнения
+            if (window.currentProducts && window.currentProducts[index]) {
+                const product = window.currentProducts[index];
+                if (checkbox.checked) {
+                    console.log('Товар добавлен в список сравнения:', product.name);
+                    // Здесь можно добавить логику для сохранения в localStorage
+                } else {
+                    console.log('Товар удален из списка сравнения:', product.name);
+                    // Здесь можно добавить логику для удаления из localStorage
+                }
+            }
+        }
+    });
+    
+    // Обработчик поиска
+    const searchInput = document.querySelector('.search-input');
+    if (searchInput) {
+        console.log('setupEventHandlers: Найден поисковый input, настраиваем обработчик');
+        
+        // Удаляем предыдущий обработчик, если он есть
+        if (searchInput._inputHandler) {
+            searchInput.removeEventListener('input', searchInput._inputHandler);
+        }
+        
+        // Создаем новый обработчик
+        searchInput._inputHandler = function(e) {
+            const query = e.target.value;
+            console.log('setupEventHandlers: Поисковый запрос:', query);
+            
+            // Очищаем предыдущий таймаут
+            if (searchTimeout) {
+                clearTimeout(searchTimeout);
+            }
+            
+            // Если поиск пустой, загружаем все товары
+            if (!query.trim()) {
+                searchTerm = '';
+                isSearchActive = false;
+                // Сбрасываем состояние бесконечной прокрутки
+                currentPage = 0;
+                hasMoreProducts = true;
+                loadedProductNames.clear();
+                loadProducts(0, false);
+                return;
+            }
+            
+            // Устанавливаем задержку для поиска (debouncing)
+            searchTimeout = setTimeout(function() {
+                searchProducts(query);
+            }, 300);
+        };
+        
+        // Добавляем обработчик
+        searchInput.addEventListener('input', searchInput._inputHandler);
+    }
+    
+         // Обработчик прокрутки для бесконечной загрузки
+     window.addEventListener('scroll', function() {
+        // Если открыт кабинет — не подгружаем товары
+        const account = document.getElementById('account-section');
+        if (account && account.style.display === 'block') {
+            console.log('setupEventHandlers: Прокрутка — кабинет открыт, подгрузка отключена');
+            return;
+        }
+         if (isLoading || !hasMoreProducts || isSearchActive || isCategoryFilterActive) {
+             console.log('setupEventHandlers: Прокрутка заблокирована - isLoading:', isLoading, 'hasMoreProducts:', hasMoreProducts, 'isSearchActive:', isSearchActive, 'isCategoryFilterActive:', isCategoryFilterActive);
+             return;
+         }
+         
+         const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+         const windowHeight = window.innerHeight;
+         const documentHeight = document.documentElement.scrollHeight;
+         
+         // Загружаем следующую страницу когда пользователь приближается к концу страницы
+         if (scrollTop + windowHeight >= documentHeight - 100) {
+             console.log('setupEventHandlers: Достигнут конец страницы, загружаем следующую страницу');
+             loadNextPage();
+         }
+    }, { passive: true });
+     
+                  // Обработчик изменения способа доставки
+       const deliveryMethodSelect = document.getElementById('deliveryMethodSelect');
+       if (deliveryMethodSelect) {
+           deliveryMethodSelect.addEventListener('change', function() {
+               console.log('setupEventHandlers: Изменен способ доставки на:', this.value);
+
+               // Если выбран способ доставки кроме самовывоза и оплата "при встрече",
+               // автоматически меняем на WayForPay
+               const paymentMethodSelect = document.getElementById('paymentMethodSelect');
+               if (paymentMethodSelect && paymentMethodSelect.value === 'meeting' && this.value !== 'pickup') {
+                   paymentMethodSelect.value = 'wayforpay';
+                   console.log('setupEventHandlers: Автоматически изменен способ оплаты на WayForPay');
+               }
+
+               // Обновляем UI для выбранного способа доставки
+               updatePickupUi(this.value);
+
+               updateDeliveryCost();
+               updateCartCalculations(); // Дополнительно обновляем расчеты корзины
+           });
+       }
+      
+             // Обработчик изменения способа оплаты
+       const paymentMethodSelect = document.getElementById('paymentMethodSelect');
+       if (paymentMethodSelect) {
+           paymentMethodSelect.addEventListener('change', function() {
+               console.log('setupEventHandlers: Изменен способ оплаты на:', this.value);
+               updateDeliveryMethods();
+               updateCartCalculations(); // Обновляем расчеты при изменении способа оплаты
+               updatePaymentButtonText(); // Обновляем текст кнопки оплаты
+           });
+       }
+     
+           // Обработчик поля телефона
+      const phoneInput = document.getElementById('cartCustomerPhone');
+      if (phoneInput) {
+          phoneInput.addEventListener('focus', function() {
+              // Устанавливаем курсор после "+380"
+              if (this.value === '+380') {
+                  this.setSelectionRange(4, 4);
+              }
+          });
+          
+          phoneInput.addEventListener('input', function() {
+              // Убеждаемся, что номер начинается с "+380"
+              if (!this.value.startsWith('+380')) {
+                  this.value = '+380' + this.value.replace(/^\+380/, '');
+              }
+          });
+          
+          phoneInput.addEventListener('keydown', function(e) {
+              // Предотвращаем удаление "+380" при нажатии Backspace в начале
+              if (e.key === 'Backspace' && this.selectionStart <= 4) {
+                  e.preventDefault();
+              }
+          });
+      }
+      
+             // Обработчик поля купона
+       const couponInput = document.getElementById('cartCouponInput');
+       if (couponInput) {
+           couponInput.addEventListener('input', function() {
+               console.log('setupEventHandlers: Изменен купон:', this.value);
+               updateCartCalculations();
+           });
+           
+           // Также обновляем при потере фокуса
+           couponInput.addEventListener('blur', function() {
+               console.log('setupEventHandlers: Купон потерял фокус:', this.value);
+               updateCartCalculations();
+           });
+       }
+       
+       // Обработчик поля бонусов
+       const bonusesInput = document.getElementById('cartBonusesInput');
+       if (bonusesInput) {
+           bonusesInput.addEventListener('input', function() {
+               console.log('setupEventHandlers: Изменены бонусы:', this.value);
+               updateCartCalculations();
+           });
+           
+           // Также обновляем при потере фокуса
+           bonusesInput.addEventListener('blur', function() {
+               console.log('setupEventHandlers: Бонусы потеряли фокус:', this.value);
+               updateCartCalculations();
+           });
+       }
+       
+       // Обработчик кнопки корзины
+       const cartBtn = document.querySelector('.cart-btn');
+       if (cartBtn) {
+           cartBtn.addEventListener('click', function() {
+               console.log('setupEventHandlers: Клик по кнопке корзины');
+               showCartPopup();
+           });
+       }
+       
+                       // Обработчик кликов по кнопкам нижней панели меню
+         const navItems = document.querySelectorAll('.nav-item');
+         console.log('setupEventHandlers: Найдены nav-items:', navItems.length);
+         
+         // Обработчик кликов по категориям
+         const categoryItems = document.querySelectorAll('.brand-logo');
+         console.log('setupEventHandlers: Найдены brand-logo:', categoryItems.length);
+         
+         if (categoryItems.length > 0) {
+             categoryItems.forEach(categoryItem => {
+                 // Удаляем предыдущий обработчик, если он есть
+                 if (categoryItem._clickHandler) {
+                     categoryItem.removeEventListener('click', categoryItem._clickHandler);
+                 }
+                 
+                 // Создаем новый обработчик
+                 categoryItem._clickHandler = function() {
+                     const category = this.getAttribute('data-category');
+                     console.log('setupEventHandlers: Клик по категории:', category);
+                     filterProductsByCategory(category);
+                     // Подсветка активного пункта
+                     try {
+                         document.querySelectorAll('.brand-logo').forEach(el => el.classList.remove('active'));
+                         this.classList.add('active');
+                     } catch (e) {}
+                 };
+                 
+                 // Добавляем обработчик
+                 categoryItem.addEventListener('click', categoryItem._clickHandler);
+             });
+             console.log('setupEventHandlers: Обработчики для категорий настроены');
+         } else {
+             console.warn('setupEventHandlers: Элементы .brand-logo не найдены');
+         }
+        
+        if (navItems.length > 0) {
+            // Устанавливаем активную кнопку в соответствии с сохранённым видом
+            try {
+                const savedView = localStorage.getItem('currentView') || 'products';
+                navItems.forEach(item => item.classList.remove('active'));
+                navItems.forEach(item => {
+                    const txt = item.querySelector('span')?.textContent || '';
+                    if (savedView === 'account' && (txt.includes('Кабинет') || txt.includes('Cabinet') || txt.includes('Кабінет'))) {
+                        item.classList.add('active');
+                    } else if (savedView !== 'account' && (txt.includes('Товары') || txt.includes('Products'))) {
+                        item.classList.add('active');
+                    }
+                });
+            } catch (e) {}
+            
+            navItems.forEach((navItem, index) => {
+                // Удаляем предыдущий обработчик, если он есть
+                if (navItem._clickHandler) {
+                    navItem.removeEventListener('click', navItem._clickHandler);
+                }
+                
+                                 // Создаем новый обработчик
+                 navItem._clickHandler = (e) => {
+                     console.log(`setupEventHandlers: Клик по nav-item ${index + 1}`);
+                     
+                     // Предотвращаем всплытие события
+                     e.stopPropagation();
+                     e.preventDefault();
+                     e.stopImmediatePropagation();
+                     
+                     // Убираем активный класс со всех кнопок
+                     navItems.forEach(item => {
+                         item.classList.remove('active');
+                     });
+                     
+                     // Добавляем активный класс к нажатой кнопке
+                     navItem.classList.add('active');
+                     console.log(`setupEventHandlers: Добавлен активный класс к кнопке ${navItem.querySelector('span')?.textContent}`);
+                     
+                     // Выполняем соответствующее действие
+                     const navText = navItem.querySelector('span').textContent;
+                     console.log(`setupEventHandlers: Выполняем действие для: ${navText}`);
+                     
+                     // Выполняем действие в зависимости от кнопки
+                     if (navText.includes('Товары') || navText.includes('Products')) {
+                         // Показываем все товары (категория Струны для электрогитары)
+                         console.log('setupEventHandlers: Открываем категорию Товары (Струны для электрогитары)');
+                         clearCategoryFilter();
+                         if (typeof showProductsView === 'function') showProductsView();
+                         try { localStorage.setItem('currentView', 'products'); } catch (e) {}
+                     } else if (navText.includes('Кабинет') || navText.includes('Cabinet') || navText.includes('Кабінет')) {
+                         // Если не авторизован — показываем дропдаун логина вместо перехода в кабинет
+                         const authed = window.__authState && window.__authState.isAuthenticated === true;
+                         if (!authed) {
+                             try {
+                                 navItem.classList.remove('active');
+                                 toggleAvatarMenu();
+                                 return false;
+                             } catch (e) {}
+                         }
+                         if (typeof showAccountView === 'function') showAccountView();
+                         try { localStorage.setItem('currentView', 'account'); } catch (e) {}
+                     } else if (navText.includes('Корзина') || navText.includes('Cart')) {
+                         goToCart();
+                     } else if (navText.includes('Контакты') || navText.includes('Contacts')) {
+                         showContactsPopup();
+                     } else if (navText.includes('Оферта') || navText.includes('Offer')) {
+                         showOfferPopup();
+                     } else if (navText.includes('Заказы') || navText.includes('Orders') || navText.includes('Замовлення')) {
+                         // Если не авторизован — показываем дропдаун логина вместо перехода к заказам
+                         const authed = window.__authState && window.__authState.isAuthenticated === true;
+                         if (!authed) {
+                             try {
+                                 navItem.classList.remove('active');
+                                 toggleAvatarMenu();
+                                 return false;
+                             } catch (e) {}
+                         }
+                         if (typeof showAccountView === 'function') showAccountView();
+                         try { localStorage.setItem('currentView', 'account'); } catch (e) {}
+                     }
+                     
+                     // Возвращаем false для предотвращения дальнейшего распространения события
+                     return false;
+                 };
+                
+                // Добавляем обработчик
+                navItem.addEventListener('click', navItem._clickHandler);
+                console.log(`setupEventHandlers: Обработчик для nav-item ${index + 1} настроен`);
+            });
+        }
+        
+        // Обработчик кликов по элементам меню
+        const menuItems = document.querySelectorAll('.menu-item');
+        console.log('setupEventHandlers: Найдены menu-items:', menuItems.length);
+        
+        if (menuItems.length > 0) {
+            menuItems.forEach(menuItem => {
+                menuItem.addEventListener('click', function() {
+                    const category = this.getAttribute('data-category');
+                    console.log('setupEventHandlers: Клик по элементу меню:', category);
+                    
+                    // Закрываем меню
+                    const menuPopup = document.getElementById('menuPopup');
+                    if (menuPopup) {
+                        menuPopup.style.display = 'none';
+                    }
+                    
+                    // Обрабатываем категорию
+                    if (category === 'electricGuitarStrings') {
+                        // Для "Струны для электрогитары" просто показываем все товары
+                        console.log('setupEventHandlers: Открываем категорию Струны для электрогитары');
+                        clearCategoryFilter();
+                    } else if (category) {
+                        // Для других категорий используем фильтрацию
+                        filterProductsByCategory(category);
+                    }
+                });
+            });
+            console.log('setupEventHandlers: Обработчики для меню настроены');
+        } else {
+            console.warn('setupEventHandlers: Элементы .menu-item не найдены');
+        }
+}
+// Делаем функции доступными глобально
+window.showContactsPopup = showContactsPopup;
+window.closeContactsPopup = closeContactsPopup;
+window.showOfferPopup = showOfferPopup;
+window.closeOfferPopup = closeOfferPopup;
+window.showDiscontinuedPopup = showDiscontinuedPopup;
+window.showOutOfStockPopup = showOutOfStockPopup;
+window.showExpectedPopup = showExpectedPopup;
+window.showOnOrderPopup = showOnOrderPopup;
+// Функция фильтрации товаров по категории
+function filterProductsByCategory(category, force = false) {
+    console.log(`filterProductsByCategory: Фильтруем товары по категории: ${category}`);
+    
+    // Предотвращаем дублирование поиска
+    if (!force && lastCategorySearch === category) {
+        console.log(`filterProductsByCategory: Пропускаем дублирующий поиск для: ${category}`);
+        return;
+    }
+    
+    // Сохраняем активную категорию для восстановления после F5
+    try { localStorage.setItem('currentCategory', category); } catch (e) {}
+    try { localStorage.setItem('currentView', 'products'); } catch (e) {}
+    
+    // Очищаем предыдущий таймаут
+    if (categorySearchTimeout) {
+        clearTimeout(categorySearchTimeout);
+    }
+    
+    // Устанавливаем флаг активной фильтрации
+    isCategoryFilterActive = true;
+    console.log(`filterProductsByCategory: Установлен флаг isCategoryFilterActive = true`);
+
+    // Сохраняем текущую категорию
+    currentCategory = category;
+    try { localStorage.setItem('currentCategory', currentCategory); } catch (e) {}
+    
+    // Очищаем поисковое поле
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.value = '';
+    }
+    
+    // Сбрасываем пагинацию
+    currentPage = 0;
+    hasMoreProducts = true;
+    
+    // Очищаем контейнер товаров
+    const productsContainer = document.getElementById('productsContainer');
+    if (productsContainer) {
+        productsContainer.innerHTML = '';
+    }
+    
+    // Показываем индикатор загрузки (компактный, не перекрывает контент)
+    showLoadingIndicator();
+    
+    // Debounce для поиска категорий - задержка 300ms (или 0 при force)
+    categorySearchTimeout = setTimeout(() => {
+        console.log(`filterProductsByCategory: Выполняем отложенный поиск для: ${category}`);
+        
+        if (category === '09-gauge') {
+            console.log('filterProductsByCategory: 09-gauge - специальный список, используем поисковую функцию');
+            searchGauge09ElectricProducts();
+        } else if (category === '7-string') {
+            console.log(`filterProductsByCategory: 7-string - характеристика, используем фильтрацию`);
+            search7StringProducts();
+        } else if (category === '8-string') {
+            console.log(`filterProductsByCategory: 8-string - характеристика, используем фильтрацию`);
+            search8StringProducts();
+        } else if (category === '9-string') {
+            console.log(`filterProductsByCategory: 9-string - характеристика, используем фильтрацию`);
+            search9StringProducts();
+        } else if (category === '10-gauge') {
+            console.log('filterProductsByCategory: 10-gauge - специальный список, используем поисковую функцию');
+            searchGauge10ElectricProducts();
+        } else if (category === '11-gauge') {
+            console.log('filterProductsByCategory: 11-gauge - специальный список, используем поисковую функцию');
+            searchGauge11ElectricProducts();
+        } else if (category === 'nickel-plated') {
+            console.log('filterProductsByCategory: nickel-plated - характеристика, используем фильтрацию');
+            searchNickelPlatedElectricProducts();
+        } else if (category === 'pure-nickel') {
+            console.log('filterProductsByCategory: pure-nickel - характеристика, используем фильтрацию');
+            searchPureNickelElectricProducts();
+        } else if (category === 'stainless-steel') {
+            console.log('filterProductsByCategory: stainless-steel - характеристика, используем фильтрацию');
+            searchStainlessSteelProducts();
+        } else if (category === 'cobalt') {
+            console.log('filterProductsByCategory: cobalt - характеристика, используем фильтрацию');
+            searchCobaltProducts();
+        } else if (category === 'colored') {
+            console.log('filterProductsByCategory: colored - характеристика, используем фильтрацию');
+            searchColoredElectricProducts();
+        } else if (category === 'flatwound') {
+            console.log(`filterProductsByCategory: flatwound - характеристика, используем фильтрацию`);
+            searchFlatwoundElectricProducts();
+        } else if (category === 'dr') {
+            console.log(`filterProductsByCategory: DR - используем поиск по DR`);
+            searchDRProducts();
+        } else if (category === 'la-bella') {
+            console.log(`filterProductsByCategory: La Bella - используем поиск по La Bella`);
+            searchLaBellaProducts();
+        } else {
+            console.log(`filterProductsByCategory: ${category} - производитель, используем поиск`);
+            
+            // Определяем поисковый запрос для производителя
+            let searchQuery = '';
+            switch (category) {
+                case 'daddario':
+                    searchQuery = 'addario';
+                    break;
+                case 'dean-markley':
+                    searchQuery = 'Dean Markley';
+                    break;
+                case 'ernie-ball':
+                    searchQuery = 'Ernie Ball';
+                    break;
+                case 'ghs':
+                    searchQuery = 'GHS';
+                    break;
+                case 'dunlop':
+                    searchQuery = 'Dunlop';
+                    break;
+                case 'elixir':
+                    searchQuery = 'Elixir';
+                    break;
+                case 'fender':
+                    searchQuery = 'Fender';
+                    break;
+                case 'gibson':
+                    searchQuery = 'Gibson';
+                    break;
+                case 'cleartone':
+                    searchQuery = 'Cleartone';
+                    break;
+                case 'curt-mangan':
+                    searchQuery = 'Curt Mangan';
+                    break;
+                case 'pyramid':
+                    searchQuery = 'Pyramid';
+                    break;
+                case 'rotosound':
+                    searchQuery = 'Rotosound';
+                    break;
+                case 'optima':
+                    searchQuery = 'Optima';
+                    break;
+                case 'orphee':
+                    searchQuery = 'Orphee';
+                    break;
+                case 'musicians-gear':
+                    searchQuery = 'Musicians Gear';
+                    break;
+                default:
+                    searchQuery = category;
+            }
+            
+            console.log(`filterProductsByCategory: Выполняем поиск по запросу: "${searchQuery}"`);
+            searchProducts(searchQuery);
+        }
+        
+        // Запоминаем последний поиск
+        lastCategorySearch = category;
+        
+    }, force ? 0 : 300); // Без задержки при форсированном применении
+}
+
+// Функция очистки фильтра категорий
+function clearCategoryFilter() {
+    console.log('clearCategoryFilter: Очищаем фильтр категорий');
+    
+    // Убираем активный класс со всех категорий
+    const allCategoryItems = document.querySelectorAll('.brand-logo');
+    allCategoryItems.forEach(item => item.classList.remove('active'));
+    
+    // Очищаем поиск
+    const searchInput = document.querySelector('.search-input');
+    if (searchInput) {
+        searchInput.value = '';
+    }
+    
+    // Сбрасываем состояние поиска
+    searchTerm = '';
+    isSearchActive = false;
+    isCategoryFilterActive = false;
+    currentCategory = '';
+    lastCategorySearch = '';
+    try { localStorage.removeItem('currentCategory'); } catch (e) {}
+    
+    // Сбрасываем состояние бесконечной прокрутки
+    currentPage = 0;
+    hasMoreProducts = true;
+    loadedProductNames.clear();
+    
+    // Всегда загружаем все товары заново
+    console.log('clearCategoryFilter: Загружаем все товары заново');
+    loadProducts(0, false);
+}
+
+// Функция специального поиска для товаров DR
+async function searchDRProducts() {
+    console.log('searchDRProducts: Поиск товаров DR по пометкам в карточках');
+    
+    try {
+        // Сначала загружаем все товары в DOM для поиска по пометкам
+        const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
-        const freshData = await response.json();
-        console.log('Получены свежие данные для обновления:', freshData.products ? freshData.products.length : 'undefined', 'товаров');
+        const data = await response.json();
+        console.log(`searchDRProducts: Загружено ${data.products.length} товаров для поиска по пометкам`);
         
-        // Проверяем, что данные получены корректно
-        if (!freshData.products || !Array.isArray(freshData.products)) {
-            console.error('Некорректные данные от API:', freshData);
-            return;
-        }
-        
-        // Обновляем статусы и рейтинги для существующих товаров
-        let updatedCount = 0;
-        for (const productName of currentProducts) {
-            const freshProduct = freshData.products.find(p => p.name === productName);
-            if (freshProduct) {
-                // Находим DOM элемент товара
-                const productCard = document.querySelector(`[data-product-name="${productName}"]`);
-                if (productCard) {
-                    // Обновляем статус
-                    const statusElement = productCard.querySelector('.product-status');
-                    if (statusElement) {
-                        const newStatus = getStatusText(freshProduct.availability);
-                        statusElement.textContent = newStatus;
-                        
-                        // Определяем правильный CSS класс для статуса
-                        let statusClass = '';
-                        if (freshProduct.availability === 'Нет в наличии') {
-                            statusClass = 'out-of-stock';
-                        } else if (freshProduct.availability === 'Ожидается') {
-                            statusClass = 'expected';
-                        } else if (freshProduct.availability === 'Под заказ') {
-                            statusClass = 'on-order';
-                        } else if (freshProduct.availability === 'Снят с производства') {
-                            statusClass = 'discontinued';
-                        } else {
-                            statusClass = 'in-stock';
+        if (data && data.products && data.products.length > 0) {
+            // Отображаем все товары в DOM
+            displayProducts(data.products);
+            
+            // Теперь ищем по пометкам в карточках
+            const drCards = document.querySelectorAll('.product-manufacturer');
+            console.log(`searchDRProducts: Найдено ${drCards.length} карточек с пометкой производителя`);
+            
+            if (drCards.length > 0) {
+                // Фильтруем только карточки с пометкой DR
+                const drProductCards = [];
+                drCards.forEach(card => {
+                    if (card.textContent.includes('DR')) {
+                        const productCard = card.closest('.product-card');
+                        if (productCard) {
+                            drProductCards.push(productCard);
                         }
-                        statusElement.className = `product-status ${statusClass}`;
                     }
+                });
+                
+                console.log(`searchDRProducts: Найдено ${drProductCards.length} карточек DR`);
+                
+                if (drProductCards.length > 0) {
+                    // Скрываем все карточки, кроме DR
+                    const allProductCards = document.querySelectorAll('.product-card');
+                    allProductCards.forEach(card => {
+                        card.style.display = 'none';
+                    });
                     
-                    // Обновляем рейтинг
-                    const ratingElement = productCard.querySelector('.product-rating');
-                    if (ratingElement && freshProduct.rating) {
-                        ratingElement.innerHTML = generateRatingStars(freshProduct.rating);
-                    }
+                    // Показываем только карточки DR
+                    drProductCards.forEach(card => {
+                        card.style.display = 'block';
+                    });
                     
-                    // Обновляем кнопку в зависимости от статуса
-                    const buttonElement = productCard.querySelector('.btn');
-                    if (buttonElement) {
-                        const newStatus = getStatusText(freshProduct.availability);
-                        let buttonText = getButtonText(freshProduct.availability, localStorage.getItem('selectedLanguage') || 'uk');
-                        let buttonClass = 'btn in-stock';
-                        
-                        if (freshProduct.availability === 'Снят с производства') {
-                            buttonText = 'Снят с производства';
-                            buttonClass = 'btn discontinued';
-                        } else if (freshProduct.availability === 'Нет в наличии') {
-                            buttonText = 'Нет в наличии';
-                            buttonClass = 'btn out-of-stock';
-                        } else if (freshProduct.availability === 'Ожидается') {
-                            buttonText = 'Ожидается';
-                            buttonClass = 'btn expected';
-                        } else if (freshProduct.availability === 'Под заказ') {
-                            buttonText = 'Под заказ';
-                            buttonClass = 'btn on-order';
-                        }
-                        
-                        buttonElement.textContent = buttonText;
-                        buttonElement.className = buttonClass;
-                    }
-                    
-                    updatedCount++;
+                    isCategoryFilterActive = true;
+                    console.log('searchDRProducts: Отображены только товары DR по пометкам');
+                } else {
+                    console.log('searchDRProducts: Карточки DR не найдены');
+                    showNoSearchResults('DR');
                 }
+            } else {
+                console.log('searchDRProducts: Карточки с пометкой производителя не найдены');
+                showNoSearchResults('DR');
             }
+        } else {
+            console.log('searchDRProducts: Нет товаров для поиска');
+            showNoSearchResults('DR');
         }
-        
-        console.log(`Обновлено ${updatedCount} товаров`);
-        
-        // Не вызываем saveState() здесь, чтобы избежать конфликтов с восстановлением
-        // saveState() будет вызван автоматически через startAutoSave()
         
     } catch (error) {
-        console.error('Ошибка при обновлении данных товаров:', error);
+        console.error('searchDRProducts: Ошибка специального поиска DR:', error);
+        showNoSearchResults('DR');
     }
 }
 
-// Функция автоматического сохранения
-
-// Функция loadAllProducts удалена по запросу пользователя
-
-// Функция обработки прокрутки для бесконечной загрузки
-
-// Функция для закрытия всплывающих окон
-function closePopup(popupId) {
-    console.log(`closePopup: Закрываем popup с ID: ${popupId}`);
-    const popup = document.getElementById(popupId);
-    if (popup) {
-        popup.classList.remove('show');
-        console.log(`closePopup: Popup ${popupId} закрыт`);
-    } else {
-        console.error(`closePopup: Popup с ID ${popupId} не найден`);
-    }
-}
-
-// Функция для открытия всплывающих окон
-function openPopup(popupId) {
-    console.log(`openPopup: Открываем popup с ID: ${popupId}`);
+// Функция специального поиска для товаров La Bella
+async function searchLaBellaProducts() {
+    console.log('searchLaBellaProducts: Поиск товаров La Bella по пометкам в карточках');
     
-    // Закрываем только настройки, но НЕ закрываем меню
-    const popupsToClose = ['settingsPopup'];
-    popupsToClose.forEach(id => {
-        if (id !== popupId) {
-            const popup = document.getElementById(id);
-            if (popup && popup.classList.contains('show')) {
-                popup.classList.remove('show');
-                console.log(`openPopup: Закрыт popup ${id} перед открытием ${popupId}`);
-            }
-        }
-    });
-    
-    // Теперь открываем нужный popup
-    const popup = document.getElementById(popupId);
-    if (popup) {
-        popup.classList.add('show');
-        console.log(`openPopup: Popup ${popupId} открыт`);
-    } else {
-        console.error(`openPopup: Popup с ID ${popupId} не найден`);
-    }
-}
-
-// Функция для обновления переводов кнопок товаров при смене языка
-function updateProductButtonTranslations(language) {
-    console.log(`updateProductButtonTranslations: Обновляем кнопки для языка ${language}`);
-    
-    // Проверяем инициализацию переменных
-    if (typeof window.loadedProductNames === 'undefined') {
-        console.warn('updateProductButtonTranslations: loadedProductNames не инициализирована, инициализируем...');
-        window.loadedProductNames = new Set();
-        loadedProductNames = window.loadedProductNames;
-    }
-    
-    const buttons = document.querySelectorAll('.product-card .btn');
-    console.log(`updateProductButtonTranslations: Найдено ${buttons.length} кнопок для обновления`);
-    
-    let updatedCount = 0;
-    buttons.forEach(button => {
-        const availability = button.getAttribute('data-product-availability');
-        const oldText = button.textContent;
-        let newText = '';
-        
-        // НОВАЯ ЛОГИКА: Используем индивидуальные кнопки для каждого языка
-        newText = getButtonText(availability, language);
-        
-        if (oldText !== newText) {
-            button.textContent = newText;
-            updatedCount++;
-            console.log(`updateProductButtonTranslations: Обновлена кнопка "${oldText}" → "${newText}" (${availability})`);
-        }
-    });
-    
-    console.log(`updateProductButtonTranslations: Обновлено ${updatedCount} кнопок из ${buttons.length}`);
-    
-    // УБИРАЕМ ВЫЗОВ applyTranslations для предотвращения рекурсии
-    // if (typeof window.translations !== 'undefined') {
-    //     window.translations.applyTranslations(language);
-    // }
-}
-
-// Функция для настройки переключателей языков
-function setupLanguageSwitchers() {
-    console.log('setupLanguageSwitchers: Настраиваем переключатели языков');
-    
-    const languageButtons = document.querySelectorAll('.language-btn');
-    console.log(`setupLanguageSwitchers: Найдено ${languageButtons.length} кнопок языков`);
-    
-    // Получаем текущий язык
-    const currentLanguage = localStorage.getItem('selectedLanguage') || 'uk';
-    console.log(`setupLanguageSwitchers: Текущий язык: ${currentLanguage}`);
-    
-    // Устанавливаем активный класс для текущего языка
-    languageButtons.forEach(button => {
-        const lang = button.getAttribute('data-lang');
-        if (lang === currentLanguage) {
-            button.classList.add('active');
-            console.log(`setupLanguageSwitchers: Установлен активный класс для языка ${lang}`);
-        } else {
-            button.classList.remove('active');
+    try {
+        // Сначала загружаем все товары в DOM для поиска по пометкам
+        const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
         
-        // ИСПРАВЛЕНИЕ БАГА: Принудительно обновляем переводы при инициализации
-        if (lang === currentLanguage && typeof window.translations !== 'undefined') {
-            window.translations.applyTranslations(currentLanguage);
-        }
+        const data = await response.json();
+        console.log(`searchLaBellaProducts: Загружено ${data.products.length} товаров для поиска по пометкам`);
         
-        // Добавляем обработчик клика
-        button.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const selectedLang = button.getAttribute('data-lang');
-            console.log(`setupLanguageSwitchers: Выбран язык: ${selectedLang}`);
+        if (data && data.products && data.products.length > 0) {
+            // Отображаем все товары в DOM
+            displayProducts(data.products);
             
-            // Убираем активный класс со всех кнопок
-            languageButtons.forEach(btn => btn.classList.remove('active'));
+            // Теперь ищем по пометкам в карточках
+            const laBellaCards = document.querySelectorAll('.product-manufacturer');
+            console.log(`searchLaBellaProducts: Найдено ${laBellaCards.length} карточек с пометкой производителя`);
             
-            // Добавляем активный класс к нажатой кнопке
-            button.classList.add('active');
-            
-            // Переключаем язык
-            if (typeof window.translations !== 'undefined') {
-                window.translations.setLanguage(selectedLang);
-                console.log(`setupLanguageSwitchers: Язык переключен на ${selectedLang}`);
-                
-                // ИСПРАВЛЕНИЕ БАГА: При переключении языка сбрасываем состояние "конца списка"
-                const previousLanguage = localStorage.getItem('selectedLanguage');
-                if (previousLanguage && previousLanguage !== selectedLang) {
-                    console.log(`setupLanguageSwitchers: Переключение с ${previousLanguage} на ${selectedLang}, сбрасываем состояние конца списка`);
-                    
-                    // Если достигнут конец списка, сбрасываем состояние для нового языка
-                    if (!hasMoreProducts && loadedProductNames.size >= (maxProducts || 0)) {
-                        console.log('setupLanguageSwitchers: Достигнут конец списка, сбрасываем состояние для нового языка');
-                        hasMoreProducts = true;
-                        currentPage = 0;
-                        loadedProductNames.clear();
-                        maxProducts = 0;
-                        
-                        // Очищаем контейнер товаров
-                        const container = document.querySelector('.inner');
-                        if (container) {
-                            container.innerHTML = '';
+            if (laBellaCards.length > 0) {
+                // Фильтруем только карточки с пометкой La Bella
+                const laBellaProductCards = [];
+                laBellaCards.forEach(card => {
+                    if (card.textContent.includes('La Bella')) {
+                        const productCard = card.closest('.product-card');
+                        if (productCard) {
+                            laBellaProductCards.push(productCard);
                         }
-                        
-                        // Убираем сообщение "Все товары загружены"
-                        const endMessage = document.querySelector('.end-message');
-                        if (endMessage) {
-                            endMessage.style.display = 'none';
-                        }
-                        
-                        // Показываем индикатор загрузки
-                        showLoadingIndicator();
-                        
-                        // Сохраняем новое состояние (с защитой от частого сохранения)
-                        const now = Date.now();
-                        if (!window.lastSaveTime || (now - window.lastSaveTime) > 3000) { // Увеличиваем до 3 секунд
-                            window.lastSaveTime = now;
-                            console.log('setupLanguageSwitchers: Сохраняем состояние после сброса');
-                            saveState();
-                        } else {
-                            console.log('setupLanguageSwitchers: Пропускаем сохранение, слишком часто');
-                        }
-                        
-                        console.log('setupLanguageSwitchers: Состояние сброшено для нового языка');
                     }
-                }
+                });
                 
-                // Обновляем переводы кнопок товаров
-                if (typeof updateProductButtonTranslations === 'function') {
-                    updateProductButtonTranslations(selectedLang);
-                }
+                console.log(`searchLaBellaProducts: Найдено ${laBellaProductCards.length} карточек La Bella`);
                 
-                console.log('setupLanguageSwitchers: Переводы обновлены, состояние восстановлено');
+                if (laBellaProductCards.length > 0) {
+                    // Скрываем все карточки, кроме La Bella
+                    const allProductCards = document.querySelectorAll('.product-card');
+                    allProductCards.forEach(card => {
+                        card.style.display = 'none';
+                    });
+                    
+                    // Показываем только карточки La Bella
+                    laBellaProductCards.forEach(card => {
+                        card.style.display = 'block';
+                    });
+                    
+                    isCategoryFilterActive = true;
+                    console.log('searchLaBellaProducts: Отображены только товары La Bella по пометкам');
+                } else {
+                    console.log('searchLaBellaProducts: Карточки La Bella не найдены');
+                    showNoSearchResults('La Bella');
+                }
             } else {
-                console.log('setupLanguageSwitchers: Система переводов еще не готова, пропускаем...');
+                console.log('searchLaBellaProducts: Карточки с пометкой производителя не найдены');
+                showNoSearchResults('La Bella');
+            }
+        } else {
+            console.log('searchLaBellaProducts: Нет товаров для поиска');
+            showNoSearchResults('La Bella');
+        }
+        
+    } catch (error) {
+        console.error('searchLaBellaProducts: Ошибка специального поиска La Bella:', error);
+        showNoSearchResults('La Bella');
+    }
+}
+
+// Функция специального поиска для 7-струнных товаров
+async function search7StringProducts() {
+    console.log('search7StringProducts: Поиск 7-струнных товаров по пометкам в карточках');
+    
+    try {
+        // Сначала загружаем все товары в DOM для поиска по пометкам
+        const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log(`search7StringProducts: Загружено ${data.products.length} товаров для поиска по пометкам`);
+        
+        if (data && data.products && data.products.length > 0) {
+            // Отображаем все товары в DOM
+            displayProducts(data.products);
+            
+            // Теперь ищем по пометкам в карточках
+            const sevenStringCards = document.querySelectorAll('.product-seven-string');
+            console.log(`search7StringProducts: Найдено ${sevenStringCards.length} карточек с пометкой 7-струнных`);
+            
+            if (sevenStringCards.length > 0) {
+                // Скрываем все карточки, кроме 7-струнных
+                const allProductCards = document.querySelectorAll('.product-card');
+                allProductCards.forEach(card => {
+                    card.style.display = 'none';
+                });
+                
+                // Показываем только карточки с пометкой 7-струнных
+                sevenStringCards.forEach(sevenStringCard => {
+                    const productCard = sevenStringCard.closest('.product-card');
+                    if (productCard) {
+                        productCard.style.display = 'block';
+                    }
+                });
+                
+                isCategoryFilterActive = true;
+                console.log('search7StringProducts: Отображены только 7-струнные товары по пометкам');
+                
+                // Показываем примеры найденных товаров
+                const productNames = Array.from(sevenStringCards).slice(0, 5).map(card => {
+                    const productCard = card.closest('.product-card');
+                    const nameElement = productCard?.querySelector('.product-name');
+                    return nameElement?.textContent || 'Неизвестный товар';
+                });
+                console.log('search7StringProducts: Примеры найденных товаров:', productNames);
+            } else {
+                console.log('search7StringProducts: Карточки с пометкой 7-струнных не найдены');
+                showNoSearchResults('7-струнные');
+            }
+        } else {
+            console.log('search7StringProducts: Нет товаров для поиска');
+            showNoSearchResults('7-струнные');
+        }
+        
+    } catch (error) {
+        console.error('search7StringProducts: Ошибка поиска 7-струнных товаров:', error);
+        showNoSearchResults('7-струнные');
+    }
+}
+
+// Функция специального поиска для 8-струнных товаров
+async function search8StringProducts() {
+    console.log('search8StringProducts: Поиск 8-струнных товаров по пометкам в карточках');
+    
+    try {
+        // Сначала загружаем все товары в DOM для поиска по пометкам
+        const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log(`search8StringProducts: Загружено ${data.products.length} товаров для поиска по пометкам`);
+        
+        if (data && data.products && data.products.length > 0) {
+            // Отображаем все товары в DOM
+            displayProducts(data.products);
+            
+            // Теперь ищем по пометкам в карточках
+            const eightStringCards = document.querySelectorAll('.product-eight-string');
+            console.log(`search8StringProducts: Найдено ${eightStringCards.length} карточек с пометкой 8-струнных`);
+            
+            if (eightStringCards.length > 0) {
+                // Скрываем все карточки, кроме 8-струнных
+                const allProductCards = document.querySelectorAll('.product-card');
+                allProductCards.forEach(card => {
+                    card.style.display = 'none';
+                });
+                
+                // Показываем только карточки с пометкой 8-струнных
+                eightStringCards.forEach(eightStringCard => {
+                    const productCard = eightStringCard.closest('.product-card');
+                    if (productCard) {
+                        productCard.style.display = 'block';
+                    }
+                });
+                
+                isCategoryFilterActive = true;
+                console.log('search8StringProducts: Отображены только 8-струнные товары по пометкам');
+                
+                // Показываем примеры найденных товаров
+                const productNames = Array.from(eightStringCards).slice(0, 5).map(card => {
+                    const productCard = card.closest('.product-card');
+                    const nameElement = productCard?.querySelector('.product-name');
+                    return nameElement?.textContent || 'Неизвестный товар';
+                });
+                console.log('search8StringProducts: Примеры найденных товаров:', productNames);
+            } else {
+                console.log('search8StringProducts: Карточки с пометкой 8-струнных не найдены');
+                showNoSearchResults('8-струнные');
+            }
+        } else {
+            console.log('search8StringProducts: Нет товаров для поиска');
+            showNoSearchResults('8-струнные');
+        }
+        
+    } catch (error) {
+        console.error('search8StringProducts: Ошибка поиска 8-струнных товаров:', error);
+        showNoSearchResults('8-струнные');
+    }
+}
+
+// Функция специального поиска для струн с плоской обмоткой (электро)
+async function searchFlatwoundElectricProducts() {
+    console.log('searchFlatwoundElectricProducts: Поиск плоской обмотки по пометкам в карточках');
+    try {
+        const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        if (data && data.products && data.products.length > 0) {
+            displayProducts(data.products);
+            const badges = document.querySelectorAll('.product-flatwound');
+            if (badges.length > 0) {
+                const allProductCards = document.querySelectorAll('.product-card');
+                allProductCards.forEach(card => { card.style.display = 'none'; });
+                badges.forEach(b => {
+                    const productCard = b.closest('.product-card');
+                    if (productCard) productCard.style.display = 'block';
+                });
+                isCategoryFilterActive = true;
+                console.log('searchFlatwoundElectricProducts: Отображены только flatwound товары');
+            } else {
+                showNoSearchResults('flatwound electric');
+            }
+        } else {
+            showNoSearchResults('flatwound electric');
+        }
+    } catch (error) {
+        console.error('searchFlatwoundElectricProducts: Ошибка поиска:', error);
+        showNoSearchResults('flatwound electric');
+    }
+}
+// Функция специального поиска для 10 калибра (электрогитара)
+async function searchGauge10ElectricProducts() {
+    console.log('searchGauge10ElectricProducts: Поиск товаров с пометкой 10 калибр электро');
+    try {
+        const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        if (data && data.products && data.products.length > 0) {
+            displayProducts(data.products);
+            const badges = document.querySelectorAll('.product-gauge10');
+            if (badges.length > 0) {
+                const allProductCards = document.querySelectorAll('.product-card');
+                allProductCards.forEach(card => { card.style.display = 'none'; });
+                badges.forEach(b => {
+                    const productCard = b.closest('.product-card');
+                    if (productCard) productCard.style.display = 'block';
+                });
+                isCategoryFilterActive = true;
+                console.log('searchGauge10ElectricProducts: Отображены только товары 10 калибр электро');
+            } else {
+                showNoSearchResults('10 калибр электро');
+            }
+        } else {
+            showNoSearchResults('10 калибр электро');
+        }
+    } catch (error) {
+        console.error('searchGauge10ElectricProducts: Ошибка поиска:', error);
+        showNoSearchResults('10 калибр электро');
+    }
+}
+// Функция специального поиска для 09 калибра (электрогитара)
+async function searchGauge09ElectricProducts() {
+    console.log('searchGauge09ElectricProducts: Поиск товаров с пометкой 09 калибр электро');
+    try {
+        const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        if (data && data.products && data.products.length > 0) {
+            displayProducts(data.products);
+            const badges = document.querySelectorAll('.product-gauge09');
+            if (badges.length > 0) {
+                const allProductCards = document.querySelectorAll('.product-card');
+                allProductCards.forEach(card => { card.style.display = 'none'; });
+                badges.forEach(b => {
+                    const productCard = b.closest('.product-card');
+                    if (productCard) productCard.style.display = 'block';
+                });
+                isCategoryFilterActive = true;
+                console.log('searchGauge09ElectricProducts: Отображены только товары 09 калибр электро');
+            } else {
+                showNoSearchResults('09 калибр электро');
+            }
+        } else {
+            showNoSearchResults('09 калибр электро');
+        }
+    } catch (error) {
+        console.error('searchGauge09ElectricProducts: Ошибка поиска:', error);
+        showNoSearchResults('09 калибр электро');
+    }
+}
+// Функция специального поиска для 11 калибра (электрогитара)
+async function searchGauge11ElectricProducts() {
+    console.log('searchGauge11ElectricProducts: Поиск товаров с пометкой 11 калибр электро');
+    try {
+        const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        if (data && data.products && data.products.length > 0) {
+            displayProducts(data.products);
+            const badges = document.querySelectorAll('.product-gauge11');
+            if (badges.length > 0) {
+                const allProductCards = document.querySelectorAll('.product-card');
+                allProductCards.forEach(card => { card.style.display = 'none'; });
+                badges.forEach(b => {
+                    const productCard = b.closest('.product-card');
+                    if (productCard) productCard.style.display = 'block';
+                });
+                isCategoryFilterActive = true;
+                console.log('searchGauge11ElectricProducts: Отображены только товары 11 калибр электро');
+            } else {
+                showNoSearchResults('11 калибр электро');
+            }
+        } else {
+            showNoSearchResults('11 калибр электро');
+        }
+    } catch (error) {
+        console.error('searchGauge11ElectricProducts: Ошибка поиска:', error);
+        showNoSearchResults('11 калибр электро');
+    }
+}
+
+// Функция поиска для Nickel Plated Electric Strings
+async function searchNickelPlatedElectricProducts() {
+    console.log('searchNickelPlatedElectricProducts: Поиск товаров Nickel Plated Electric Strings');
+    try {
+        const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        if (!(data && data.products && data.products.length > 0)) {
+            showNoSearchResults('Nickel Plated Electric Strings');
+            return;
+        }
+
+        // 1) Получаем эталонный список с сайта (через локальный прокси), 5 страниц
+        const pages = [
+            'https://guitarstrings.com.ua/electro/nickel-plated-electric',
+            'https://guitarstrings.com.ua/electro/nickel-plated-electric?start=60',
+            'https://guitarstrings.com.ua/electro/nickel-plated-electric?start=120',
+            'https://guitarstrings.com.ua/electro/nickel-plated-electric?start=180',
+            'https://guitarstrings.com.ua/electro/nickel-plated-electric?start=240'
+        ];
+        const enc = (u) => encodeURIComponent(u);
+        const fetchedHtml = await Promise.all(pages.map(u => fetch(`http://localhost:8000/proxy_fetch?url=${enc(u)}`, { cache: 'no-store' }).then(r => r.ok ? r.text() : '')));
+        const docParser = new DOMParser();
+        const liveNameSet = new Set();
+        fetchedHtml.forEach(html => {
+            if (!html) return;
+            const doc = docParser.parseFromString(html, 'text/html');
+            const items = Array.from(doc.querySelectorAll('div.spacer, div.product-item, div.item'));
+            items.forEach(item => {
+                const nameEl = item.querySelector('h3.product-title a, h3.title a, h3 a, h2 a, a.title') ||
+                                item.querySelector('h3.product-title, h3.title, h3, h2, a.title');
+                const name = nameEl ? nameEl.textContent.trim() : '';
+                if (name) liveNameSet.add(normalizeLooseName(name));
+            });
+        });
+
+        // 2) Отрисовываем все товары
+        displayProducts(data.products);
+
+        // 3) Добавляем недостающие бейджи Nickel Plated на карточки, если имя в liveNameSet
+        const cards = document.querySelectorAll('.product-card');
+        cards.forEach(card => {
+            const titleEl = card.querySelector('.product-title');
+            const subtitleEl = card.querySelector('.product-subtitle');
+            const hasBadge = !!card.querySelector('.product-nickelplated');
+            const name = titleEl ? titleEl.textContent.trim() : '';
+            if (!name) return;
+            const inLive = liveNameSet.has(normalizeLooseName(name));
+            if (inLive && !hasBadge && subtitleEl) {
+                const currentLang = localStorage.getItem('selectedLanguage') || 'uk';
+                const t = (translations[currentLang] || {});
+                const badge = (t.nickelPlatedInfo) || 'Nickel Plated';
+                const title = (t.nickelPlatedShowAll) || 'Показать все Nickel Plated';
+                const span = document.createElement('span');
+                span.className = 'product-nickelplated';
+                span.title = title;
+                span.textContent = badge;
+                span.style.cursor = 'pointer';
+                span.addEventListener('click', function(){ filterProductsByCategory('nickel-plated', true); });
+                subtitleEl.appendChild(span);
             }
         });
-        
-        console.log(`setupLanguageSwitchers: Обработчик для языка ${lang} настроен`);
-    });
-}
 
-// Функция восстановления состояния бесконечной загрузки при переключении языка
-function restoreInfiniteScrollState() {
-    console.log('restoreInfiniteScrollState: Восстанавливаем состояние бесконечной загрузки');
-    
-    // Проверяем, есть ли загруженные товары
-    if (loadedProductNames.size > 0) {
-        console.log(`restoreInfiniteScrollState: Загружено товаров: ${loadedProductNames.size}`);
-        
-        // Проверяем, есть ли еще товары для загрузки
-        const totalProducts = maxProducts || 0; // Общее количество товаров
-        const shouldHaveMore = loadedProductNames.size < totalProducts;
-        
-        console.log(`restoreInfiniteScrollState: Всего товаров: ${totalProducts}, должно быть больше: ${shouldHaveMore}`);
-        
-        // Если должно быть больше товаров, но hasMoreProducts = false, исправляем это
-        if (shouldHaveMore && !hasMoreProducts) {
-            console.log('restoreInfiniteScrollState: Исправляем hasMoreProducts с false на true');
-            hasMoreProducts = true;
+        // 4) Фильтруем отображение строго по бейджам (как вы просили)
+        const badges = document.querySelectorAll('.product-nickelplated');
+        if (badges.length > 0) {
+            const allProductCards = document.querySelectorAll('.product-card');
+            allProductCards.forEach(card => { card.style.display = 'none'; });
+            badges.forEach(b => {
+                const productCard = b.closest('.product-card');
+                if (productCard) productCard.style.display = 'flex'; // сохраняем исходный макет карточки
+            });
+            isCategoryFilterActive = true;
+            console.log('searchNickelPlatedElectricProducts: Отображены только товары Nickel Plated по бейджам');
+        } else {
+            showNoSearchResults('Nickel Plated Electric Strings');
         }
-        
-        // Убираем сообщение "Все товары загружены" если оно есть
-        const endMessage = document.querySelector('.end-message');
-        if (endMessage) {
-            console.log('restoreInfiniteScrollState: Убираем сообщение о конце списка');
-            endMessage.style.display = 'none';
-        }
-        
-        // Убираем вызов showLoadingIndicator, чтобы избежать проблем с индикатором
-        console.log('restoreInfiniteScrollState: Состояние восстановлено без показа индикатора');
-        
-        console.log(`restoreInfiniteScrollState: Состояние восстановлено, hasMoreProducts: ${hasMoreProducts}`);
-    } else {
-        console.log('restoreInfiniteScrollState: Нет загруженных товаров, пропускаем восстановление');
+    } catch (error) {
+        console.error('searchNickelPlatedElectricProducts: Ошибка поиска:', error);
+        showNoSearchResults('Nickel Plated Electric Strings');
     }
 }
 
-// ===== ФУНКЦИИ КОРЗИНЫ =====
-
-// Добавление товара в корзину
-function addToCart(product) {
-    console.log('addToCart: Добавляем товар в корзину:', product);
-    console.log('addToCart: Детальная информация о товаре:', {
-        name: product.name,
-        newPrice: product.newPrice,
-        oldPrice: product.oldPrice,
-        price: product.price,
-        hasOldPrice: !!product.oldPrice,
-        oldPriceType: typeof product.oldPrice
-    });
-    
-    // Проверяем, есть ли уже такой товар в корзине
-    const existingItemIndex = cart.findIndex(item => item.name === product.name);
-    
-    if (existingItemIndex !== -1) {
-        // Если товар уже есть, увеличиваем количество и обновляем старую цену
-        cart[existingItemIndex].quantity += 1;
-        cart[existingItemIndex].total = cart[existingItemIndex].quantity * cart[existingItemIndex].price;
-        // Обновляем старую цену, если её нет или она отличается
-        if (!cart[existingItemIndex].oldPrice && product.oldPrice) {
-            cart[existingItemIndex].oldPrice = parseInt(product.oldPrice);
+// Функция поиска для Stainless Steel Electric Strings
+async function searchStainlessSteelProducts() {
+    console.log('searchStainlessSteelProducts: Поиск товаров Stainless Steel Electric Strings');
+    try {
+        const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
-        console.log('addToCart: Количество товара увеличено:', cart[existingItemIndex]);
-    } else {
-        // Если товара нет, добавляем новый
-        const cartItem = {
-            name: product.name,
-            image: product.image,
-            price: parseInt(product.newPrice || product.price),
-            oldPrice: product.oldPrice ? parseInt(product.oldPrice) : null, // Сохраняем старую цену только если она есть
-            quantity: 1,
-            total: parseInt(product.newPrice || product.price),
-            article: product.name.split(' ')[0] || 'N/A' // Простое извлечение артикула
-        };
-        cart.push(cartItem);
-        console.log('addToCart: Новый товар добавлен в корзину:', cartItem);
-        console.log('addToCart: Отладочная информация о ценах:', {
-            productName: product.name,
-            newPrice: product.newPrice,
-            oldPrice: product.oldPrice,
-            parsedOldPrice: cartItem.oldPrice,
-            parsedPrice: cartItem.price
+        const data = await response.json();
+        if (!(data && data.products && data.products.length > 0)) {
+            showNoSearchResults('Stainless Steel Electric Strings');
+            return;
+        }
+
+        // Загружаем live-страницу Stainless Steel для сверки
+        const pages = [
+            'https://guitarstrings.com.ua/electro/stainless-steel-electric'
+        ];
+        const enc = (u) => encodeURIComponent(u);
+        const fetchedHtml = await Promise.all(pages.map(u => fetch(`http://localhost:8000/proxy_fetch?url=${enc(u)}`, { cache: 'no-store' }).then(r => r.ok ? r.text() : '')));
+        const docParser = new DOMParser();
+        const liveNameSet = new Set();
+        fetchedHtml.forEach(html => {
+            if (!html) return;
+            const doc = docParser.parseFromString(html, 'text/html');
+            const items = Array.from(doc.querySelectorAll('div.spacer, div.product-item, div.item'));
+            items.forEach(item => {
+                const nameEl = item.querySelector('h3.product-title a, h3.title a, h3 a, h2 a, a.title') ||
+                                item.querySelector('h3.product-title, h3.title, h3, h2, a.title');
+                const name = nameEl ? nameEl.textContent.trim() : '';
+                if (name) liveNameSet.add(normalizeLooseName(name));
+            });
+        });
+
+        // Отрисовываем все товары
+        displayProducts(data.products);
+
+        // Добавляем недостающие бейджи Stainless Steel на карточки
+        const cards = document.querySelectorAll('.product-card');
+        cards.forEach(card => {
+            const titleEl = card.querySelector('.product-title');
+            const subtitleEl = card.querySelector('.product-subtitle');
+            const hasBadge = !!card.querySelector('.product-stainless');
+            const name = titleEl ? titleEl.textContent.trim() : '';
+            if (!name) return;
+            const normalized = name.toLowerCase().trim();
+            const normalizedLoose = normalizeLooseName(name);
+            const inLive = liveNameSet.has(normalizedLoose);
+            const inSet = STAINLESS_STEEL_ELECTRIC.has(normalized) || STAINLESS_STEEL_ELECTRIC.has(normalizedLoose) || STAINLESS_STEEL_ELECTRIC_LOOSE.has(normalizedLoose);
+            const byHeuristic = ((/stainless\s*steel/.test(normalized) || /blue\s*steel/.test(normalized) || /chromes\s*flat\s*wound/.test(normalized) || /synyster\s*gates.*stainless/.test(normalized)) && !/nickel plated|pure nickel/.test(normalized));
+            if ((inLive || inSet || byHeuristic) && !hasBadge && subtitleEl) {
+                const currentLang = localStorage.getItem('selectedLanguage') || 'uk';
+                const t = (translations[currentLang] || {});
+                const badge = (t.stainlessSteelInfo) || 'Stainless Steel';
+                const title = (t.stainlessSteelShowAll) || 'Показать все Stainless Steel';
+                const span = document.createElement('span');
+                span.className = 'product-stainless';
+                span.title = title;
+                span.textContent = badge;
+                span.style.cursor = 'pointer';
+                span.addEventListener('click', function(){ filterProductsByCategory('stainless-steel', true); });
+                subtitleEl.appendChild(span);
+            }
+        });
+
+        // Фильтруем отображение по бейджам Stainless
+        const badges = document.querySelectorAll('.product-stainless');
+        if (badges.length > 0) {
+            const allProductCards = document.querySelectorAll('.product-card');
+            allProductCards.forEach(card => { card.style.display = 'none'; });
+            badges.forEach(b => {
+                const productCard = b.closest('.product-card');
+                if (productCard) productCard.style.display = 'block';
+            });
+            isCategoryFilterActive = true;
+            console.log('searchStainlessSteelProducts: Отображены только товары Stainless Steel по бейджам');
+        } else {
+            showNoSearchResults('Stainless Steel Electric Strings');
+        }
+    } catch (error) {
+        console.error('searchStainlessSteelProducts: Ошибка поиска:', error);
+        showNoSearchResults('Stainless Steel Electric Strings');
+    }
+}
+
+// Функция поиска для Cobalt Electric Strings
+async function searchCobaltProducts() {
+    console.log('searchCobaltProducts: Поиск товаров Cobalt Electric Strings');
+    try {
+        const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        if (!(data && data.products && data.products.length > 0)) {
+            showNoSearchResults('Cobalt Electric Strings');
+            return;
+        }
+
+        // Загружаем live-страницу Cobalt для сверки
+        const pages = [
+            'https://guitarstrings.com.ua/electro/cobalt-electric'
+        ];
+        const enc = (u) => encodeURIComponent(u);
+        const fetchedHtml = await Promise.all(pages.map(u => fetch(`http://localhost:8000/proxy_fetch?url=${enc(u)}`, { cache: 'no-store' }).then(r => r.ok ? r.text() : '')));
+        const docParser = new DOMParser();
+        const liveNameSet = new Set();
+        fetchedHtml.forEach(html => {
+            if (!html) return;
+            const doc = docParser.parseFromString(html, 'text/html');
+            const items = Array.from(doc.querySelectorAll('div.spacer, div.product-item, div.item'));
+            items.forEach(item => {
+                const nameEl = item.querySelector('h3.product-title a, h3.title a, h3 a, h2 a, a.title') ||
+                                item.querySelector('h3.product-title, h3.title, h3, h2, a.title');
+                const name = nameEl ? nameEl.textContent.trim() : '';
+                if (name) liveNameSet.add(normalizeLooseName(name));
+            });
+        });
+
+        // Отрисовываем все товары
+        displayProducts(data.products);
+
+        // Добавляем недостающие бейджи Cobalt на карточки
+        const cards = document.querySelectorAll('.product-card');
+        cards.forEach(card => {
+            const titleEl = card.querySelector('.product-title');
+            const subtitleEl = card.querySelector('.product-subtitle');
+            const hasBadge = !!card.querySelector('.product-cobalt');
+            const name = titleEl ? titleEl.textContent.trim() : '';
+            if (!name) return;
+            const normalized = name.toLowerCase().trim();
+            const normalizedLoose = normalizeLooseName(name);
+            const inLive = liveNameSet.has(normalizedLoose);
+            const inSet = COBALT_ELECTRIC.has(normalized) || COBALT_ELECTRIC.has(normalizedLoose) || COBALT_ELECTRIC_LOOSE.has(normalizedLoose);
+            const byHeuristic = (/\bcobalt\b/.test(normalized));
+            if ((inLive || inSet || byHeuristic) && !hasBadge && subtitleEl) {
+                const currentLang = localStorage.getItem('selectedLanguage') || 'uk';
+                const t = (translations[currentLang] || {});
+                const badge = (t.cobaltInfo) || 'Cobalt';
+                const title = (t.cobaltShowAll) || 'Показать все Cobalt';
+                const span = document.createElement('span');
+                span.className = 'product-cobalt';
+                span.title = title;
+                span.textContent = badge;
+                span.style.cursor = 'pointer';
+                span.addEventListener('click', function(){ filterProductsByCategory('cobalt', true); });
+                subtitleEl.appendChild(span);
+            }
+        });
+
+        // Фильтруем отображение по бейджам Cobalt
+        const badges = document.querySelectorAll('.product-cobalt');
+        if (badges.length > 0) {
+            const allProductCards = document.querySelectorAll('.product-card');
+            allProductCards.forEach(card => { card.style.display = 'none'; });
+            badges.forEach(b => {
+                const productCard = b.closest('.product-card');
+                if (productCard) productCard.style.display = 'block';
+            });
+            isCategoryFilterActive = true;
+            console.log('searchCobaltProducts: Отображены только товары Cobalt по бейджам');
+        } else {
+            showNoSearchResults('Cobalt Electric Strings');
+        }
+    } catch (error) {
+        console.error('searchCobaltProducts: Ошибка поиска:', error);
+        showNoSearchResults('Cobalt Electric Strings');
+    }
+}
+
+// Функция поиска для Colored Electric Strings
+async function searchColoredElectricProducts() {
+    console.log('searchColoredElectricProducts: Поиск товаров Colored Electric Strings');
+    try {
+        const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        if (!(data && data.products && data.products.length > 0)) {
+            showNoSearchResults('Colored Electric Strings');
+            return;
+        }
+
+        // Загружаем live-страницу Colored для сверки
+        const pages = [
+            'https://guitarstrings.com.ua/electro/colored-electric'
+        ];
+        const enc = (u) => encodeURIComponent(u);
+        const fetchedHtml = await Promise.all(pages.map(u => fetch(`http://localhost:8000/proxy_fetch?url=${enc(u)}`, { cache: 'no-store' }).then(r => r.ok ? r.text() : '')));
+        const docParser = new DOMParser();
+        const liveNameSet = new Set();
+        fetchedHtml.forEach(html => {
+            if (!html) return;
+            const doc = docParser.parseFromString(html, 'text/html');
+            const items = Array.from(doc.querySelectorAll('div.spacer, div.product-item, div.item'));
+            items.forEach(item => {
+                const nameEl = item.querySelector('h3.product-title a, h3.title a, h3 a, h2 a, a.title') ||
+                                item.querySelector('h3.product-title, h3.title, h3, h2, a.title');
+                const name = nameEl ? nameEl.textContent.trim() : '';
+                if (name) liveNameSet.add(normalizeLooseName(name));
+            });
+        });
+
+        // Отрисовываем все товары
+        displayProducts(data.products);
+
+        // Добавляем недостающие бейджи Colored на карточки
+        const cards = document.querySelectorAll('.product-card');
+        cards.forEach(card => {
+            const titleEl = card.querySelector('.product-title');
+            const subtitleEl = card.querySelector('.product-subtitle');
+            const hasBadge = !!card.querySelector('.product-colored');
+            const name = titleEl ? titleEl.textContent.trim() : '';
+            if (!name) return;
+            const normalized = name.toLowerCase().trim();
+            const normalizedLoose = normalizeLooseName(name);
+            const inLive = liveNameSet.has(normalizedLoose);
+            const inSet = COLORED_ELECTRIC.has(normalized) || COLORED_ELECTRIC.has(normalizedLoose) || COLORED_ELECTRIC_LOOSE.has(normalizedLoose);
+            const byHeuristic = (/\b(neon|colored|k3\s*coated|black\s*beauties)\b/.test(normalized));
+            if ((inLive || inSet || byHeuristic) && !hasBadge && subtitleEl) {
+                const currentLang = localStorage.getItem('selectedLanguage') || 'uk';
+                const t = (translations[currentLang] || {});
+                const badge = (t.coloredInfo) || 'Colored Strings';
+                const title = (t.coloredShowAll) || 'Показать все Colored Strings';
+                const span = document.createElement('span');
+                span.className = 'product-colored';
+                span.title = title;
+                span.textContent = badge;
+                span.style.cursor = 'pointer';
+                span.addEventListener('click', function(){ filterProductsByCategory('colored', true); });
+                subtitleEl.appendChild(span);
+            }
+        });
+
+        // Фильтруем отображение по бейджам Colored
+        const badges = document.querySelectorAll('.product-colored');
+        if (badges.length > 0) {
+            const allProductCards = document.querySelectorAll('.product-card');
+            allProductCards.forEach(card => { card.style.display = 'none'; });
+            badges.forEach(b => {
+                const productCard = b.closest('.product-card');
+                if (productCard) productCard.style.display = 'block';
+            });
+            isCategoryFilterActive = true;
+            console.log('searchColoredElectricProducts: Отображены только товары Colored по бейджам');
+        } else {
+            showNoSearchResults('Colored Electric Strings');
+        }
+    } catch (error) {
+        console.error('searchColoredElectricProducts: Ошибка поиска:', error);
+        showNoSearchResults('Colored Electric Strings');
+    }
+}
+// Функция поиска для Pure Nickel Electric Strings
+async function searchPureNickelElectricProducts() {
+    console.log('searchPureNickelElectricProducts: Поиск товаров Pure Nickel Electric Strings');
+    try {
+        const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        if (!(data && data.products && data.products.length > 0)) {
+            showNoSearchResults('Pure Nickel Electric Strings');
+            return;
+        }
+
+        // Загружаем live-страницу Pure Nickel для сверки
+        const pages = [
+            'https://guitarstrings.com.ua/electro/pure-nickel-electric'
+        ];
+        const enc = (u) => encodeURIComponent(u);
+        const fetchedHtml = await Promise.all(pages.map(u => fetch(`http://localhost:8000/proxy_fetch?url=${enc(u)}`, { cache: 'no-store' }).then(r => r.ok ? r.text() : '')));
+        const docParser = new DOMParser();
+        const liveNameSet = new Set();
+        fetchedHtml.forEach(html => {
+            if (!html) return;
+            const doc = docParser.parseFromString(html, 'text/html');
+            const items = Array.from(doc.querySelectorAll('div.spacer, div.product-item, div.item'));
+            items.forEach(item => {
+                const nameEl = item.querySelector('h3.product-title a, h3.title a, h3 a, h2 a, a.title') ||
+                                item.querySelector('h3.product-title, h3.title, h3, h2, a.title');
+                const name = nameEl ? nameEl.textContent.trim() : '';
+                if (name) liveNameSet.add(normalizeLooseName(name));
+            });
+        });
+
+        // Отрисовываем все товары
+        displayProducts(data.products);
+
+        // Добаджаем недостающие бейджи Pure Nickel
+        const cards = document.querySelectorAll('.product-card');
+        cards.forEach(card => {
+            const titleEl = card.querySelector('.product-title');
+            const subtitleEl = card.querySelector('.product-subtitle');
+            const hasBadge = !!card.querySelector('.product-purenickel');
+            const name = titleEl ? titleEl.textContent.trim() : '';
+            if (!name) return;
+            const normalized = name.toLowerCase().trim();
+            const normalizedLoose = normalizeLooseName(name);
+            const inLive = liveNameSet.has(normalizedLoose);
+            const inSet = PURE_NICKEL_ELECTRIC.has(normalized) || PURE_NICKEL_ELECTRIC.has(normalizedLoose) || PURE_NICKEL_ELECTRIC_LOOSE.has(normalizedLoose);
+            const byHeuristic = (/pure\s*nickel/.test(normalized) || /nickel\s*rockers/.test(normalized)) && !/plated|flat ?wound|stainless|cobalt|colored/.test(normalized);
+            if ((inLive || inSet || byHeuristic) && !hasBadge && subtitleEl) {
+                const currentLang = localStorage.getItem('selectedLanguage') || 'uk';
+                const t = (translations[currentLang] || {});
+                const badge = (t.pureNickelInfo) || 'Pure Nickel';
+                const title = (t.pureNickelShowAll) || 'Показать все Pure Nickel';
+                const span = document.createElement('span');
+                span.className = 'product-purenickel';
+                span.title = title;
+                span.textContent = badge;
+                span.style.cursor = 'pointer';
+                span.addEventListener('click', function(){ filterProductsByCategory('pure-nickel', true); });
+                subtitleEl.appendChild(span);
+            }
+        });
+
+        // Фильтруем отображение по бейджам Pure Nickel
+        const badges = document.querySelectorAll('.product-purenickel');
+        if (badges.length > 0) {
+            const allProductCards = document.querySelectorAll('.product-card');
+            allProductCards.forEach(card => { card.style.display = 'none'; });
+            badges.forEach(b => {
+                const productCard = b.closest('.product-card');
+                if (productCard) productCard.style.display = 'flex'; // сохраняем исходный макет карточки
+            });
+            isCategoryFilterActive = true;
+            console.log('searchPureNickelElectricProducts: Отображены только товары Pure Nickel по бейджам');
+            try { hideLoadingIndicator(); } catch (e) {}
+        } else {
+            showNoSearchResults('Pure Nickel Electric Strings');
+        }
+    } catch (error) {
+        console.error('searchPureNickelElectricProducts: Ошибка поиска:', error);
+        showNoSearchResults('Pure Nickel Electric Strings');
+    }
+}
+// Функция специального поиска для 9-струнных товаров
+async function search9StringProducts() {
+    console.log('search9StringProducts: Поиск 9-струнных товаров по пометкам в карточках');
+    try {
+        const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        console.log(`search9StringProducts: Загружено ${data.products.length} товаров для поиска по пометкам`);
+        if (data && data.products && data.products.length > 0) {
+            displayProducts(data.products);
+            const nineStringCards = document.querySelectorAll('.product-nine-string');
+            console.log(`search9StringProducts: Найдено ${nineStringCards.length} карточек с пометкой 9-струнных`);
+            if (nineStringCards.length > 0) {
+                const allProductCards = document.querySelectorAll('.product-card');
+                allProductCards.forEach(card => { card.style.display = 'none'; });
+                nineStringCards.forEach(ns => {
+                    const productCard = ns.closest('.product-card');
+                    if (productCard) productCard.style.display = 'flex'; // сохраняем исходный макет карточки
+                });
+                isCategoryFilterActive = true;
+                console.log('search9StringProducts: Отображены только 9-струнные товары по пометкам');
+                // Убираем любые индикаторы загрузки
+                try { hideLoadingIndicator(); } catch (e) {}
+            } else {
+                console.log('search9StringProducts: Карточки с пометкой 9-струнных не найдены');
+                showNoSearchResults('9-струнные');
+            }
+        } else {
+            console.log('search9StringProducts: Нет товаров для поиска');
+            showNoSearchResults('9-струнные');
+        }
+    } catch (error) {
+        console.error('search9StringProducts: Ошибка поиска 9-струнных товаров:', error);
+        showNoSearchResults('9-струнные');
+    }
+}
+
+// Делаем функции доступными глобально
+window.filterProductsByCategory = filterProductsByCategory;
+window.clearCategoryFilter = clearCategoryFilter;
+
+// Функция для принудительной очистки кэша и перезагрузки переводов
+function forceClearCache() {
+    console.log('forceClearCache: Принудительная очистка кэша');
+    
+    // Очищаем localStorage
+    localStorage.clear();
+    console.log('forceClearCache: localStorage очищен');
+    
+    // Принудительно перезагружаем страницу
+    window.location.reload(true);
+}
+
+// Делаем функцию доступной глобально
+window.forceClearCache = forceClearCache;
+
+console.log('app.js инициализирован (версия 13.21 - добавлена поддержка 8-струнных товаров)');
+console.log('Для принудительной очистки кэша выполните: forceClearCache()');
+
+// Функции для индикатора загрузки
+function showLoadingIndicator() {
+    const container = ensureProductsContainer();
+    if (container) {
+        container.innerHTML = `
+            <div style="display: flex; justify-content: center; align-items: center; padding: 40px; grid-column: 1 / -1;">
+                <div class="loading-spinner">
+                    <div class="spinner"></div>
+                    <p style="margin-top: 20px; color: var(--text-light);">Загружаем товары...</p>
+                </div>
+            </div>
+        `;
+    }
+}
+
+function hideLoadingIndicator() {
+    try {
+        const overlay = document.getElementById('loading-overlay');
+        if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    } catch (e) {}
+    try {
+        const indicator = document.getElementById('loading-indicator');
+        if (indicator && indicator.parentNode) indicator.parentNode.removeChild(indicator);
+    } catch (e) {}
+    try {
+        const spinnerBlocks = document.querySelectorAll('.loading-spinner, .loading-spinner-small');
+        spinnerBlocks.forEach(el => { if (el && el.parentNode) el.parentNode.removeChild(el); });
+    } catch (e) {}
+}
+
+// Вспомогательные функции для переключения между товарами и кабинетом
+function showProductsView() {
+    const account = document.getElementById('account-section');
+    if (account) {
+        account.style.display = 'none';
+        account.style.visibility = '';
+        account.style.opacity = '';
+    }
+    const inner = document.querySelector('.inner');
+    if (inner) {
+        inner.style.display = '';
+        // Восстанавливаем видимость всех секций, кроме кабинета
+        try {
+            Array.from(inner.children).forEach(child => {
+                if (child.id === 'account-section') {
+                    child.style.display = 'none';
+                } else {
+                    child.style.display = '';
+                    child.style.visibility = '';
+                    child.style.opacity = '';
+                }
+            });
+        } catch (e) {}
+    }
+    const pc = document.getElementById('productsContainer');
+    if (pc) {
+        pc.style.display = '';
+        pc.style.visibility = '';
+        pc.style.opacity = '';
+    }
+    const li = document.getElementById('loading-indicator');
+    if (li) li.style.display = '';
+    // Запоминаем текущий вид и подсветка нижней навигации
+    try { localStorage.setItem('currentView', 'products'); } catch (e) {}
+    try { setActiveBottomNav('products'); } catch (e) {}
+
+    // Показываем баннер/фильтры на странице товаров
+    try {
+        const banner = document.querySelector('.main-banner');
+        if (banner) banner.style.removeProperty('display');
+        const brands = document.querySelector('.brand-logos');
+        if (brands) brands.style.removeProperty('display');
+        // Показываем строку поиска
+        const search = document.querySelector('.search-section');
+        if (search) search.style.removeProperty('display');
+        // Возвращаем отображение строки бонусов в верхнем хедере
+        const headerBonus = document.querySelector('.bonus-info');
+        if (headerBonus) headerBonus.style.removeProperty('display');
+        // Возвращаем исходный заголовок приложения
+        const appTitleEl = document.querySelector('.app-title');
+        if (appTitleEl) {
+            const original = appTitleEl.getAttribute('data-original-title');
+            if (original) {
+                appTitleEl.textContent = original;
+                appTitleEl.removeAttribute('data-original-title');
+            }
+        }
+    } catch (e) {}
+}
+
+async function showAccountView() {
+    try { console.log('showAccountView: Открываем кабинет'); } catch (e) {}
+    // Сброс активных поисков/фильтров
+    try {
+        isSearchActive = false;
+        isCategoryFilterActive = false;
+        searchTerm = '';
+        currentCategory = '';
+        lastCategorySearch = '';
+        if (typeof searchTimeout !== 'undefined' && searchTimeout) {
+            clearTimeout(searchTimeout);
+            searchTimeout = null;
+        }
+    } catch (e) {}
+    // Запоминаем текущий вид и подсветка нижней навигации
+    try { localStorage.setItem('currentView', 'account'); } catch (e) {}
+    try { setActiveBottomNav('account'); } catch (e) {}
+
+    // Гарантируем наличие секции
+    const acc = ensureAccountSection();
+
+    const inner = document.querySelector('.inner');
+    if (inner) {
+        Array.from(inner.children).forEach(child => {
+            if (child.id === 'account-section') {
+                child.style.display = 'block';
+                child.style.visibility = 'visible';
+                child.style.opacity = '1';
+            } else {
+                child.style.display = 'none';
+            }
         });
     }
-    
-    // Обновляем общие показатели корзины
-    updateCartTotals();
-    
-    // Сохраняем корзину
-    saveCart();
-    
-    // Обновляем счетчик
-    updateCartBadge();
-    
-    // Показываем popup подтверждения
-    showAddToCartPopup(product);
-    
-    console.log('addToCart: Товар успешно добавлен в корзину');
-}
+    // Дополнительно прячем контейнер товаров и индикатор
+    const pc = document.getElementById('productsContainer');
+    if (pc) { pc.style.display = 'none'; pc.style.visibility = 'hidden'; pc.style.opacity = '0'; }
+    const li = document.getElementById('loading-indicator');
+    if (li) li.style.display = 'none';
 
-// Обновление общих показателей корзины
-function updateCartTotals() {
-    cartTotal = cart.reduce((sum, item) => sum + item.total, 0);
-    cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-    console.log('updateCartTotals: Обновлены показатели корзины:', { cartTotal, cartItemCount });
-}
+    // Скрываем главный баннер/фильтры при входе в кабинет
+    try {
+        const banner = document.querySelector('.main-banner');
+        if (banner) banner.style.setProperty('display','none','important');
+        const brands = document.querySelector('.brand-logos');
+        if (brands) brands.style.setProperty('display','none','important');
+        // Скрываем строку поиска
+        const search = document.querySelector('.search-section');
+        if (search) search.style.setProperty('display','none','important');
+        // Раньше скрывали строку бонусов в хедере в кабинете, чтобы избежать дублей.
+        // Теперь оставляем её видимой везде (в т.ч. в Telegram WebApp), по запросу пользователя.
+    } catch (e) {}
 
-// Показ popup подтверждения добавления в корзину
-function showAddToCartPopup(product) {
-    console.log('showAddToCartPopup: Показываем popup для товара:', product);
-    
-    // Заполняем данные в popup
-    const cartProductImage = document.getElementById('cartProductImage');
-    const cartProductName = document.getElementById('cartProductName');
-    const cartProductArticle = document.getElementById('cartProductArticle');
-    const cartProductPrice = document.getElementById('cartProductPrice');
-    const cartProductQuantity = document.getElementById('cartProductQuantity');
-    const cartProductTotal = document.getElementById('cartProductTotal');
-    const cartTotalQuantity = document.getElementById('cartTotalQuantity');
-    const cartTotalAmount = document.getElementById('cartTotalAmount');
-    
-    if (cartProductImage) cartProductImage.src = product.image;
-    if (cartProductName) cartProductName.textContent = product.name;
-    if (cartProductArticle) cartProductArticle.textContent = product.name.split(' ')[0] || 'N/A';
-    if (cartProductPrice) cartProductPrice.textContent = product.newPrice;
-    if (cartProductQuantity) cartProductQuantity.textContent = '1';
-    if (cartProductTotal) cartProductTotal.textContent = product.newPrice;
-    if (cartTotalQuantity) cartTotalQuantity.textContent = cartItemCount;
-    if (cartTotalAmount) cartTotalAmount.textContent = cartTotal;
-    
-    // Показываем popup
-    const popup = document.getElementById('addToCartPopup');
-    if (popup) {
-        popup.classList.add('show');
-        console.log('showAddToCartPopup: Popup показан');
+    // Применяем язык к только что добавленным узлам и настраиваем выпадающий список
+    const lang = getCurrentLanguage();
+    if (typeof switchLanguage === 'function') switchLanguage(lang);
+    setupAccountLanguageDropdown();
+
+    try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {}
+    console.log('showAccountView: вызываем renderAccountPage');
+    await renderAccountPage();
+
+    // Выполняем миграцию заказов для совместимости
+    try {
+        migrateUserOrders();
+    } catch (e) {
+        console.error('showAccountView: Ошибка миграции заказов', e);
     }
-}
 
-// Переход в корзину
-function goToCart() {
-    console.log('goToCart: Переходим в корзину');
-    
-    // Проверяем, что функция вызвана
-    console.log('goToCart: Функция вызвана из:', new Error().stack);
-    
-    // Закрываем popup добавления в корзину если он открыт
-    const addToCartPopup = document.getElementById('addToCartPopup');
-    if (addToCartPopup && addToCartPopup.classList.contains('show')) {
-        closePopup('addToCartPopup');
+    // Диагностика заказов для отладки
+    try {
+        diagnoseUserOrders();
+    } catch (e) {
+        console.error('showAccountView: Ошибка диагностики заказов', e);
     }
-    
-    // Показываем корзину
-    showCartPopup();
-}
 
-// Функция для показа полноценной корзины
-function showCartPopup() {
-    console.log('showCartPopup: Показываем полноценную корзину');
-    
-    // Используем общую функцию openPopup
-    openPopup('cartPopup');
-    
-    // Рендерим товары и обновляем расчеты
+    try {
+        // В шапке кабинета показываем имя пользователя вместо названия
+        const nameEl = document.getElementById('accountUserName');
+        const appTitleEl = document.querySelector('.app-title');
+        if (nameEl && appTitleEl) {
+            const username = (nameEl.textContent || '').trim();
+            if (username) {
+                appTitleEl.setAttribute('data-original-title', appTitleEl.textContent || '');
+                appTitleEl.textContent = username;
+            }
+        }
+    } catch (e) {}
+    console.log('showAccountView: renderAccountPage завершён');
+
+    // Рендерим заказы из localStorage с небольшой задержкой для гарантии готовности DOM
     setTimeout(() => {
-        renderCartItems();
-        updateCartCalculations();
-        // Применяем переводы для текущего языка
-        const currentLang = localStorage.getItem('selectedLanguage') || 'uk';
-        applyTranslations(currentLang);
+        console.log('showAccountView: Вызываем renderAccountOrders с задержкой');
+        renderAccountOrders();
     }, 100);
 }
 
-// Функция для применения базовых переводов критически важных элементов
-function applyBasicTranslations(language) {
-    console.log('applyBasicTranslations: Применяем базовые переводы для языка:', language);
-    
-    // Базовые переводы для заголовков и статуса
-    const translations = {
-        uk: {
-            appTitle: 'GuitarStrings.com.ua',
-            bonusInfo: 'Кол-во бонусов: 100',
-            onlineStatus: 'Напишите нам, мы онлайн!',
-            onlineStatusOffline: 'Напишите нам, мы позже ответим'
-        },
-        ru: {
-            appTitle: 'GuitarStrings.com.ua',
-            bonusInfo: 'Кол-во бонусов: 100',
-            onlineStatus: 'Напишите нам, мы онлайн!',
-            onlineStatusOffline: 'Напишите нам, мы позже ответим'
-        },
-        en: {
-            appTitle: 'GuitarStrings.com.ua',
-            bonusInfo: 'Bonus count: 100',
-            onlineStatus: 'Write to us, we are online!',
-            onlineStatusOffline: 'Write to us, we will answer later'
-        }
-    };
-    
-    const lang = translations[language] || translations.uk;
-    
-    // Применяем базовые переводы
-    const appTitle = document.querySelector('.app-title');
-    if (appTitle) appTitle.textContent = lang.appTitle;
-    
-    const bonusInfo = document.querySelector('.bonus-info');
-    if (bonusInfo) bonusInfo.textContent = lang.bonusInfo;
-    
-    // Обновляем статус менеджера
-    const onlineStatus = document.querySelector('.online-status');
-    if (onlineStatus) {
-        // Проверяем время для определения статуса
-        const now = new Date();
-        const hour = now.getHours();
-        const isOnline = hour >= 9 && hour < 19;
-        
-        if (isOnline) {
-            onlineStatus.textContent = lang.onlineStatus;
-            onlineStatus.classList.remove('offline');
-            onlineStatus.classList.add('online');
-        } else {
-            onlineStatus.textContent = lang.onlineStatusOffline;
-            onlineStatus.classList.remove('online');
-            onlineStatus.classList.add('offline');
-        }
-    }
-    
-    console.log('applyBasicTranslations: Базовые переводы применены');
+function setupCabinetNav() {
+    // резервный обработчик по нижней навигации (если нужен)
 }
 
-// Функция для закрытия корзины
-function closeCartPopup() {
-    console.log('closeCartPopup: Закрываем корзину');
-    closePopup('cartPopup');
+async function renderAccountPage() {
+    try {
+        console.log('renderAccountPage: start');
+        // Телеграм-данные если доступны
+        const tg = window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe;
+        const params = new URLSearchParams();
+        if (tg && tg.user) {
+            if (tg.user.id) params.set('tg_id', tg.user.id);
+            if (tg.user.username) params.set('tg_username', tg.user.username);
+            if (tg.user.first_name) params.set('tg_first_name', tg.user.first_name);
+            if (tg.user.last_name) params.set('tg_last_name', tg.user.last_name);
+            if (tg.user.photo_url) params.set('tg_photo_url', tg.user.photo_url);
+        }
+        const profileResp = await fetch('/api/user_profile' + (params.toString() ? ('?' + params.toString()) : ''), { credentials: 'include' });
+        const profile = await profileResp.json().catch(() => ({ success:false }));
+        const ordersResp = await fetch('/api/user_orders', { credentials: 'include' });
+        const orders = await ordersResp.json().catch(() => ({ success:false, orders:[], summary:{ totalOrders:0, bonuses:0, totalAmount:0 } }));
+        console.log('renderAccountPage: data loaded', { hasProfile: !!profile, ordersCount: (orders.orders||[]).length });
+        // Обновляем шапку аккаунта
+        const nameEl = document.getElementById('accountUserName');
+        const bonusTopEl = document.getElementById('accountBonuses');
+        const avatarEl = document.getElementById('accountAvatar');
+        if (nameEl) nameEl.textContent = profile.displayName || 'Guest';
+        // Обновим кэш авторизации
+        try {
+            const authed = isAuthenticatedData(profile);
+            window.__authState = { isAuthenticated: authed, profile: authed ? (profile.profile || profile) : null };
+
+            // Обновляем отображение бонусов после загрузки профиля
+            const currentUser = window.__authState.profile ?
+                (window.__authState.profile.username || window.__authState.profile.displayName || 'guest') : 'guest';
+            const userBonusKey = `userBonusBalance_${currentUser}`;
+            const currentBonusBalance = parseInt(localStorage.getItem(userBonusKey) || localStorage.getItem('userBonusBalance') || '29');
+            updateBonusDisplay(currentBonusBalance);
+
+            // Дополнительно обновляем бонусы через getUserBonusBalance для гарантии
+            setTimeout(() => {
+                const updatedBonusBalance = getUserBonusBalance();
+                updateBonusDisplay(updatedBonusBalance);
+                console.log('renderAccountPage: Бонусы обновлены после загрузки профиля:', updatedBonusBalance, 'для пользователя:', currentUser);
+            }, 100);
+        } catch (e) {}
+        // Не заполняем bonusTopEl, чтобы не дублировать
+        if (avatarEl) {
+            if (profile.photoUrl) {
+                avatarEl.src = profile.photoUrl;
+                avatarEl.style.display = 'block';
+            } else {
+                avatarEl.style.display = 'none';
+            }
+        }
+        // Дублируем аватар в правый верхний угол хедера, если доступен
+        try {
+            const headerImg = document.getElementById('profile-image');
+            const headerSvg = document.getElementById('profile-svg');
+            const headerIcon = document.getElementById('profile-icon');
+            if (headerImg && profile.photoUrl) {
+                headerImg.src = profile.photoUrl;
+                headerImg.style.display = 'block';
+                if (headerSvg) headerSvg.style.display = 'none';
+                if (headerIcon) headerIcon.style.display = 'none';
+            }
+        } catch (e) {}
+        // Сводка заказов будет обновлена renderAccountOrders()
+        console.log('renderAccountPage: сводка будет обновлена renderAccountOrders()');
+        // Заказы будут отрендерены функцией renderAccountOrders() из localStorage
+        // НЕ рендерим демо-заказы из API здесь
+        console.log('renderAccountPage: заказы будут отрендерены renderAccountOrders()');
+        console.log('renderAccountPage: DOM updated');
+        // Гарантируем, что кабинет виден, а товары скрыты
+        const acc2 = document.getElementById('account-section');
+        if (acc2) { acc2.style.display = 'block'; acc2.style.visibility = 'visible'; acc2.style.opacity = '1'; }
+        const pc2 = document.getElementById('productsContainer');
+        if (pc2) { pc2.style.display = 'none'; }
+        console.log('renderAccountPage: visibility enforced');
+        // Дополнительно синхронизируем локализацию сумм и статусов
+        try { updateAccountOrdersLocale(); } catch (e) {}
+    } catch (e) {
+        console.error('renderAccountPage error', e);
+    }
 }
 
-// Функция для рендеринга товаров в корзине
-function renderCartItems() {
-    console.log('renderCartItems: Рендерим товары в корзине');
-    const cartItemsContainer = document.getElementById('cartItems');
-    
-    if (!cartItemsContainer) {
-        console.error('renderCartItems: Контейнер cartItems не найден');
-        return;
-    }
-    
-    if (!cart || cart.length === 0) {
-        cartItemsContainer.innerHTML = '<div class="cart-empty">Корзина пуста</div>';
-        return;
-    }
-    
-    let cartHTML = '';
-    
-    cart.forEach((item, index) => {
-        // Отладочная информация для проверки цен
-        console.log(`Cart item ${index}:`, {
-            name: item.name,
-            price: item.price,
-            oldPrice: item.oldPrice,
-            hasOldPrice: !!item.oldPrice,
-            pricesDifferent: item.oldPrice !== item.price,
-            shouldShowOldPrice: item.oldPrice && item.oldPrice > 0 && item.oldPrice !== item.price
+// Функция рендеринга заказов из localStorage в кабинет пользователя
+function renderAccountOrders() {
+    try {
+        console.log('renderAccountOrders: Рендеринг заказов пользователя');
+        console.log('renderAccountOrders: Текущее состояние DOM ready:', document.readyState);
+        console.log('renderAccountOrders: Текущий URL:', window.location.href);
+        console.log('renderAccountOrders: document.body exists:', !!document.body);
+
+        // Проверяем наличие всех необходимых элементов
+        const accountPopup = document.getElementById('accountPopup');
+        const accountOrders = document.querySelector('.account-orders');
+        console.log('renderAccountOrders: accountPopup exists:', !!accountPopup);
+        console.log('renderAccountOrders: accountOrders exists:', !!accountOrders);
+        console.log('renderAccountOrders: accountPopup display:', accountPopup ? window.getComputedStyle(accountPopup).display : 'N/A');
+
+        // Получаем username текущего пользователя
+        const currentUser = window.__authState && window.__authState.profile ?
+            (window.__authState.profile.username || window.__authState.profile.displayName || 'guest') : 'guest';
+
+        console.log('renderAccountOrders: window.__authState:', window.__authState);
+        console.log('renderAccountOrders: profile:', window.__authState?.profile);
+        console.log('renderAccountOrders: Определен пользователь:', currentUser);
+
+        // Получаем заказы из localStorage для конкретного пользователя
+        const userOrdersKey = `userOrders_${currentUser}`;
+        console.log('renderAccountOrders: Используемый ключ localStorage:', userOrdersKey);
+
+        const ordersRaw = localStorage.getItem(userOrdersKey);
+        console.log(`renderAccountOrders: Сырые данные из localStorage:`, ordersRaw);
+
+        let orders = [];
+        try {
+            orders = JSON.parse(ordersRaw || '[]');
+        } catch (e) {
+            console.error('renderAccountOrders: Ошибка парсинга заказов из localStorage:', e);
+            orders = [];
+        }
+
+        console.log(`renderAccountOrders: Заказы пользователя ${currentUser}:`, orders.length, orders);
+
+        // Проверяем и восстанавливаем структуру каждого заказа
+        orders = orders.map((order, index) => {
+            if (!order || typeof order !== 'object') {
+                console.error(`renderAccountOrders: Заказ ${index} имеет неправильную структуру, пропускаем:`, order);
+                return null;
+            }
+
+            // Восстанавливаем структуру заказа, если она повреждена
+            const fixedOrder = {
+                id: order.id || `GS${Date.now()}_${index}`,
+                date: order.date || new Date().toISOString(),
+                total: order.total || 0,
+                status: order.status || 'accepted',
+                paymentMethod: order.paymentMethod || 'privat24',
+                deliveryMethod: order.deliveryMethod || 'nova',
+                customer: order.customer || {
+                    name: '-',
+                    phone: '-',
+                    settlement: '-',
+                    branch: '-'
+                },
+                items: order.items || [],
+                bonusesUsed: order.bonusesUsed || 0,
+                couponDiscount: order.couponDiscount || 0
+            };
+
+            console.log(`renderAccountOrders: Заказ ${index} структура:`, {
+                id: fixedOrder.id,
+                date: fixedOrder.date,
+                total: fixedOrder.total,
+                status: fixedOrder.status,
+                hasCustomer: !!fixedOrder.customer,
+                customerFields: fixedOrder.customer ? Object.keys(fixedOrder.customer) : []
+            });
+
+            return fixedOrder;
+        }).filter(order => order !== null); // Убираем null значения
+
+        // Сохраняем восстановленные заказы обратно в localStorage
+        if (orders.length > 0) {
+            try {
+                localStorage.setItem(userOrdersKey, JSON.stringify(orders));
+                console.log('renderAccountOrders: Восстановленные заказы сохранены в localStorage');
+            } catch (e) {
+                console.error('renderAccountOrders: Ошибка сохранения восстановленных заказов:', e);
+            }
+        }
+
+        // Проверим все ключи localStorage, связанные с заказами
+        const allKeys = Object.keys(localStorage);
+        const orderKeys = allKeys.filter(key => key.includes('userOrders'));
+        console.log('renderAccountOrders: Все ключи заказов в localStorage:', orderKeys);
+
+        // Если заказов нет, показываем сообщение
+        if (orders.length === 0) {
+            console.log('renderAccountOrders: Нет заказов у пользователя');
+            const body = document.getElementById('ordersTableBody');
+            if (body) {
+                body.innerHTML = '<div class="no-orders-message">У вас пока нет заказов</div>';
+            }
+            updateAccountSummary([]);
+            return;
+        }
+
+        // Находим контейнер для заказов
+        let body = document.getElementById('ordersTableBody');
+        if (!body) {
+            console.log('renderAccountOrders: Контейнер ordersTableBody не найден по ID, пробуем найти по классу');
+            body = document.querySelector('.orders-table-body');
+        }
+        if (!body) {
+            console.log('renderAccountOrders: Контейнер ordersTableBody не найден ни по ID, ни по классу');
+            console.log('renderAccountOrders: Доступные элементы с классом orders-table:', document.querySelectorAll('.orders-table'));
+            console.log('renderAccountOrders: Доступные элементы с классом orders-table-body:', document.querySelectorAll('.orders-table-body'));
+
+            // Пробуем найти альтернативные контейнеры
+            const alternativeContainers = [
+                document.querySelector('.orders-container'),
+                document.querySelector('.account-orders'),
+                document.querySelector('[data-orders-container]'),
+                document.getElementById('accountOrders')
+            ];
+
+            for (let i = 0; i < alternativeContainers.length; i++) {
+                if (alternativeContainers[i]) {
+                    console.log(`renderAccountOrders: Найден альтернативный контейнер:`, alternativeContainers[i]);
+                    body = alternativeContainers[i];
+                    break;
+                }
+            }
+
+            if (!body) {
+                console.error('renderAccountOrders: Ни один контейнер для заказов не найден');
+                console.log('renderAccountOrders: Планируем повторный вызов через 500мс');
+                setTimeout(() => {
+                    console.log('renderAccountOrders: Повторный вызов renderAccountOrders');
+                    renderAccountOrders();
+                }, 500);
+                return;
+            }
+        }
+
+        console.log('renderAccountOrders: Контейнер ordersTableBody найден:', body);
+        console.log('renderAccountOrders: Видимость контейнера:', window.getComputedStyle(body).display);
+        console.log('renderAccountOrders: Родительские элементы:', body.parentElement, body.parentElement?.parentElement);
+
+        // Очищаем текущие заказы
+        body.innerHTML = '';
+
+        // Сортируем заказы по дате (новые выше)
+        orders.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        // Добавляем заказы из localStorage
+        orders.forEach((order, index) => {
+            console.log(`renderAccountOrders: Обрабатываем заказ ${index}:`, order);
+
+            // Проверяем структуру заказа
+            if (!order || typeof order !== 'object') {
+                console.error(`renderAccountOrders: Заказ ${index} не является объектом:`, order);
+                return;
+            }
+
+            const row = document.createElement('div');
+            row.className = 'orders-table-row';
+            row.style.cursor = 'pointer';
+            row.onclick = (event) => {
+                console.log('Order row clicked:', order.id);
+                console.log('showOrderDetails function exists:', typeof showOrderDetails);
+                if (typeof showOrderDetails === 'function') {
+                    showOrderDetails(order.id);
+                } else {
+                    console.error('showOrderDetails function not found!');
+                    alert('Ошибка: функция открытия заказа не найдена. Попробуйте обновить страницу.');
+                }
+            };
+
+            // Форматируем дату
+            let orderDate = '';
+            try {
+                orderDate = order.date ? new Date(order.date).toLocaleDateString() : 'Неверная дата';
+            } catch (e) {
+                console.error('renderAccountOrders: Ошибка форматирования даты:', order.date, e);
+                orderDate = 'Ошибка даты';
+            }
+
+            // Получаем статус заказа
+            const statusText = getOrderStatusText(order.status);
+
+            // Безопасно получаем данные клиента
+            const customer = order.customer || {};
+            const settlement = customer.settlement || '';
+            const branch = customer.branch || '';
+            const address = settlement && branch ? `${settlement}, ${branch}` : (settlement || branch || 'Адрес не указан');
+
+            console.log(`renderAccountOrders: Данные заказа ${order.id}:`, {
+                id: order.id,
+                date: orderDate,
+                address: address,
+                total: order.total,
+                status: order.status,
+                customer: customer
+            });
+
+            row.innerHTML = `
+                <div>${order.id || 'Без ID'}</div>
+                <div>${orderDate}</div>
+                <div>${address}</div>
+                <div class="order-amount" data-amount="${order.total || 0}">${order.total || 0} ${getCurrencyWithDot()}</div>
+                <div class="order-status" data-original-status="${order.status || ''}">${statusText}</div>
+            `;
+
+            body.appendChild(row);
         });
-        
-        cartHTML += `
-            <div class="cart-item" data-index="${index}">
-                <div class="cart-item-image">
-                    <img src="${item.image || './images/placeholder.jpg'}" alt="${item.name}" onerror="this.src='./images/placeholder.jpg'">
-                </div>
-                <div class="cart-item-details">
-                    <div class="cart-item-name">${item.name}</div>
-                    <div class="cart-item-name-secondary">Строка названия 2</div>
-                    ${item.oldPrice && item.oldPrice > 0 && item.oldPrice !== item.price ? `<div class="cart-item-old-price">Цена: ${item.oldPrice} грн.</div>` : ''}
-                    <div class="cart-item-price">Цена: ${item.price} грн.</div>
-                </div>
-                <div class="cart-item-article">${item.article || 'N/A'}</div>
-                <div class="cart-item-quantity">
-                    <button class="quantity-btn minus" onclick="changeQuantity(${index}, -1)">-</button>
-                    <span class="quantity-display">${item.quantity}x</span>
-                    <button class="quantity-btn plus" onclick="changeQuantity(${index}, 1)">+</button>
-                </div>
-                <div class="cart-item-total">${(item.price * item.quantity).toFixed(0)} грн.</div>
-            </div>
-        `;
-    });
-    
-    cartItemsContainer.innerHTML = cartHTML;
+
+        // Обновляем сводку заказов
+        updateAccountSummary(orders);
+
+        console.log('renderAccountOrders: Заказы успешно отрендерены', orders.length);
+
+    } catch (error) {
+        console.error('renderAccountOrders: Ошибка рендеринга заказов', error);
+    }
 }
 
-// Функция для изменения количества товара
-function changeQuantity(index, delta) {
-    console.log('changeQuantity: Изменяем количество товара', index, delta);
-    
-    if (index >= 0 && index < cart.length) {
-        const newQuantity = cart[index].quantity + delta;
-        
-        if (newQuantity <= 0) {
-            // Удаляем товар из корзины
-            cart.splice(index, 1);
-            updateCartBadge();
+// Функция миграции заказов из общего localStorage в пользовательские ключи
+function migrateUserOrders() {
+    try {
+        console.log('migrateUserOrders: Начинаем миграцию заказов');
+
+        // Проверяем, есть ли старые заказы в общем localStorage
+        const oldOrders = JSON.parse(localStorage.getItem('userOrders') || '[]');
+        console.log('migrateUserOrders: Старые заказы в localStorage:', oldOrders.length);
+
+        if (oldOrders.length > 0) {
+            console.log('migrateUserOrders: Найдены старые заказы, выполняем миграцию');
+
+            // Получаем текущего пользователя
+            const currentUser = window.__authState && window.__authState.profile ?
+                (window.__authState.profile.username || window.__authState.profile.displayName || 'guest') : 'guest';
+
+            console.log('migrateUserOrders: Текущий пользователь:', currentUser);
+
+            // Получаем существующие заказы пользователя
+            const userOrdersKey = `userOrders_${currentUser}`;
+            const existingOrders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
+
+            console.log(`migrateUserOrders: Существующие заказы пользователя ${currentUser}:`, existingOrders.length);
+
+            // Если у пользователя еще нет заказов, переносим старые
+            if (existingOrders.length === 0) {
+                localStorage.setItem(userOrdersKey, JSON.stringify(oldOrders));
+                console.log(`migrateUserOrders: Заказы перенесены для пользователя ${currentUser}`);
+
+                // Показываем сообщение о миграции
+                const loginMessage = document.getElementById('loginMessage');
+                if (loginMessage) {
+                    loginMessage.textContent = `Перенесено ${oldOrders.length} заказов из старого формата`;
+                    loginMessage.style.color = '#2cab37';
+                    setTimeout(() => {
+                        loginMessage.textContent = '';
+                        loginMessage.style.color = '';
+                    }, 5000);
+                }
+
+                // Очищаем старый ключ (опционально, можно оставить для совместимости)
+                // localStorage.removeItem('userOrders');
+            } else {
+                console.log('migrateUserOrders: У пользователя уже есть заказы в новом формате, миграция не требуется');
+            }
         } else {
-            cart[index].quantity = newQuantity;
+            console.log('migrateUserOrders: Старые заказы не найдены');
         }
-        
-        // Сохраняем корзину
-        saveCart();
-        
+    } catch (error) {
+        console.error('migrateUserOrders: Ошибка миграции заказов', error);
+    }
+}
+
+// Функция диагностики заказов (для отладки)
+function diagnoseUserOrders() {
+    try {
+        console.log('=== ДИАГНОСТИКА ЗАКАЗОВ ===');
+
+        // Проверяем старые заказы
+        const oldOrders = JSON.parse(localStorage.getItem('userOrders') || '[]');
+        console.log('Старые заказы (userOrders):', oldOrders.length, oldOrders);
+
+        // Получаем текущего пользователя
+        const currentUser = window.__authState && window.__authState.profile ?
+            (window.__authState.profile.username || window.__authState.profile.displayName || 'guest') : 'guest';
+        console.log('Текущий пользователь:', currentUser);
+
+        // Проверяем заказы пользователя
+        const userOrdersKey = `userOrders_${currentUser}`;
+        const userOrders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
+        console.log(`Заказы пользователя ${currentUser}:`, userOrders.length, userOrders);
+
+        // Проверяем все ключи localStorage, связанные с заказами
+        const allKeys = Object.keys(localStorage);
+        const orderKeys = allKeys.filter(key => key.includes('userOrders'));
+        console.log('Все ключи заказов в localStorage:', orderKeys);
+
+        orderKeys.forEach(key => {
+            const orders = JSON.parse(localStorage.getItem(key) || '[]');
+            console.log(`${key}: ${orders.length} заказов`, orders);
+        });
+
+        console.log('=== КОНЕЦ ДИАГНОСТИКИ ===');
+
+        return {
+            oldOrders: oldOrders.length,
+            userOrders: userOrders.length,
+            allKeys: orderKeys
+        };
+
+    } catch (error) {
+        console.error('diagnoseUserOrders: Ошибка диагностики', error);
+    }
+}
+
+// Функция для синхронизации состояния корзины
+function syncCartState() {
+    try {
+        console.log('syncCartState: Синхронизация состояния корзины');
+
+        // Убеждаемся, что cart определена
+        if (typeof cart === 'undefined') {
+            cart = [];
+        }
+
+        // Синхронизируем между cart и window.cart
+        if (window.cart && Array.isArray(window.cart)) {
+            if (!cart || cart.length !== window.cart.length) {
+                console.log('syncCartState: Синхронизируем cart с window.cart');
+                cart = [...window.cart];
+            }
+        } else {
+            window.cart = [...cart];
+        }
+
+        // Синхронизируем cartItemCount
+        const realCount = cart && Array.isArray(cart) ? cart.reduce((total, item) => total + (item.quantity || 1), 0) : 0;
+        if (cartItemCount !== realCount) {
+            console.log('syncCartState: Исправляем cartItemCount:', cartItemCount, '->', realCount);
+            cartItemCount = realCount;
+            window.cartItemCount = realCount;
+        }
+
         // Обновляем отображение
-        renderCartItems();
-        updateCartCalculations();
+        updateCartBadge();
+
+        console.log('syncCartState: Синхронизация завершена', {
+            cartLength: cart.length,
+            cartItemCount: cartItemCount,
+            windowCartLength: window.cart.length
+        });
+
+        return {
+            cartLength: cart.length,
+            cartItemCount: cartItemCount,
+            isSynced: true
+        };
+
+    } catch (error) {
+        console.error('syncCartState: Ошибка синхронизации', error);
+        return { error: error.message };
     }
 }
 
-// Функция для обновления расчетов корзины
-function updateCartCalculations() {
-    console.log('updateCartCalculations: Обновляем расчеты корзины');
-    
-    if (!cart || cart.length === 0) {
-        // Сбрасываем все значения
-        document.getElementById('cartSubtotal').textContent = '0 грн';
-        document.getElementById('cartDiscount').textContent = '-0 грн';
-        document.getElementById('cartDelivery').textContent = '80 грн';
-        document.getElementById('cartCommission').textContent = '0 грн';
-        document.getElementById('cartBonusUsed').textContent = '-0 грн';
-        document.getElementById('cartCouponUsed').textContent = '-0 грн';
-        document.getElementById('cartTotalPrice').textContent = '0 грн.';
-        document.getElementById('cartPayAmount').textContent = '0 грн';
-        return;
+// Делаем функции доступными глобально для отладки
+window.diagnoseUserOrders = diagnoseUserOrders;
+window.syncCartState = syncCartState;
+
+// Функция для восстановления старых заказов (если они были удалены)
+function restoreOldOrders() {
+    try {
+        console.log('restoreOldOrders: Проверяем наличие старых заказов для восстановления');
+
+        // Проверяем текущего пользователя
+        const currentUser = window.__authState && window.__authState.profile ?
+            (window.__authState.profile.username || window.__authState.profile.displayName || 'guest') : 'guest';
+
+        console.log('restoreOldOrders: Текущий пользователь:', currentUser);
+
+        const userOrdersKey = `userOrders_${currentUser}`;
+
+        // Проверяем, есть ли уже заказы у пользователя
+        const existingOrders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
+        console.log('restoreOldOrders: Существующие заказы пользователя:', existingOrders.length);
+
+        // Если у пользователя уже есть заказы, не восстанавливаем тестовые
+        if (existingOrders.length > 0) {
+            console.log('restoreOldOrders: У пользователя уже есть заказы, пропускаем восстановление тестовых данных');
+            console.log('restoreOldOrders: Возвращаем существующие заказы:', existingOrders);
+            return existingOrders;
+        }
+
+        // Создаем тестовые заказы только для just_a_legend И ТОЛЬКО ЕСЛИ У НЕГО НЕТ ЗАКАЗОВ
+        if (currentUser === 'just_a_legend' && existingOrders.length === 0) {
+            console.log('restoreOldOrders: Создаем тестовые заказы для just_a_legend (у него нет реальных заказов)');
+
+            const testOrders = [
+                {
+                    id: 'GS1001',
+                    date: '2024-01-15T10:30:00.000Z',
+                    status: 'completed',
+                    total: 1250.00,
+                    paymentMethod: 'privat24', // Без комиссии
+                    deliveryMethod: 'nova',    // Бесплатная доставка
+                    bonusesUsed: 0,
+                    couponDiscount: 0,
+                    customer: {
+                        name: 'Just a Legend',
+                        phone: '+380501234567',
+                        settlement: 'Одесса',
+                        branch: 'Отделение №1'
+                    },
+                    items: [
+                        { name: 'Ernie Ball 2221 Nickel Wound', quantity: 1, price: 650 },
+                        { name: 'D\'Addario EXL110 Nickel Wound', quantity: 1, price: 600 }
+                    ]
+                },
+                {
+                    id: 'GS1002',
+                    date: '2024-01-20T14:15:00.000Z',
+                    status: 'completed',
+                    total: 850.50,
+                    paymentMethod: 'meeting',  // Без комиссии
+                    deliveryMethod: 'pickup',  // Самовывоз
+                    bonusesUsed: 25,
+                    couponDiscount: 0,
+                    customer: {
+                        name: 'Just a Legend',
+                        phone: '+380501234567',
+                        settlement: 'Киев',
+                        branch: 'Отделение №15'
+                    },
+                    items: [
+                        { name: 'Elixir 12002 Nanoweb', quantity: 1, price: 850.50 }
+                    ]
+                },
+                {
+                    id: 'GS1003',
+                    date: '2024-01-25T16:45:00.000Z',
+                    status: 'processing',
+                    total: 2100.00,
+                    paymentMethod: 'terminal', // Без комиссии
+                    deliveryMethod: 'ukrposhta', // Платная доставка
+                    bonusesUsed: 0,
+                    couponDiscount: 150,
+                    customer: {
+                        name: 'Just a Legend',
+                        phone: '+380501234567',
+                        settlement: 'Харьков',
+                        branch: 'Отделение №8'
+                    },
+                    items: [
+                        { name: 'Fender 7250ML', quantity: 2, price: 1050 }
+                    ]
+                }
+            ];
+
+            // Сохраняем заказы для пользователя just_a_legend
+            localStorage.setItem(userOrdersKey, JSON.stringify(testOrders));
+            console.log('restoreOldOrders: Восстановлены тестовые заказы для just_a_legend:', testOrders.length);
+            return testOrders;
+        } else {
+            console.log('restoreOldOrders: Пользователь не just_a_legend, пропускаем восстановление тестовых данных');
+            return [];
+        }
+
+    } catch (error) {
+        console.error('restoreOldOrders: Ошибка восстановления заказов', error);
+        return [];
     }
-    
-    // Рассчитываем промежуточный итог и скидки
-    let newPricesTotal = 0;
-    let oldPricesTotal = 0;
-    
-    cart.forEach(item => {
-        // Считаем сумму новых цен
-        newPricesTotal += item.price * item.quantity;
-        
-        // Считаем сумму старых цен для расчета скидки
-        if (item.oldPrice && item.oldPrice > 0 && item.oldPrice !== item.price) {
-            oldPricesTotal += item.oldPrice * item.quantity;
+}
+
+// Делаем функцию доступной глобально
+window.restoreOldOrders = restoreOldOrders;
+
+// Функция обновления сводки заказов
+function updateAccountSummary(orders) {
+    try {
+        const totalOrders = orders.length;
+        const totalAmount = orders.reduce((sum, order) => sum + (order.total || 0), 0);
+
+        const totalOrdersEl = document.getElementById('accTotalOrders');
+        const accBonusesEl = document.getElementById('accBonuses');
+        const totalAmountEl = document.getElementById('accTotalAmount');
+
+        if (totalOrdersEl) {
+            totalOrdersEl.textContent = totalOrders;
         }
-    });
-    
-    // Получаем значения из полей ввода
-    const bonusInput = document.querySelector('.cart-bonuses');
-    const couponInput = document.querySelector('.cart-coupon');
-    
-    const bonusValue = bonusInput ? parseInt(bonusInput.value) || 0 : 0;
-    const couponValue = couponInput ? parseInt(couponInput.value) || 0 : 0;
-    
-    // Рассчитываем скидку как разность между старыми и новыми ценами
-    const discount = oldPricesTotal > 0 ? oldPricesTotal - newPricesTotal : 0;
-    
-    // Отладочная информация для расчета скидки
-    console.log('updateCartCalculations: Расчет скидки:', {
-        newPricesTotal: newPricesTotal,
-        oldPricesTotal: oldPricesTotal,
-        discount: discount,
-        cartItems: cart.map(item => ({
-            name: item.name,
-            price: item.price,
-            oldPrice: item.oldPrice,
-            quantity: item.quantity,
-            hasOldPrice: item.oldPrice && item.oldPrice > 0 && item.oldPrice !== item.price
-        }))
-    });
-    
-    // Получаем стоимость доставки из выбранного способа
-    const deliverySelect = document.getElementById('deliveryMethodSelect');
-    let delivery = 0;
-    
-    if (deliverySelect) {
-        switch (deliverySelect.value) {
-            case 'ukrposhta':
-                delivery = 80;
-                break;
-            case 'free1001':
-            case 'free2000':
-                delivery = 0; // Бесплатная доставка
-                break;
-            default:
-                delivery = 0; // Nova пошта, Meest пошта, Самовывоз
-                break;
+
+        if (accBonusesEl) {
+            // Получаем имя пользователя для персональной загрузки бонусов
+            const currentUser = window.__authState && window.__authState.profile ?
+                (window.__authState.profile.username || window.__authState.profile.displayName || 'guest') : 'guest';
+
+            const userBonusKey = `userBonusBalance_${currentUser}`;
+
+            // Используем сохраненный баланс бонусов для конкретного пользователя или значение по умолчанию
+            const currentBonuses = localStorage.getItem(userBonusKey) || localStorage.getItem('userBonusBalance') || '29';
+            accBonusesEl.textContent = currentBonuses;
         }
+
+        if (totalAmountEl) {
+            totalAmountEl.textContent = `${totalAmount} ${getCurrencyWithDot()}`;
+        }
+
+        console.log('updateAccountSummary: Сводка обновлена', { totalOrders, totalAmount });
+
+    } catch (error) {
+        console.error('updateAccountSummary: Ошибка обновления сводки', error);
+    }
+}
+
+// Локализует суммы и статусы заказов в кабинете без повторного запроса
+function updateAccountOrdersLocale() {
+    try {
+        const totalAmountEl = document.getElementById('accTotalAmount');
+        if (totalAmountEl) {
+            const numeric = parseFloat((totalAmountEl.textContent || '').replace(/[^\d.]/g, '')) || 0;
+            totalAmountEl.textContent = `${numeric} ${getCurrencyWithDot()}`;
+        }
+        const container = document.getElementById('ordersTableBody');
+        if (!container) return;
+        const rows = container.querySelectorAll('.orders-table-row');
+        rows.forEach(row => {
+            const amountEl = row.querySelector('.order-amount');
+            const statusEl = row.querySelector('.order-status');
+            if (amountEl) {
+                const num = parseFloat(amountEl.getAttribute('data-amount') || '0') || 0;
+                amountEl.textContent = `${num} ${getCurrencyWithDot()}`;
+            }
+            if (statusEl) {
+                const original = statusEl.getAttribute('data-original-status') || statusEl.textContent;
+                statusEl.textContent = getOrderStatusText(original);
+            }
+        });
+    } catch (e) {
+        console.warn('updateAccountOrdersLocale error', e);
+    }
+}
+
+// Гарантирует наличие контейнера для карточек товаров
+function ensureProductsContainer() {
+    let container = document.getElementById('productsContainer');
+    if (!container) {
+        const inner = document.querySelector('.inner');
+        if (!inner) return null;
+        container = document.createElement('div');
+        container.id = 'productsContainer';
+        // Вставляем перед индикатором загрузки, если он есть
+        const loading = document.getElementById('loading-indicator');
+        if (loading && loading.parentNode === inner) {
+            inner.insertBefore(container, loading);
+        } else {
+            inner.insertBefore(container, inner.firstChild);
+        }
+        console.log('ensureProductsContainer: Создан контейнер #productsContainer');
+    }
+    return container;
+}
+
+// Создаёт секцию кабинета, если она отсутствует
+function ensureAccountSection() {
+    let acc = document.getElementById('account-section');
+    if (acc) return acc;
+    const inner = document.querySelector('.inner');
+    if (!inner) return null;
+    acc = document.createElement('div');
+    acc.id = 'account-section';
+    acc.style.display = 'none';
+    acc.innerHTML = `
+        <div class="account-header">
+            <div class="account-user">
+                <img id="accountAvatar" class="account-avatar" src="" alt="Avatar" style="display:none;">
+                <div class="account-title-block">
+                    <h2 id="accountUserName">—</h2>
+                    <div class="account-bonuses" id="accountBonuses" data-translate="bonusInfo">Кол-во бонусов: 100</div>
+                </div>
+            </div>
+            <div class="account-actions">
+                <div class="account-action-btn" data-action="orders" data-translate="ordersList">Список заказов</div>
+                <div class="account-action-btn" data-action="addresses" data-translate="myAddresses">Мои адреса</div>
+                <div class="account-action-btn" data-action="accountData" data-translate="accountData">Данные аккаунта</div>
+                <div class="account-lang">
+                    <button class="account-lang-btn">UA</button>
+                    <div class="account-lang-dropdown">
+                        <div class="lang-option" data-lang="uk">UA</div>
+                        <div class="lang-option" data-lang="ru">RU</div>
+                        <div class="lang-option" data-lang="en">EN</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="account-summary">
+            <div><span data-translate="totalOrdersLabel">Всего заказов:</span> <strong id="accTotalOrders">0</strong></div>
+            <div><span data-translate="bonusesLabel">Кол-во бонусов:</span> <strong id="accBonuses">0</strong></div>
+            <div><span data-translate="totalAmountLabel">Общая сумма:</span> <strong id="accTotalAmount">0 грн</strong></div>
+        </div>
+        <div class="account-orders">
+            <div class="orders-table-header">
+                <div data-translate="orderNumber">Номер заказа</div>
+                <div data-translate="orderDate">Дата</div>
+                <div data-translate="deliveryAddress">Адрес доставки</div>
+                <div data-translate="orderAmount">Сумма</div>
+                <div data-translate="orderStatus">Статус заказа</div>
+            </div>
+            <div id="ordersTableBody" class="orders-table-body"></div>
+        </div>
+    `;
+    // Вставляем после productsContainer, если он есть
+    const pc = document.getElementById('productsContainer');
+    if (pc && pc.parentNode === inner) {
+        inner.insertBefore(acc, pc.nextSibling);
     } else {
-        delivery = 0; // По умолчанию
+        inner.appendChild(acc);
     }
-    
-    // Ограничиваем бонусы и купон (используем сумму новых цен)
-    const maxBonus = Math.min(bonusValue, newPricesTotal);
-    const maxCoupon = Math.min(couponValue, newPricesTotal);
-    
-    // Итоговая сумма (с учетом скидки)
-    const total = newPricesTotal + delivery - maxBonus - maxCoupon;
-    // Обновляем отображение
-    document.getElementById('cartSubtotal').textContent = `${oldPricesTotal > 0 ? oldPricesTotal.toFixed(0) : newPricesTotal.toFixed(0)} грн`;
-    document.getElementById('cartDiscount').textContent = `-${discount.toFixed(0)} грн`;
-    document.getElementById('cartDelivery').textContent = `${delivery} грн`;
-    document.getElementById('cartCommission').textContent = '0 грн';
-    document.getElementById('cartBonusUsed').textContent = `-${maxBonus.toFixed(0)} грн`;
-    document.getElementById('cartCouponUsed').textContent = `-${maxCoupon.toFixed(0)} грн`;
-    document.getElementById('cartTotalPrice').textContent = `${total.toFixed(0)} грн.`;
-    document.getElementById('cartPayAmount').textContent = `${total.toFixed(0)} грн`;
-    
-    // Обновляем опции бесплатной доставки
-    updateFreeDeliveryOptions();
+    console.log('ensureAccountSection: Создан блок #account-section');
+    return acc;
+}
+function getCurrentLanguage() {
+	try {
+		const lang = localStorage.getItem('selectedLanguage') || 'uk';
+		console.log('getCurrentLanguage: Возвращаемый язык:', lang);
+		return lang;
+	} catch (e) {
+		console.log('getCurrentLanguage: Ошибка при получении языка:', e, ', возвращаем uk');
+		return 'uk';
+	}
+}
+function updateAccountLangButton(lang) {
+	const btn = document.querySelector('.account-lang-btn');
+	if (!btn) return;
+	if (lang === 'uk') btn.textContent = 'UA';
+	else if (lang === 'ru') btn.textContent = 'RU';
+	else if (lang === 'en') btn.textContent = 'EN';
+	else btn.textContent = lang.toUpperCase();
+	// Подсветка выбранного языка на кнопке по умолчанию
+	btn.classList.add('selected');
 }
 
-// Функция для обновления стоимости доставки при смене способа доставки
-function updateDeliveryCost() {
-    console.log('updateDeliveryCost: Обновляем стоимость доставки');
-    
-    const deliverySelect = document.getElementById('deliveryMethodSelect');
-    const selectedMethod = deliverySelect.value;
-    
-    let deliveryCost = 0;
-    
-    switch (selectedMethod) {
-        case 'ukrposhta':
-            deliveryCost = 80;
-            break;
-        case 'free1001':
-        case 'free2000':
-            deliveryCost = 0; // Бесплатная доставка
-            break;
-        default:
-            deliveryCost = 0; // Nova пошта, Meest пошта, Самовывоз
-            break;
-    }
-    
-    // Обновляем отображение стоимости доставки
-    document.getElementById('cartDelivery').textContent = `${deliveryCost} грн`;
-    
-    console.log(`updateDeliveryCost: Способ доставки: ${selectedMethod}, стоимость: ${deliveryCost} грн`);
+function setupAccountLanguageDropdown() {
+	const acc = document.getElementById('account-section');
+	if (!acc) return;
+	const container = acc.querySelector('.account-lang');
+	const options = acc.querySelectorAll('.account-lang-dropdown .lang-option');
+	const btn = acc.querySelector('.account-lang-btn');
+	const dropdown = acc.querySelector('.account-lang-dropdown');
+	// Инициализация кнопки текущим языком
+	const currentLang = getCurrentLanguage();
+	updateAccountLangButton(currentLang);
+	// Убираем фиксированную подсветку пунктов (active не используем)
+	options.forEach(opt => opt.classList.remove('active'));
+	options.forEach(opt => {
+		if (opt._langHandler) opt.removeEventListener('click', opt._langHandler);
+		opt._langHandler = function() {
+			const lang = this.getAttribute('data-lang');
+			try { localStorage.setItem('selectedLanguage', lang); } catch (e) {}
+			if (typeof switchLanguage === 'function') switchLanguage(lang);
+			if (typeof updateLanguageButtons === 'function') updateLanguageButtons(lang);
+			updateAccountLangButton(lang);
+			// Возвращаем подсветку кнопки после выбора
+			if (btn) btn.classList.add('selected');
+			// Переставляем подсветку активного пункта
+			options.forEach(o => o.classList.remove('active'));
+			this.classList.add('active');
+			// Закрываем список сразу после выбора
+			if (container) {
+				container.classList.remove('open');
+				container.classList.add('force-closed');
+			}
+			// Закрываем портальный dropdown
+			if (dropdown) {
+				dropdown.style.display = 'none';
+				if (dropdown._restoreParent && dropdown._restoreNext) {
+					dropdown._restoreParent.insertBefore(dropdown, dropdown._restoreNext);
+				}
+			}
+		};
+		opt.addEventListener('click', opt._langHandler);
+	});
+	if (btn && container && dropdown) {
+		if (btn._langBtnInit) return;
+		btn._langBtnInit = true;
+		function openPortaledDropdown() {
+			try {
+				const rect = btn.getBoundingClientRect();
+				// Сохраняем исходное положение
+				dropdown._restoreParent = dropdown.parentNode;
+				dropdown._restoreNext = dropdown.nextSibling;
+				// Переносим в body поверх всех слоёв
+				document.body.appendChild(dropdown);
+				dropdown.style.position = 'fixed';
+				dropdown.style.zIndex = '2147483647';
+				// Под кнопкой, выравнивание по левой границе, ширина как у кнопки
+				const width = Math.round(rect.width);
+				const viewportPadding = 8;
+				let left = Math.round(rect.left);
+				left = Math.max(viewportPadding, Math.min(left, window.innerWidth - width - viewportPadding));
+				dropdown.style.top = Math.round(rect.bottom) + 'px';
+				dropdown.style.left = left + 'px';
+				dropdown.style.right = '';
+				dropdown.style.width = width + 'px';
+				dropdown.style.minWidth = width + 'px';
+				dropdown.style.display = 'block';
+			} catch (e) {}
+		}
+		function closePortaledDropdown(restore = true) {
+			try {
+				dropdown.style.display = 'none';
+				if (restore && dropdown._restoreParent) {
+					dropdown._restoreParent.insertBefore(dropdown, dropdown._restoreNext);
+				}
+			} catch (e) {}
+		}
+		btn.addEventListener('click', function(e) {
+			e.stopPropagation();
+			const willOpen = dropdown.style.display !== 'block';
+			if (willOpen) {
+				openPortaledDropdown();
+				container.classList.add('open');
+				container.classList.remove('force-closed');
+			} else {
+				closePortaledDropdown();
+				container.classList.remove('open');
+			}
+		});
+
+		// Гарантируем, что текст на кнопке всегда соответствует текущему языку
+		btn.addEventListener('mouseenter', () => {
+			updateAccountLangButton(getCurrentLanguage());
+		});
+
+		// Открытие по наведению (только для устройств с поддержкой hover)
+		try {
+			const canHover = (window.matchMedia && window.matchMedia('(hover: hover)').matches) && !('ontouchstart' in window);
+			let closeHoverTimeout = null;
+			if (canHover) {
+				btn.addEventListener('mouseenter', () => {
+					if (closeHoverTimeout) { clearTimeout(closeHoverTimeout); closeHoverTimeout = null; }
+					openPortaledDropdown();
+					container.classList.add('open');
+					container.classList.remove('force-closed');
+				});
+				btn.addEventListener('mouseleave', () => {
+					closeHoverTimeout = setTimeout(() => {
+						closePortaledDropdown();
+						container.classList.remove('open');
+					}, 120);
+				});
+				dropdown.addEventListener('mouseenter', () => {
+					if (closeHoverTimeout) { clearTimeout(closeHoverTimeout); closeHoverTimeout = null; }
+				});
+				dropdown.addEventListener('mouseleave', () => {
+					closeHoverTimeout = setTimeout(() => {
+						closePortaledDropdown();
+						container.classList.remove('open');
+					}, 120);
+				});
+			}
+		} catch (e) {}
+		// Закрытие при клике вне
+		document.addEventListener('click', function(ev) {
+			if (dropdown.style.display === 'block' && ev.target !== btn && !dropdown.contains(ev.target)) {
+				closePortaledDropdown();
+				container.classList.remove('open');
+				if (btn) btn.classList.add('selected');
+			}
+		});
+		// При ресайзе пере-позиционируем
+		window.addEventListener('resize', () => {
+			if (dropdown.style.display === 'block') {
+				openPortaledDropdown();
+			}
+		});
+	}
 }
 
-// Функция для проверки и показа/скрытия опций бесплатной доставки
-function updateFreeDeliveryOptions() {
-    console.log('updateFreeDeliveryOptions: Проверяем опции бесплатной доставки');
-    
-    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const free1001Option = document.querySelector('option[value="free1001"]');
-    const free2000Option = document.querySelector('option[value="free2000"]');
-    
-    // Показываем/скрываем опцию бесплатной доставки от 1001 грн
-    if (free1001Option) {
-        if (subtotal >= 1001) {
-            free1001Option.style.display = 'block';
-            console.log('updateFreeDeliveryOptions: Показана опция бесплатной доставки от 1001 грн');
-        } else {
-            free1001Option.style.display = 'none';
-            // Если эта опция была выбрана, переключаемся на Nova пошта
-            if (document.getElementById('deliveryMethodSelect').value === 'free1001') {
-                document.getElementById('deliveryMethodSelect').value = 'nova';
-                updateDeliveryCost();
+// Перевод статуса заказа по текущему языку
+function getOrderStatusText(originalStatus) {
+	const lang = getCurrentLanguage();
+	const s = (originalStatus || '').toString().trim().toLowerCase();
+	// Базовые маппинги
+	let code = 'paid';
+	if (s.includes('оплач')) code = 'paid';
+	else if (s.includes('paid')) code = 'paid';
+	else if (s.includes('processing') || s.includes('обработ')) code = 'processing';
+	else if (s.includes('принят') || s.includes('accepted')) code = 'accepted';
+	else if (s.includes('отмен') || s.includes('cancel')) code = 'cancelled';
+	// Локализация
+	if (lang === 'uk') {
+		if (code === 'paid') return 'Сплачено';
+		if (code === 'processing') return 'Обробляється';
+		if (code === 'accepted') return 'Прийнято';
+		if (code === 'cancelled') return 'Скасовано';
+		return 'Статус';
+	} else if (lang === 'ru') {
+		if (code === 'paid') return 'Оплачено';
+		if (code === 'processing') return 'В обработке';
+		if (code === 'accepted') return 'Принят';
+		if (code === 'cancelled') return 'Отменён';
+		return 'Статус';
+	} else {
+		if (code === 'paid') return 'Paid';
+		if (code === 'processing') return 'Processing';
+		if (code === 'accepted') return 'Accepted';
+		if (code === 'cancelled') return 'Cancelled';
+		return 'Status';
+	}
+}
+
+function getVisibleView() {
+    try {
+        const acc = document.getElementById('account-section');
+        if (acc) {
+            const accDisp = (acc.style && acc.style.display) || '';
+            const accCs = window.getComputedStyle ? getComputedStyle(acc) : null;
+            const accVisible = (accDisp && accDisp !== 'none') || (accCs && accCs.display !== 'none');
+            if (accVisible) return 'account';
+        }
+        const pc = document.getElementById('productsContainer');
+        if (pc) {
+            const pcDisp = (pc.style && pc.style.display) || '';
+            const pcCs = window.getComputedStyle ? getComputedStyle(pc) : null;
+            const pcVisible = (pcDisp ? pcDisp !== 'none' : true) && (!pcCs || pcCs.display !== 'none' ? true : false);
+            if (pcVisible) return 'products';
+        }
+    } catch (e) {}
+    return 'products';
+}
+
+// Функция генерации номера заказа
+function generateOrderId() {
+    try {
+        // Проверяем сохраненный последний ID
+        let lastOrderId = localStorage.getItem('lastOrderId');
+
+        if (!lastOrderId) {
+            // Если нет сохраненного ID, ищем максимальный ID среди всех заказов
+            console.log('generateOrderId: Нет сохраненного lastOrderId, ищем среди существующих заказов');
+
+            let maxOrderId = 999; // Минимальный ID
+
+            // Получаем все ключи localStorage
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('userOrders_')) {
+                    // Это заказы пользователя
+                    try {
+                        const orders = JSON.parse(localStorage.getItem(key) || '[]');
+                        orders.forEach(order => {
+                            if (order && order.id && order.id.startsWith('GS')) {
+                                const orderNum = parseInt(order.id.replace('GS', ''));
+                                if (!isNaN(orderNum) && orderNum > maxOrderId) {
+                                    maxOrderId = orderNum;
+                                }
+                            }
+                        });
+                    } catch (e) {
+                        console.warn('generateOrderId: Ошибка обработки заказов пользователя', key, e);
+                    }
+                }
             }
+
+            lastOrderId = maxOrderId.toString();
+            console.log('generateOrderId: Найден максимальный ID заказов:', maxOrderId);
+        }
+
+        const nextOrderId = parseInt(lastOrderId) + 1;
+        localStorage.setItem('lastOrderId', nextOrderId.toString());
+
+        const orderId = `GS${nextOrderId}`;
+        console.log('generateOrderId: Сгенерирован новый ID заказа:', orderId);
+
+        return orderId;
+    } catch (error) {
+        console.error('generateOrderId: Ошибка генерации ID заказа', error);
+        // Fallback: используем timestamp
+        const timestampId = Date.now() % 1000000;
+        return `GS${timestampId}`;
+    }
+}
+
+// Функция сохранения заказа в localStorage
+function saveOrderToLocalStorage(order) {
+    try {
+        // Получаем username текущего пользователя
+        const currentUser = window.__authState && window.__authState.profile ?
+            (window.__authState.profile.username || window.__authState.profile.displayName || 'guest') : 'guest';
+
+        // Получаем существующие заказы пользователя
+        const userOrdersKey = `userOrders_${currentUser}`;
+        const orders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
+
+        console.log('saveOrderToLocalStorage: Сохраняем заказ для пользователя:', currentUser);
+        console.log('saveOrderToLocalStorage: Ключ localStorage:', userOrdersKey);
+        console.log('saveOrderToLocalStorage: Данные заказа:', {
+            id: order.id,
+            bonusesUsed: order.bonusesUsed,
+            couponDiscount: order.couponDiscount,
+            total: order.total
+        });
+
+        orders.push(order);
+        localStorage.setItem(userOrdersKey, JSON.stringify(orders));
+        console.log('saveOrderToLocalStorage: Заказ сохранен в localStorage', order);
+        console.log('saveOrderToLocalStorage: Всего заказов после сохранения:', orders.length);
+    } catch (error) {
+        console.error('saveOrderToLocalStorage: Ошибка сохранения заказа', error);
+    }
+}
+
+// Функция начисления бонусов пользователю
+function addUserBonus(bonusAmount) {
+    try {
+        console.log('addUserBonus: Попытка начисления бонусов:', bonusAmount);
+        console.log('addUserBonus: Состояние авторизации:', window.__authState);
+
+        if (!window.__authState || !window.__authState.isAuthenticated) {
+            console.log('addUserBonus: Пользователь не авторизован, бонусы не начислены');
+            return false;
+        }
+
+        // Получаем имя пользователя для персонального хранения бонусов
+        const currentUser = window.__authState.profile ?
+            (window.__authState.profile.username || window.__authState.profile.displayName || 'guest') : 'guest';
+
+        const userBonusKey = `userBonusBalance_${currentUser}`;
+
+        // Получаем текущий баланс бонусов из localStorage для конкретного пользователя
+        const currentBonus = parseInt(localStorage.getItem(userBonusKey) || '0');
+        const newBonusBalance = currentBonus + bonusAmount;
+
+        // Сохраняем новый баланс для конкретного пользователя
+        localStorage.setItem(userBonusKey, newBonusBalance.toString());
+
+        // Также сохраняем в общий ключ для совместимости
+        localStorage.setItem('userBonusBalance', newBonusBalance.toString());
+
+        // Обновляем отображение баланса в интерфейсе
+        updateBonusDisplay(newBonusBalance);
+
+        console.log(`addUserBonus: ✅ Начислено ${bonusAmount} бонусов для пользователя ${currentUser}. Баланс: ${currentBonus} → ${newBonusBalance}`);
+        return true;
+    } catch (error) {
+        console.error('addUserBonus: ❌ Ошибка начисления бонусов', error);
+        return false;
+    }
+}
+
+// Функция обновления отображения баланса бонусов
+function updateBonusDisplay(bonusBalance) {
+    // Проверяем, авторизован ли пользователь
+    const isAuthenticated = window.__authState && window.__authState.isAuthenticated;
+    console.log('updateBonusDisplay: Пользователь авторизован:', isAuthenticated, 'Баланс бонусов:', bonusBalance);
+
+    // Обновляем отображение в шапке сайта
+    const headerBonusElement = document.getElementById('headerBonusBalance');
+    if (headerBonusElement) {
+        if (isAuthenticated) {
+            // Получаем текущий язык для перевода
+            const lang = getCurrentLanguage ? getCurrentLanguage() : (localStorage.getItem('selectedLanguage') || 'uk');
+            console.log('updateBonusDisplay: Получаем перевод для языка:', lang, 'баланс:', bonusBalance);
+
+            let translatedText = `Кол-во бонусов: ${bonusBalance}`;
+
+            if (window.translations) {
+                try {
+                    console.log('updateBonusDisplay: Вызываем getTranslationWithParams с параметрами:', {
+                        key: 'bonusInfo',
+                        params: { amount: bonusBalance.toString() },
+                        lang: lang
+                    });
+
+                    translatedText = window.translations.getTranslationWithParams('bonusInfo', { amount: bonusBalance.toString() }, lang);
+                    console.log('updateBonusDisplay: Успешно получен перевод через getTranslationWithParams:', translatedText);
+
+                    // Также проверим, что получилось
+                    const baseTranslation = window.translations.getTranslation('bonusInfo', lang);
+                    console.log('updateBonusDisplay: Базовый перевод без параметров:', baseTranslation);
+
+                } catch (error) {
+                    console.error('updateBonusDisplay: Ошибка при получении перевода:', error);
+                    console.error('updateBonusDisplay: Детали ошибки:', error.stack);
+                    translatedText = `Кол-во бонусов: ${bonusBalance}`;
+                }
+            } else {
+                console.warn('updateBonusDisplay: Объект translations не найден, используем fallback');
+                console.log('updateBonusDisplay: window.translations:', window.translations);
+            }
+
+            console.log('updateBonusDisplay: Переведенный текст:', translatedText);
+            headerBonusElement.textContent = translatedText;
+            headerBonusElement.style.display = 'block'; // Показываем бонусы для авторизованного пользователя
+            console.log('updateBonusDisplay: Показываем бонусы в шапке:', translatedText);
+            console.log('updateBonusDisplay: Текущий display стиль:', headerBonusElement.style.display);
+        } else {
+            // Скрываем бонусы для неавторизованного пользователя
+            headerBonusElement.style.display = 'none';
+            console.log('updateBonusDisplay: Скрываем бонусы в шапке (пользователь не авторизован)');
+            console.log('updateBonusDisplay: Текущий display стиль:', headerBonusElement.style.display);
         }
     }
-    
-    // Показываем/скрываем опцию бесплатной доставки от 2000 грн
-    if (free2000Option) {
-        if (subtotal >= 2000) {
-            free2000Option.style.display = 'block';
-            console.log('updateFreeDeliveryOptions: Показана опция бесплатной доставки от 2000 грн');
-        } else {
-            free2000Option.style.display = 'none';
-            // Если эта опция была выбрана, переключаемся на Nova пошта
-            if (document.getElementById('deliveryMethodSelect').value === 'free2000') {
-                document.getElementById('deliveryMethodSelect').value = 'nova';
-                updateDeliveryCost();
-            }
-        }
+
+    // Обновляем отображение в кабинете
+    const bonusElement = document.getElementById('userBonusBalance');
+    if (bonusElement) {
+        bonusElement.textContent = bonusBalance;
+    }
+
+    // Обновляем отображение в корзине
+    const cartBonusElement = document.getElementById('cartBonusBalance');
+    if (cartBonusElement) {
+        cartBonusElement.textContent = bonusBalance;
+    }
+
+    // Заголовок страницы всегда фиксированный, не зависит от авторизации
+    updatePageTitle();
+}
+
+// Функция получения текущего баланса бонусов
+function getUserBonusBalance() {
+    // Получаем имя пользователя для персональной загрузки бонусов
+    const currentUser = window.__authState && window.__authState.profile ?
+        (window.__authState.profile.username || window.__authState.profile.displayName || 'guest') : 'guest';
+
+    const userBonusKey = `userBonusBalance_${currentUser}`;
+
+    // Получаем бонусы для конкретного пользователя или общие бонусы
+    return parseInt(localStorage.getItem(userBonusKey) || localStorage.getItem('userBonusBalance') || '0');
+}
+
+// Функция инициализации баланса бонусов
+function initializeUserBonus() {
+    try {
+        // Логируем состояние авторизации
+        console.log('initializeUserBonus: Состояние авторизации:', window.__authState);
+        console.log('initializeUserBonus: Профиль пользователя:', window.__authState?.profile);
+
+        // Проверяем авторизацию и передаем соответствующий баланс
+        const isAuthenticated = window.__authState && window.__authState.isAuthenticated;
+        const bonusBalance = isAuthenticated ? getUserBonusBalance() : 0;
+        updateBonusDisplay(bonusBalance);
+        console.log('initializeUserBonus: Баланс бонусов инициализирован:', bonusBalance, 'для авторизованного пользователя:', isAuthenticated);
+
+        // Логируем информацию о пользователе для отладки
+        const currentUser = window.__authState && window.__authState.profile ?
+            (window.__authState.profile.username || window.__authState.profile.displayName || 'guest') : 'guest';
+        console.log('initializeUserBonus: Текущий пользователь:', currentUser);
+
+        // Заголовок страницы всегда фиксированный, не зависит от авторизации
+        updatePageTitle();
+    } catch (error) {
+        console.error('initializeUserBonus: Ошибка инициализации баланса бонусов', error);
     }
 }
 
-// Функция для оформления заказа
+// Функция обновления заголовка страницы и шапки
+function updatePageTitle(username) {
+    try {
+        // Всегда показываем GuitarStrings.com.ua в заголовке страницы
+        document.title = 'GuitarStrings.com.ua';
+
+        // Шапка сайта всегда показывает GuitarStrings.com.ua независимо от авторизации
+        const headerTitle = document.querySelector('.app-title');
+        if (headerTitle) {
+            headerTitle.textContent = 'GuitarStrings.com.ua';
+        }
+
+        console.log('updatePageTitle: Заголовок всегда установлен как GuitarStrings.com.ua');
+    } catch (error) {
+        console.error('updatePageTitle: Ошибка обновления заголовка', error);
+    }
+}
+
+// Функция добавления заказа в кабинет пользователя
+function addOrderToAccountView(order) {
+    try {
+        if (!window.__authState || !window.__authState.isAuthenticated) {
+            console.log('addOrderToAccountView: Пользователь не авторизован, пропускаем добавление в кабинет');
+            return;
+        }
+
+        // Получаем username текущего пользователя
+        const currentUser = window.__authState.profile ?
+            (window.__authState.profile.username || window.__authState.profile.displayName || 'guest') : 'guest';
+
+        console.log('addOrderToAccountView: window.__authState:', window.__authState);
+        console.log('addOrderToAccountView: profile:', window.__authState?.profile);
+        console.log('addOrderToAccountView: Определен пользователь:', currentUser);
+
+        // Получаем существующие заказы пользователя из localStorage
+        const userOrdersKey = `userOrders_${currentUser}`;
+        console.log('addOrderToAccountView: Используемый ключ localStorage:', userOrdersKey);
+
+        const existingOrders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
+        console.log('addOrderToAccountView: Существующие заказы:', existingOrders.length, existingOrders);
+
+        // Проверяем, не существует ли уже такой заказ (по ID)
+        const orderExists = existingOrders.some(existingOrder => existingOrder.id === order.id);
+        if (orderExists) {
+            console.log('addOrderToAccountView: Заказ уже существует, пропускаем добавление:', order.id);
+            return;
+        }
+
+        // Добавляем новый заказ
+        existingOrders.push(order);
+        console.log('addOrderToAccountView: Добавлен новый заказ:', order);
+
+        // Сохраняем обновленный список заказов в localStorage
+        localStorage.setItem(userOrdersKey, JSON.stringify(existingOrders));
+        console.log('addOrderToAccountView: Сохранено заказов:', existingOrders.length);
+
+        // Обновляем глобальный массив для совместимости
+        window.userOrders = existingOrders;
+
+        // Если кабинет открыт, обновляем отображение заказов
+        if (getVisibleView() === 'account') {
+            renderAccountOrders();
+        }
+
+        console.log(`addOrderToAccountView: Заказ добавлен для пользователя ${currentUser}`, order);
+    } catch (error) {
+        console.error('addOrderToAccountView: Ошибка добавления заказа в кабинет', error);
+    }
+}
+
+// Функция показа всплывающего окна с подтверждением заказа
+function showOrderAcceptedPopup(orderId) {
+    try {
+        const lang = getCurrentLanguage ? getCurrentLanguage() : (localStorage.getItem('selectedLanguage') || 'uk');
+        const orderAcceptedText = document.getElementById('orderAcceptedText');
+
+        if (orderAcceptedText) {
+            const message = window.translations ? window.translations.getTranslationWithParams('orderAcceptedText', {orderId}, lang) :
+                `Ваш заказ принят, номер заказа ${orderId}. Ожидайте сообщение от менеджера с реквизитами для оплаты или уточнением, если вдруг какого-то товара меньше, чем в заказе.`;
+
+            orderAcceptedText.textContent = message;
+        }
+
+        const popup = document.getElementById('orderAcceptedPopup');
+        if (popup) {
+            popup.style.display = 'flex';
+        }
+
+        console.log('showOrderAcceptedPopup: Показано всплывающее окно заказа', orderId);
+    } catch (error) {
+        console.error('showOrderAcceptedPopup: Ошибка показа всплывающего окна', error);
+    }
+}
+
+// Функция сохранения заказа на сервер
+async function saveOrderToServer(order) {
+    try {
+        console.log('saveOrderToServer: Сохранение заказа на сервер', order.id);
+
+        const response = await fetch('/api/save_order', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(order)
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            console.log('saveOrderToServer: ✅ Заказ сохранен на сервере', result);
+            return true;
+        } else {
+            console.error('saveOrderToServer: ❌ Ошибка сохранения на сервере', response.status, response.statusText);
+            return false;
+        }
+    } catch (error) {
+        console.error('saveOrderToServer: Ошибка отправки на сервер', error);
+        return false;
+    }
+}
+
+// Функция отправки уведомления в Telegram (если есть)
+async function sendOrderNotification(order) {
+    try {
+        console.log('sendOrderNotification: Отправка уведомления о заказе', order);
+
+        // Получаем Telegram данные пользователя
+        let tg, hasTelegramData;
+
+        try {
+            tg = window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe;
+            hasTelegramData = tg && tg.user && tg.user.id;
+        } catch (telegramError) {
+            console.warn('sendOrderNotification: Ошибка доступа к Telegram Web App', telegramError);
+            hasTelegramData = false;
+        }
+
+        if (!hasTelegramData) {
+            console.log('sendOrderNotification: Telegram данные пользователя недоступны или произошла ошибка');
+            return;
+        }
+
+        // Формируем сообщение для пользователя
+        const userMessage = `🎉 Ваш заказ ${order.id} принят!\n\n` +
+                           `📦 Товары: ${order.items.length} позиций\n` +
+                           `💰 Сумма: ${order.total} ${getCurrencyWithDot()}\n` +
+                           `📱 Телефон: ${order.customer.phone}\n` +
+                           `📍 Доставка: ${getDeliveryMethodText(order.deliveryMethod)}\n\n` +
+                           `⏰ Ожидайте сообщение от менеджера с реквизитами оплаты!`;
+
+        // Формируем сообщение для менеджера
+        const managerMessage = `🆕 Новый заказ ${order.id}!\n\n` +
+                              `👤 Клиент: ${order.customer.name || 'Не указан'}\n` +
+                              `📱 Телефон: ${order.customer.phone}\n` +
+                              `📧 Email: ${tg.user.username ? '@' + tg.user.username : 'Не указан'}\n` +
+                              `🏠 Адрес: ${order.customer.settlement}, ${order.customer.branch}\n` +
+                              `💰 Сумма: ${order.total} ${getCurrencyWithDot()}\n` +
+                              `💳 Оплата: ${getPaymentMethodText(order.paymentMethod)}\n` +
+                              `🚚 Доставка: ${getDeliveryMethodText(order.deliveryMethod)}\n` +
+                              `📦 Товаров: ${order.items.length}\n\n` +
+                              `🔗 Telegram ID: ${tg.user.id}`;
+
+        // Отправляем уведомления через API сервера
+        const notifications = [
+            { type: 'user', message: userMessage, telegramId: tg.user.id },
+            { type: 'manager', message: managerMessage, telegramId: null } // Менеджеру отправляется через бота
+        ];
+
+        for (const notification of notifications) {
+            try {
+                const response = await fetch('/api/send_telegram_notification', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: notification.message,
+                        telegramId: notification.telegramId,
+                        orderId: order.id,
+                        notificationType: notification.type
+                    }),
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    console.log(`sendOrderNotification: ${notification.type} уведомление отправлено`);
+                } else {
+                    console.error(`sendOrderNotification: Ошибка отправки ${notification.type} уведомления`, response.status);
+                }
+            } catch (error) {
+                console.error(`sendOrderNotification: Ошибка отправки ${notification.type} уведомления`, error);
+            }
+        }
+
+        console.log('sendOrderNotification: Уведомления отправлены');
+
+    } catch (error) {
+        console.error('sendOrderNotification: Ошибка отправки уведомления', error);
+    }
+}
+
+// Флаг для предотвращения сброса данных при отправке заказа
+let isCheckoutInProgress = false;
+
+// Основная функция оформления заказа
 function checkout() {
-    console.log('checkout: Оформляем заказ');
-    
-    if (!cart || cart.length === 0) {
-        alert('Корзина пуста');
-        return;
+    try {
+        console.log('checkout: Начало оформления заказа');
+
+        // Устанавливаем флаг, чтобы предотвратить сброс данных
+        isCheckoutInProgress = true;
+
+        // Проверяем наличие необходимых функций
+        if (typeof calculateCartTotal !== 'function') {
+            throw new Error('Функция calculateCartTotal не найдена');
+        }
+        if (typeof generateOrderId !== 'function') {
+            throw new Error('Функция generateOrderId не найдена');
+        }
+        if (typeof saveOrderToLocalStorage !== 'function') {
+            throw new Error('Функция saveOrderToLocalStorage не найдена');
+        }
+        if (typeof calculateDeliveryCost !== 'function') {
+            throw new Error('Функция calculateDeliveryCost не найдена');
+        }
+        if (typeof calculatePaymentFee !== 'function') {
+            throw new Error('Функция calculatePaymentFee не найдена');
+        }
+
+        // Проверяем корзину
+        if (!cart || cart.length === 0) {
+            alert('Корзина пуста!');
+            return;
+        }
+
+        // Получаем данные формы
+        const customerName = document.getElementById('cartCustomerName').value.trim();
+        const customerPhone = document.getElementById('cartCustomerPhone').value.trim();
+        const customerSettlement = document.getElementById('cartCustomerSettlement').value.trim();
+        const customerBranch = document.getElementById('cartCustomerBranch');
+        const paymentMethod = document.getElementById('paymentMethodSelect').value;
+        const deliveryMethod = document.getElementById('deliveryMethodSelect').value;
+
+        // Получаем комментарий покупателя
+        const customerComment = document.querySelector('.cart-comment').value.trim();
+
+        // Определяем тип поля branch (input или select)
+        let branchValue = '';
+        if (customerBranch.tagName && customerBranch.tagName.toLowerCase() === 'select') {
+            branchValue = customerBranch.value;
+        } else {
+            branchValue = customerBranch.value.trim();
+        }
+
+        // Валидация обязательных полей
+        const errors = [];
+
+        // Проверяем телефон
+        if (!customerPhone) {
+            errors.push('Телефон обязателен для заполнения');
+        }
+
+        // Проверяем населённый пункт
+        if (!customerSettlement) {
+            errors.push('Населённый пункт обязателен для заполнения');
+        }
+
+        // Проверяем номер отделения/время самовывоза
+        if (!branchValue) {
+            errors.push('Номер отделения обязателен для заполнения');
+        }
+
+        // Проверяем имя только если не самовывоз
+        if (deliveryMethod !== 'pickup' && !customerName) {
+            errors.push('Фамилия и имя обязательны для заполнения');
+        }
+
+        if (errors.length > 0) {
+            alert('Пожалуйста, заполните все обязательные поля:\n' + errors.join('\n'));
+            return;
+        }
+
+        // Генерируем номер заказа
+        const orderId = generateOrderId();
+
+        // Получаем информацию о купонах и бонусах из корзины
+        const bonusesUsed = parseInt(localStorage.getItem('cartBonusesUsed') || '0');
+        const couponDiscount = parseInt(localStorage.getItem('cartCouponDiscount') || '0');
+        const couponCode = localStorage.getItem('cartCouponCode') || '';
+
+        console.log('checkout: Получены бонусы и купон из localStorage:', {
+            bonusesUsed: bonusesUsed,
+            couponDiscount: couponDiscount,
+            couponCode: couponCode,
+            cartBonusesUsed: localStorage.getItem('cartBonusesUsed'),
+            cartCouponDiscount: localStorage.getItem('cartCouponDiscount'),
+            cartCouponCode: localStorage.getItem('cartCouponCode')
+        });
+
+        // Создаем объект заказа
+        const order = {
+            id: orderId,
+            date: new Date().toISOString(),
+            customer: {
+                name: customerName,
+                phone: customerPhone,
+                settlement: customerSettlement,
+                branch: branchValue,
+                comment: customerComment // Добавляем комментарий покупателя
+            },
+            paymentMethod: paymentMethod,
+            deliveryMethod: deliveryMethod,
+            items: [...cart], // Копируем корзину
+            total: calculateCartTotal(),
+            bonusesUsed: parseInt(bonusesUsed) || 0,
+            couponDiscount: parseInt(couponDiscount) || 0,
+            couponCode: couponCode,
+            status: 'accepted'
+        };
+
+        console.log('checkout: Финальный объект заказа с бонусами и купоном:', {
+            id: order.id,
+            bonusesUsed: order.bonusesUsed,
+            couponDiscount: order.couponDiscount,
+            couponCode: order.couponCode,
+            total: order.total
+        });
+
+        // Для самовывоза добавляем информацию об адресе
+        if (deliveryMethod === 'pickup') {
+            const lang = getCurrentLanguage ? getCurrentLanguage() : (localStorage.getItem('selectedLanguage') || 'uk');
+            console.log('checkout: Определён язык для самовывоза:', lang);
+            console.log('checkout: translations доступен:', !!window.translations);
+
+            let pickupAddress = 'Троицкая угол Канатной, место встречи возле входа в "китайское кафе" по Троицкой.';
+            if (window.translations) {
+                pickupAddress = window.translations.getTranslation('pickupPlaceText', lang);
+                console.log('checkout: Получен перевод pickupPlaceText для языка', lang, ':', pickupAddress);
+            } else {
+                console.warn('checkout: translations не доступен, используем fallback');
+            }
+
+            order.customer.pickupAddress = pickupAddress;
+            order.customer.pickupTime = branchValue;
+            console.log('checkout: Финальный адрес самовывоза:', order.customer.pickupAddress);
+        }
+
+        console.log('checkout: Создан заказ', order);
+
+        // Сохраняем заказ в localStorage
+        console.log('checkout: Сохраняем заказ с бонусами и купоном:', {
+            orderId: order.id,
+            bonusesUsed: order.bonusesUsed,
+            couponDiscount: order.couponDiscount
+        });
+        saveOrderToLocalStorage(order);
+
+        // Сохраняем заказ на сервер (асинхронно)
+        try {
+            saveOrderToServer(order);
+        } catch (serverError) {
+            console.warn('checkout: Ошибка сохранения на сервер, но заказ оформлен локально', serverError);
+        }
+
+        // Если пользователь авторизован, добавляем в кабинет
+        addOrderToAccountView(order);
+
+        // Рассчитываем итоговую сумму с учетом бонусов и купонов
+        const itemsTotal = order.total;
+        const deliveryCost = calculateDeliveryCost(deliveryMethod, itemsTotal);
+        const paymentFee = calculatePaymentFee(paymentMethod, itemsTotal);
+        const finalTotal = itemsTotal + deliveryCost + paymentFee - bonusesUsed - couponDiscount;
+
+        // Начисляем бонусы за заказ (1% от итоговой суммы)
+        const bonusEarned = Math.round(finalTotal * 0.01); // 1% от итоговой суммы
+        console.log(`checkout: Расчет бонусов - итоговая сумма: ${finalTotal}, бонусы к начислению: ${bonusEarned}`);
+
+        if (bonusEarned > 0) {
+            const bonusAdded = addUserBonus(bonusEarned);
+            if (bonusAdded) {
+                console.log(`checkout: ✅ Бонусы успешно начислены за заказ ${orderId}: ${bonusEarned}`);
+            } else {
+                console.log(`checkout: ⚠️ Бонусы не начислены за заказ ${orderId} (пользователь не авторизован)`);
+            }
+        } else {
+            console.log(`checkout: Бонусы не начислены (сумма заказа слишком маленькая или отрицательная)`);
+        }
+
+        // Отправляем уведомление в Telegram (если есть) - асинхронно, не блокирует
+        try {
+            sendOrderNotification(order);
+        } catch (notificationError) {
+            console.warn('checkout: Ошибка отправки уведомления, но заказ оформлен', notificationError);
+        }
+
+        // Закрываем окно корзины
+        closePopup('cartPopup');
+
+        // Показываем всплывающее окно подтверждения
+        showOrderAcceptedPopup(orderId);
+
+        // Очищаем корзину
+        cart = [];
+        cartItemCount = 0;
+        localStorage.setItem('cart', JSON.stringify(cart));
+        localStorage.setItem('cartItemCount', cartItemCount.toString());
+
+        // Очищаем информацию о купонах и бонусах
+        localStorage.removeItem('cartBonusesUsed');
+        localStorage.removeItem('cartCouponDiscount');
+        localStorage.removeItem('cartCouponCode');
+
+        // Синхронизируем с window
+        window.cart = cart;
+        window.cartItemCount = cartItemCount;
+
+        // Обновляем отображение корзины
+        updateCartBadge();
+        renderCartItems();
+
+        // Сбрасываем флаг после успешного оформления
+        isCheckoutInProgress = false;
+
+        console.log('checkout: Заказ успешно оформлен', orderId);
+
+    } catch (error) {
+        console.error('checkout: Ошибка оформления заказа', error);
+        console.error('checkout: Детали ошибки:', {
+            message: error.message,
+            stack: error.stack,
+            orderData: {
+                customerName,
+                customerPhone,
+                customerSettlement,
+                branchValue,
+                paymentMethod,
+                deliveryMethod
+            }
+        });
+
+        // Сбрасываем флаг в случае ошибки
+        isCheckoutInProgress = false;
+
+        alert('Произошла ошибка при оформлении заказа. Попробуйте еще раз.\n\nДетали: ' + error.message);
     }
-    
-    // TODO: Реализовать оформление заказа
-    alert('Оформление заказа в разработке');
 }
 
-// Настройка обработчиков событий для корзины
-function setupCartEventHandlers() {
-    console.log('setupCartEventHandlers: Настраиваем обработчики событий для корзины');
-    
-    // Обработчики для полей ввода
-    const bonusInput = document.querySelector('.cart-bonuses');
-    const couponInput = document.querySelector('.cart-coupon');
-    const commentInput = document.querySelector('.cart-comment');
-    
-    if (bonusInput) {
-        bonusInput.addEventListener('input', () => {
-            updateCartCalculations();
-        });
+// Безопасная функция для работы с Telegram Web App
+function safeTelegramCall(callback, fallback) {
+    try {
+        if (window.Telegram && window.Telegram.WebApp) {
+            return callback(window.Telegram.WebApp);
+        } else {
+            console.log('Telegram Web App недоступен, используем fallback');
+            if (fallback) return fallback();
+        }
+    } catch (error) {
+        console.warn('Ошибка при работе с Telegram Web App:', error);
+        if (fallback) return fallback();
     }
-    
-    if (couponInput) {
-        couponInput.addEventListener('input', () => {
-            updateCartCalculations();
-        });
+}
+
+// Функция расчета общей суммы корзины
+function calculateCartTotal() {
+    let total = 0;
+    cart.forEach(item => {
+        const price = parseInt(item.newPrice || item.price || 0);
+        const quantity = item.quantity || 1;
+        total += price * quantity;
+    });
+    return total;
+}
+
+// Функция показа деталей последнего заказа
+function showLastOrderDetails() {
+    try {
+        console.log('showLastOrderDetails: Показ деталей последнего заказа');
+
+        // Получаем username текущего пользователя
+        const currentUser = window.__authState && window.__authState.profile ?
+            (window.__authState.profile.username || window.__authState.profile.displayName || 'guest') : 'guest';
+
+        // Получаем заказы из localStorage для конкретного пользователя
+        const userOrdersKey = `userOrders_${currentUser}`;
+        const orders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
+        if (orders.length === 0) {
+            console.log('showLastOrderDetails: Нет заказов в localStorage');
+            return;
+        }
+
+        // Берем последний заказ (самый свежий)
+        const lastOrder = orders[orders.length - 1];
+
+        // Заполняем детали заказа
+        fillOrderDetails(lastOrder);
+
+        // Показываем окно деталей заказа
+        const popup = document.getElementById('orderDetailsPopup');
+        if (popup) {
+            popup.style.display = 'flex';
+        }
+
+        // Закрываем окно подтверждения
+        closePopup('orderAcceptedPopup');
+
+        console.log('showLastOrderDetails: Показано окно деталей заказа', lastOrder.id);
+
+    } catch (error) {
+        console.error('showLastOrderDetails: Ошибка показа деталей заказа', error);
     }
-    
-    if (commentInput) {
-        commentInput.addEventListener('input', () => {
-            // Сохраняем комментарий в localStorage
-            localStorage.setItem('cartComment', commentInput.value);
-        });
-    }
-    
-    // Загружаем сохраненный комментарий
-    const savedComment = localStorage.getItem('cartComment');
-    if (commentInput && savedComment) {
-        commentInput.value = savedComment;
-    }
-    
-    // Обработчик клавиши ESC для закрытия корзины
-    document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape') {
-            const cartPopup = document.getElementById('cartPopup');
-            if (cartPopup && cartPopup.style.display === 'flex') {
-                closeCartPopup();
+}
+
+// Функция показа деталей конкретного заказа
+window.showOrderDetails = function(orderId) {
+    try {
+        console.log('showOrderDetails: Показ деталей заказа', orderId);
+
+        // Получаем username текущего пользователя
+        const currentUser = window.__authState && window.__authState.profile ?
+            (window.__authState.profile.username || window.__authState.profile.displayName || 'guest') : 'guest';
+
+        // Получаем заказы из localStorage для конкретного пользователя
+        const userOrdersKey = `userOrders_${currentUser}`;
+        console.log('showOrderDetails: Ищем заказ', orderId, 'для пользователя', currentUser);
+        console.log('showOrderDetails: Ключ localStorage:', userOrdersKey);
+
+        const ordersRaw = localStorage.getItem(userOrdersKey);
+        console.log('showOrderDetails: Сырые данные из localStorage:', ordersRaw);
+
+        let orders = JSON.parse(ordersRaw || '[]');
+        console.log('showOrderDetails: Загружено заказов:', orders.length);
+
+        // Ищем заказ по ID у текущего пользователя
+        let order = orders.find(o => o.id === orderId);
+        console.log('showOrderDetails: Найденный заказ:', order);
+        if (order) {
+            console.log('showOrderDetails: Данные бонусов и купона в найденном заказе:', {
+                bonusesUsed: order.bonusesUsed,
+                couponDiscount: order.couponDiscount
+            });
+        }
+
+        // Если не нашли у текущего пользователя, ищем во всех пользователях
+        if (!order) {
+            console.log('showOrderDetails: Заказ не найден у текущего пользователя, ищем во всех пользователях');
+
+            // Получаем все ключи заказов из localStorage
+            const allKeys = Object.keys(localStorage).filter(key => key.startsWith('userOrders_'));
+
+            for (const key of allKeys) {
+                if (key === userOrdersKey) continue; // Уже проверили текущего пользователя
+
+                console.log('showOrderDetails: Проверяем ключ:', key);
+                const userOrders = JSON.parse(localStorage.getItem(key) || '[]');
+                order = userOrders.find(o => o.id === orderId);
+
+                if (order) {
+                    console.log('showOrderDetails: Заказ найден в ключе:', key);
+                    break;
+                }
             }
         }
-    });
+
+        if (!order) {
+            console.log('showOrderDetails: Заказ не найден', orderId);
+            alert(`Заказ ${orderId} не найден в ваших заказах`);
+            return;
+        }
+
+        // Заполняем детали заказа
+        fillOrderDetails(order);
+
+        // Показываем окно деталей заказа
+        const popup = document.getElementById('orderDetailsPopup');
+        if (popup) {
+            popup.style.display = 'flex';
+        }
+
+        console.log('showOrderDetails: Показано окно деталей заказа', orderId);
+
+    } catch (error) {
+        console.error('showOrderDetails: Ошибка показа деталей заказа', error);
+    }
 }
 
-// Предварительная загрузка фоновых изображений
-function preloadBackgroundImages() {
-    const backgroundImages = [
-        './images/Contacts_image/background.jpg'
-    ];
-    
-    backgroundImages.forEach(src => {
-        const img = new Image();
-        img.src = src;
-        console.log(`Предварительная загрузка изображения: ${src}`);
-    });
+// Функция заполнения деталей заказа в окне
+function fillOrderDetails(order) {
+    try {
+        console.log('fillOrderDetails: Заполнение деталей заказа', order.id);
+        console.log('fillOrderDetails: Полный объект заказа:', order);
+
+        // Проверяем структуру заказа
+        if (!order || typeof order !== 'object') {
+            console.error('fillOrderDetails: Заказ не является объектом:', order);
+            return;
+        }
+
+        // Заполняем заголовок с датой и статусом
+        const titleEl = document.getElementById('orderDetailsTitle');
+        if (titleEl) {
+            const dateStr = new Date(order.date).toLocaleDateString();
+            const statusText = getOrderStatusText(order.status);
+            const lang = getCurrentLanguage ? getCurrentLanguage() : (localStorage.getItem('selectedLanguage') || 'uk');
+
+            // Получаем перевод слова "Заказ"
+            let orderWord = 'Заказ';
+            if (lang === 'uk') {
+                orderWord = 'Замовлення';
+            } else if (lang === 'en') {
+                orderWord = 'Order';
+            }
+
+            titleEl.textContent = `${orderWord} ${order.id} • ${dateStr} • ${statusText}`;
+        }
+
+        // Заполняем информацию о заказе (теперь в блоке "Информация о заказе")
+        console.log('fillOrderDetails: Заполняем информационные поля заказа');
+
+        const numberEl = document.getElementById('orderDetailNumber');
+        const dateEl = document.getElementById('orderDetailDate');
+        const statusEl = document.getElementById('orderDetailStatus');
+        const paymentEl = document.getElementById('orderDetailPayment');
+        const deliveryEl = document.getElementById('orderDetailDelivery');
+
+        console.log('fillOrderDetails: Элементы найдены:', {
+            numberEl: !!numberEl,
+            dateEl: !!dateEl,
+            statusEl: !!statusEl,
+            paymentEl: !!paymentEl,
+            deliveryEl: !!deliveryEl
+        });
+
+        if (numberEl) numberEl.textContent = order.id || '-';
+        if (dateEl) dateEl.textContent = new Date(order.date).toLocaleDateString() || '-';
+        if (statusEl) statusEl.textContent = getOrderStatusText(order.status) || '-';
+        if (paymentEl) paymentEl.textContent = getPaymentMethodText(order.paymentMethod) || '-';
+        if (deliveryEl) deliveryEl.textContent = getDeliveryMethodText(order.deliveryMethod) || '-';
+
+        // Заполняем данные покупателя
+        console.log('fillOrderDetails: Данные клиента:', order.customer);
+
+        const customerName = order.customer?.name || '-';
+        const customerPhone = order.customer?.phone || '-';
+        const customerSettlement = order.customer?.settlement || '-';
+        const customerBranch = order.customer?.branch || '-';
+
+        console.log('fillOrderDetails: Заполняем поля клиента:', {
+            name: customerName,
+            phone: customerPhone,
+            settlement: customerSettlement,
+            branch: customerBranch
+        });
+
+        document.getElementById('orderDetailName').textContent = customerName;
+        document.getElementById('orderDetailPhone').textContent = customerPhone;
+        document.getElementById('orderDetailSettlement').textContent = customerSettlement;
+        document.getElementById('orderDetailBranch').textContent = customerBranch;
+
+        // Заполняем информацию о бонусах и купоне
+        console.log('fillOrderDetails: Данные о бонусах и купоне из заказа:', {
+            bonusesUsed: order.bonusesUsed,
+            couponDiscount: order.couponDiscount,
+            couponCode: order.couponCode
+        });
+
+        // Использованные бонусы и купон (если есть в данных заказа)
+        const bonusesUsed = order.bonusesUsed || 0;
+        const couponDiscount = order.couponDiscount || 0;
+        const couponCode = order.couponCode || '';
+
+        console.log('fillOrderDetails: Обработанные значения:', {
+            bonusesUsed: bonusesUsed,
+            couponDiscount: couponDiscount,
+            couponCode: couponCode
+        });
+
+        console.log('fillOrderDetails: Исходные данные из заказа:', {
+            orderBonusesUsed: order.bonusesUsed,
+            orderCouponDiscount: order.couponDiscount,
+            orderId: order.id
+        });
+
+        const bonusesEl = document.getElementById('orderDetailBonuses');
+        const couponEl = document.getElementById('orderDetailCoupon');
+
+        console.log('fillOrderDetails: Элементы бонусов и купона найдены:', {
+            bonusesEl: !!bonusesEl,
+            couponEl: !!couponEl
+        });
+
+        if (bonusesEl) {
+            bonusesEl.textContent = (order.bonusesUsed || 0) + '';
+            console.log('fillOrderDetails: Установлено значение бонусов:', bonusesEl.textContent);
+        }
+        if (couponEl) {
+            const couponValue = order.couponDiscount || 0;
+            const couponText = couponCode ?
+                `${couponCode} (-${couponValue} ₴)` :
+                `${couponValue} ₴`;
+            couponEl.textContent = couponText;
+            console.log('fillOrderDetails: Установлено значение купона:', couponEl.textContent);
+        }
+
+        // Переменные для управления видимостью будут определены ниже
+
+        // Управляем отображением полей адреса в зависимости от способа доставки
+        const deliveryAddressEl = document.querySelector('#orderDetailBranch').parentElement;
+        const deliveryAddressLabel = document.querySelector('[data-translate="deliveryAddressLabel"]');
+        const pickupInfo = document.getElementById('pickupInfo');
+        const pickupTime = document.getElementById('pickupTime');
+
+        if (order.deliveryMethod === 'pickup' && order.customer) {
+            // При самовывозе скрываем обычный адрес доставки
+            if (deliveryAddressEl) deliveryAddressEl.style.display = 'none';
+
+            // Показываем информацию о самовывозе
+            if (pickupInfo) pickupInfo.style.display = 'block';
+            if (pickupTime) pickupTime.style.display = 'block';
+        } else {
+            // При обычной доставке показываем адрес доставки с правильной меткой
+            if (deliveryAddressEl) deliveryAddressEl.style.display = 'block';
+
+            // Меняем метку на "Номер отделения" для обычной доставки
+            if (deliveryAddressLabel) {
+                const lang = getCurrentLanguage ? getCurrentLanguage() : (localStorage.getItem('selectedLanguage') || 'uk');
+                let branchLabel = 'Номер отделения:';
+                if (lang === 'en') {
+                    branchLabel = 'Branch number:';
+                }
+                deliveryAddressLabel.textContent = branchLabel;
+            }
+
+            // Скрываем информацию о самовывозе
+            if (pickupInfo) pickupInfo.style.display = 'none';
+            if (pickupTime) pickupTime.style.display = 'none';
+        }
+
+        // Заполняем адрес самовывоза
+            const pickupAddressEl = document.getElementById('orderDetailPickupAddress');
+            if (pickupAddressEl) {
+                console.log('fillOrderDetails: Отображаем адрес самовывоза:', order.customer.pickupAddress);
+
+                if (order.customer.pickupAddress) {
+                    // Если адрес уже сохранён, проверим, нужно ли его обновить с текущим переводом
+                    const currentLang = getCurrentLanguage ? getCurrentLanguage() : (localStorage.getItem('selectedLanguage') || 'uk');
+                    const expectedTranslation = window.translations ? window.translations.getTranslation('pickupPlaceText', currentLang) : '';
+
+                    console.log('fillOrderDetails: Сохранённый адрес самовывоза:', order.customer.pickupAddress);
+                    console.log('fillOrderDetails: Ожидаемый перевод для языка', currentLang, ':', expectedTranslation);
+
+                    // Если сохранённый адрес отличается от ожидаемого перевода, обновим его
+                    if (expectedTranslation && order.customer.pickupAddress !== expectedTranslation) {
+                        console.log('fillOrderDetails: Адрес отличается от текущего перевода, обновляем');
+                        pickupAddressEl.textContent = expectedTranslation;
+
+                        // Также обновим адрес в заказе для будущих просмотров
+                        order.customer.pickupAddress = expectedTranslation;
+                        // Сохраним обновлённый заказ
+                        const currentUser = window.__authState && window.__authState.profile ?
+                            (window.__authState.profile.username || window.__authState.profile.displayName || 'guest') : 'guest';
+                        const userOrdersKey = `userOrders_${currentUser}`;
+                        let orders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
+                        const orderIndex = orders.findIndex(o => o.id === order.id);
+                        if (orderIndex !== -1) {
+                            orders[orderIndex] = order;
+                            localStorage.setItem(userOrdersKey, JSON.stringify(orders));
+                            console.log('fillOrderDetails: Заказ обновлён с новым переводом адреса');
+                        }
+                    } else {
+                        pickupAddressEl.textContent = order.customer.pickupAddress;
+                        console.log('fillOrderDetails: Используем сохранённый адрес самовывоза (совпадает с переводом)');
+                    }
+                } else {
+                    // Fallback с переводом для старых заказов
+                    const lang = getCurrentLanguage ? getCurrentLanguage() : (localStorage.getItem('selectedLanguage') || 'uk');
+                    console.log('fillOrderDetails: Получаем перевод pickupPlaceText для языка:', lang);
+                    console.log('fillOrderDetails: translations доступен:', !!window.translations);
+
+                    let fallbackAddress = 'Троицкая угол Канатной, место встречи возле входа в "китайское кафе" по Троицкой.';
+                    if (window.translations) {
+                        fallbackAddress = window.translations.getTranslation('pickupPlaceText', lang);
+                        console.log('fillOrderDetails: Получен перевод pickupPlaceText:', fallbackAddress);
+                    } else {
+                        console.warn('fillOrderDetails: translations не доступен для pickupPlaceText');
+                    }
+
+                    pickupAddressEl.textContent = fallbackAddress;
+                    console.log('fillOrderDetails: Устанавливаем fallback адрес:', fallbackAddress);
+                }
+            }
+
+            // Заполняем время самовывоза
+            const pickupTimeEl = document.getElementById('orderDetailPickupTime');
+            if (pickupTimeEl) {
+                pickupTimeEl.textContent = order.customer.pickupTime || order.customer.branch || '-';
+            }
+
+            console.log('fillOrderDetails: Отображена информация о самовывозе');
+        } else {
+            // Для других способов доставки показываем обычный адрес доставки
+            if (deliveryAddressEl) deliveryAddressEl.style.display = 'block';
+
+            // Скрываем информацию о самовывозе
+            if (pickupInfo) pickupInfo.style.display = 'none';
+            if (pickupTime) pickupTime.style.display = 'none';
+        }
+
+        // Отображаем комментарий, если он есть
+        const commentEl = document.getElementById('orderComment');
+        const commentValueEl = document.getElementById('orderDetailComment');
+
+        if (order.customer && order.customer.comment && order.customer.comment.trim()) {
+            if (commentEl) commentEl.style.display = 'block';
+            if (commentValueEl) commentValueEl.textContent = order.customer.comment;
+            console.log('fillOrderDetails: Отображен комментарий:', order.customer.comment);
+        } else {
+            if (commentEl) commentEl.style.display = 'none';
+            console.log('fillOrderDetails: Комментарий отсутствует или пустой');
+        }
+
+        // Расчет итоговой суммы (такой же как в корзине)
+        const itemsTotal = order.total || 0;
+
+        // Рассчитываем стоимость доставки по той же логике, что и в корзине
+        let deliveryCost = 0;
+        if (order.deliveryMethod === 'ukrposhta') {
+            deliveryCost = 80; // Только Укрпочта имеет фиксированную стоимость
+        }
+        // Для Nova и Meest доставка бесплатная, если сумма >= 1001грн или используется купон
+        else if ((order.deliveryMethod === 'nova' || order.deliveryMethod === 'meest') &&
+                 (couponDiscount > 0 || itemsTotal >= 1001)) {
+            deliveryCost = 0;
+        }
+        // Для других случаев доставка бесплатная
+        else if (order.deliveryMethod === 'nova' || order.deliveryMethod === 'meest' ||
+                 order.deliveryMethod === 'free1001' || order.deliveryMethod === 'free2000' ||
+                 order.deliveryMethod === 'pickup') {
+            deliveryCost = 0;
+        }
+
+        console.log('fillOrderDetails: Рассчитанная стоимость доставки:', deliveryCost, 'для метода:', order.deliveryMethod);
+
+        // Рассчитываем комиссию по той же логике, что и в корзине
+        let paymentFee = calculatePaymentFee(order.paymentMethod, itemsTotal);
+
+        console.log('fillOrderDetails: Рассчитанная комиссия:', paymentFee, 'для метода:', order.paymentMethod);
+
+        // Рассчитываем промежуточный итог (сумма товаров + доставка)
+        const subtotal = itemsTotal + deliveryCost;
+
+        // Рассчитываем итоговую сумму
+        let finalTotal = subtotal + paymentFee;
+        if (bonusesUsed > 0) {
+            finalTotal -= bonusesUsed;
+        }
+        if (couponDiscount > 0) {
+            finalTotal -= couponDiscount;
+        }
+
+        // Заполняем расчеты в том же порядке, что и в корзине
+        // Проміжний підсумок (сумма товаров)
+        document.getElementById('orderItemsTotal').textContent = `${itemsTotal} ${getCurrencyWithDot()}`;
+
+        console.log('fillOrderDetails: Расчётные значения для отображения:');
+        console.log('fillOrderDetails: bonusesUsed:', bonusesUsed, 'couponDiscount:', couponDiscount);
+
+        // Сума знижки (скидка от товаров)
+        if (couponDiscount > 0) {
+            const couponText = couponCode ?
+                `${couponCode}: -${couponDiscount} ${getCurrencyWithDot()}` :
+                `-${couponDiscount} ${getCurrencyWithDot()}`;
+            document.getElementById('orderCouponTotal').textContent = couponText;
+            console.log('fillOrderDetails: Отображаем купон:', couponDiscount, 'с кодом:', couponCode);
+        } else {
+            document.getElementById('orderCouponTotal').textContent = `0 ${getCurrencyWithDot()}`;
+            console.log('fillOrderDetails: Купон = 0, устанавливаем значение');
+        }
+
+        // Вартість доставки
+        document.getElementById('orderDeliveryCost').textContent = `${deliveryCost} ${getCurrencyWithDot()}`;
+
+        // Бонуси
+        if (bonusesUsed > 0) {
+            document.getElementById('orderBonusesTotal').textContent = `-${bonusesUsed}`;
+            console.log('fillOrderDetails: Отображаем бонусы:', bonusesUsed);
+        } else {
+            document.getElementById('orderBonusesTotal').textContent = `0`;
+            console.log('fillOrderDetails: Бонусы = 0, устанавливаем значение');
+        }
+
+        // Комиссия оплаты (если есть)
+        document.getElementById('orderPaymentFee').textContent = `${paymentFee} ${getCurrencyWithDot()}`;
+
+        // Всього (итоговая сумма)
+        document.getElementById('orderFinalTotal').textContent = `${finalTotal} ${getCurrencyWithDot()}`;
+
+        // Показываем/скрываем строки в зависимости от значений (в том же порядке, что и в корзине)
+        const deliveryRow = document.querySelector('#orderDeliveryCost').parentElement;
+        const paymentFeeRow = document.querySelector('#orderPaymentFee').parentElement;
+        const bonusesRow = document.getElementById('orderBonusesRow');
+        const couponRow = document.getElementById('orderCouponRow');
+
+        console.log('fillOrderDetails: Элементы строк найдены:', {
+            bonusesRow: !!bonusesRow,
+            couponRow: !!couponRow,
+            deliveryRow: !!deliveryRow,
+            paymentFeeRow: !!paymentFeeRow
+        });
+
+        // Всегда показываем промежуточный итог (сумму товаров)
+        const itemsTotalRow = document.querySelector('#orderItemsTotal').parentElement;
+        if (itemsTotalRow) itemsTotalRow.style.display = 'flex';
+
+        // Показываем использованные бонусы только если они > 0
+        if (bonusesUsed > 0) {
+            if (bonusesRow) {
+                bonusesRow.style.display = 'flex';
+                console.log('fillOrderDetails: Показываем использованные бонусы в подсчетах:', bonusesUsed);
+            }
+        } else {
+            if (bonusesRow) {
+                bonusesRow.style.display = 'none';
+                console.log('fillOrderDetails: Скрываем использованные бонусы в подсчетах (не использовались)');
+            }
+        }
+
+        // Показываем скидку по купону только если она > 0
+        if (couponDiscount > 0) {
+            if (couponRow) {
+                couponRow.style.display = 'flex';
+                console.log('fillOrderDetails: Показываем скидку по купону:', couponDiscount);
+            }
+        } else {
+            if (couponRow) {
+                couponRow.style.display = 'none';
+                console.log('fillOrderDetails: Скрываем скидку по купону (нет скидки)');
+            }
+        }
+
+        // Показываем стоимость доставки только если она > 0
+        if (deliveryCost > 0) {
+            deliveryRow.style.display = 'flex';
+            console.log('fillOrderDetails: Показываем стоимость доставки:', deliveryCost);
+        } else {
+            deliveryRow.style.display = 'none';
+            console.log('fillOrderDetails: Скрываем стоимость доставки (бесплатно)');
+        }
+
+        // Бонусы и купон теперь отображаются только в подсчетах внизу
+        // Убираем их из блока информации о заказе
+        const bonusesInfoRow = document.querySelector('#orderDetailBonuses').parentElement;
+        const couponInfoRow = document.querySelector('#orderDetailCoupon').parentElement;
+
+        // Всегда скрываем бонусы и купон из информации о заказе (дублирование в подсчетах)
+        if (bonusesInfoRow) {
+            bonusesInfoRow.style.display = 'none';
+            console.log('fillOrderDetails: Бонусы скрыты из информации о заказе (отображаются в подсчетах)');
+        }
+        if (couponInfoRow) {
+            couponInfoRow.style.display = 'none';
+            console.log('fillOrderDetails: Купон скрыт из информации о заказе (отображается в подсчетах)');
+        }
+
+        // Логика для подсчетов реализована выше
+        console.log('fillOrderDetails: Управление отображением подсчетов завершено');
+
+        // Показываем комиссию только если она > 0
+        if (paymentFee > 0) {
+            paymentFeeRow.style.display = 'flex';
+            console.log('fillOrderDetails: Показываем комиссию:', paymentFee);
+        } else {
+            paymentFeeRow.style.display = 'none';
+            console.log('fillOrderDetails: Скрываем комиссию (бесплатно)');
+        }
+
+        // Добавляем информацию о начисленных бонусах за этот заказ
+        // Бонусы рассчитываются только от суммы товаров после вычета скидок, без учета доставки
+        const bonusEarned = Math.round((itemsTotal - couponDiscount) * 0.01);
+        if (bonusEarned > 0) {
+            // Создаем строку для начисленных бонусов, если ее нет
+            let bonusEarnedRow = document.getElementById('orderBonusEarnedRow');
+            if (!bonusEarnedRow) {
+                const totalSection = document.querySelector('.order-total-section');
+                const finalRow = document.querySelector('.order-total-final');
+
+                bonusEarnedRow = document.createElement('div');
+                bonusEarnedRow.id = 'orderBonusEarnedRow';
+                bonusEarnedRow.className = 'order-total-row';
+                const lang = getCurrentLanguage ? getCurrentLanguage() : (localStorage.getItem('selectedLanguage') || 'uk');
+                console.log('printOrder: Определён язык:', lang);
+                console.log('printOrder: translations доступен:', !!window.translations);
+
+                let bonusEarnedLabel = 'Бонусы за заказ:';
+                if (window.translations) {
+                    bonusEarnedLabel = window.translations.getTranslation('bonusEarnedLabel', lang);
+                    console.log('printOrder: Получен перевод bonusEarnedLabel для языка', lang, ':', bonusEarnedLabel);
+                } else {
+                    console.warn('printOrder: translations не доступен, используем fallback');
+                }
+
+                bonusEarnedRow.innerHTML = `
+                    <span class="order-total-label">${bonusEarnedLabel}</span>
+                    <span class="order-total-value" id="orderBonusEarnedTotal">+${bonusEarned}</span>
+                `;
+
+                // Вставляем перед итоговой строкой
+                totalSection.insertBefore(bonusEarnedRow, finalRow);
+            } else {
+                document.getElementById('orderBonusEarnedTotal').textContent = `+${bonusEarned}`;
+            }
+        }
+
+        // Заполняем данные покупателя
+        document.getElementById('orderDetailName').textContent = order.customer?.name || '-';
+        document.getElementById('orderDetailPhone').textContent = order.customer?.phone || '-';
+        document.getElementById('orderDetailSettlement').textContent = order.customer?.settlement || '-';
+        document.getElementById('orderDetailBranch').textContent = order.customer?.branch || '-';
+
+        // Заполняем список товаров
+        console.log('fillOrderDetails: Товары в заказе:', order.items);
+        console.log('fillOrderDetails: Количество товаров:', order.items?.length || 0);
+
+        // Диагностика товаров
+        if (!order.items || order.items.length === 0) {
+            console.warn('fillOrderDetails: ВНИМАНИЕ! Заказ не содержит товаров!');
+        } else {
+            console.log('fillOrderDetails: Детали товаров:');
+            order.items.forEach((item, index) => {
+                console.log(`  Товар ${index + 1}:`, item.name || item.title, 'x', item.quantity);
+            });
+        }
+
+        fillOrderItems(order.items || []);
+
+        console.log('fillOrderDetails: Детали заказа заполнены');
+
+    } catch (error) {
+        console.error('fillOrderDetails: Ошибка заполнения деталей заказа', error);
+    }
 }
 
-// Вызываем предварительную загрузку при загрузке страницы
-document.addEventListener('DOMContentLoaded', preloadBackgroundImages);
+// Функция заполнения списка товаров в заказе
+function fillOrderItems(items) {
+    try {
+        console.log('fillOrderItems: Начинаем заполнение товаров, получено:', items.length, 'товаров');
+        console.log('fillOrderItems: Список товаров:', items);
 
+        const container = document.getElementById('orderItemsList');
+        console.log('fillOrderItems: Контейнер найден:', !!container);
+        if (!container) return;
 
+        container.innerHTML = '';
+
+        if (items.length === 0) {
+            container.innerHTML = '<div class="empty-order-items">Нет товаров в заказе</div>';
+            return;
+        }
+
+        items.forEach(item => {
+            const itemEl = document.createElement('div');
+            itemEl.className = 'order-item';
+
+            const imageUrl = item.image || item.photo || '/static/images/no-image.png';
+            const name = item.name || item.title || 'Без названия';
+            const quantity = item.quantity || 1;
+            const price = parseInt(item.newPrice || item.price || 0);
+            const total = price * quantity;
+
+            const unitPrice = parseInt(item.newPrice || item.price || 0);
+            itemEl.innerHTML = `
+                <img src="${imageUrl}" alt="${name}" class="order-item-image" onerror="this.src='/static/images/no-image.png'">
+                <div class="order-item-details">
+                    <div class="order-item-name">${name}</div>
+                    <div class="order-item-meta">${quantity} шт. × ${unitPrice} ${getCurrencyWithDot()}</div>
+                </div>
+                <div class="order-item-price">${total} ${getCurrencyWithDot()}</div>
+            `;
+
+            container.appendChild(itemEl);
+        });
+
+        console.log('fillOrderItems: Список товаров заполнен', items.length);
+
+    } catch (error) {
+        console.error('fillOrderItems: Ошибка заполнения списка товаров', error);
+    }
+}
+
+// Функция получения текста способа оплаты
+function getPaymentMethodText(method) {
+    const lang = getCurrentLanguage ? getCurrentLanguage() : (localStorage.getItem('selectedLanguage') || 'uk');
+    const key = method; // Используем method как ключ перевода
+
+    if (window.translations) {
+        const translation = window.translations.getTranslation(key, lang);
+        if (translation && translation !== key) {
+            return translation;
+        }
+    }
+
+    // Fallback на старые переводы
+    const fallbackTranslations = {
+        'wayforpay': 'WayForPay (Visa, Mastercard)',
+        'privat24': 'Приват 24',
+        'terminal': 'Терминал Приватбанку',
+        'meeting': 'При встрече в Одессе'
+    };
+    return fallbackTranslations[method] || method || '-';
+}
+
+// Функция получения текста способа доставки
+function getDeliveryMethodText(method) {
+    const lang = getCurrentLanguage ? getCurrentLanguage() : (localStorage.getItem('selectedLanguage') || 'uk');
+    const key = method; // Используем method как ключ перевода
+
+    if (window.translations) {
+        const translation = window.translations.getTranslation(key, lang);
+        if (translation && translation !== key) {
+            return translation;
+        }
+    }
+
+    // Fallback на старые переводы
+    const fallbackTranslations = {
+        'nova': 'Nova Посhta',
+        'meest': 'Meest Express',
+        'ukrposhta': 'УКРПОЧТА',
+        'pickup': 'Самовывоз',
+        'free1001': 'Бесплатная доставка от 1001грн',
+        'free2000': 'Бесплатная доставка от 2000грн'
+    };
+    return fallbackTranslations[method] || method || '-';
+}
+
+// Функция расчета стоимости доставки
+function calculateDeliveryCost(deliveryMethod, orderTotal) {
+    // Логика расчета стоимости доставки
+    if (deliveryMethod === 'pickup') return 0; // Самовывоз
+    if (deliveryMethod === 'free1001' && orderTotal >= 1001) return 0; // Бесплатная доставка от 1001грн
+    if (deliveryMethod === 'free2000' && orderTotal >= 2000) return 0; // Бесплатная доставка от 2000грн
+    if (deliveryMethod === 'ukrposhta') return 80; // Укрпочта
+    if (deliveryMethod === 'nova') return 0; // Nova - всегда бесплатная доставка
+    if (deliveryMethod === 'meest') return 0; // Meest - всегда бесплатная доставка
+
+    // Для неизвестных методов доставки - возвращаем 0
+    console.log('calculateDeliveryCost: Неизвестный метод доставки:', deliveryMethod);
+    return 0;
+}
+
+// Функция расчета комиссии оплаты
+function calculatePaymentFee(paymentMethod, orderTotal) {
+    // Логика расчета комиссии оплаты
+    // Все способы оплаты без комиссии
+    if (paymentMethod === 'wayforpay') return 0; // Без комиссии
+    if (paymentMethod === 'privat24') return 0; // Без комиссии
+    if (paymentMethod === 'terminal') return 0; // Без комиссии
+    if (paymentMethod === 'meeting') return 0; // Без комиссии
+
+    return 0;
+}
+
+// Функция закрытия окна подтверждения заказа и перехода на страницу товаров
+function closeOrderAcceptedPopup() {
+    try {
+        console.log('closeOrderAcceptedPopup: Закрытие окна подтверждения и переход на товары');
+
+        // Закрываем окно подтверждения
+        closePopup('orderAcceptedPopup');
+
+        // Переходим на страницу товаров
+        showProductsView();
+        setActiveBottomNav('products');
+
+        console.log('closeOrderAcceptedPopup: Окно закрыто, переход выполнен');
+
+    } catch (error) {
+        console.error('closeOrderAcceptedPopup: Ошибка закрытия окна', error);
+    }
+}
+
+// Функция обновления текста кнопки оплаты
+function updatePaymentButtonText() {
+    try {
+        const paymentMethodSelect = document.getElementById('paymentMethodSelect');
+        const payButton = document.querySelector('.cart-actions .btn-pay span[data-translate="pay"]');
+
+        if (!paymentMethodSelect || !payButton) return;
+
+        const selectedPayment = paymentMethodSelect.value;
+        const lang = getCurrentLanguage ? getCurrentLanguage() : (localStorage.getItem('selectedLanguage') || 'uk');
+
+        if (selectedPayment === 'meeting') {
+            // Если оплата при встрече, показываем "Подтвердить заказ"
+            payButton.textContent = window.translations ? window.translations.getTranslation('confirmOrder', lang) : 'ПОДТВЕРДИТЬ ЗАКАЗ';
+        } else {
+            // Иначе показываем "Оплатить"
+            payButton.textContent = window.translations ? window.translations.getTranslation('pay', lang) : 'ОПЛАТИТЬ';
+        }
+
+        console.log('updatePaymentButtonText: Обновлен текст кнопки оплаты для способа:', selectedPayment);
+
+    } catch (error) {
+        console.error('updatePaymentButtonText: Ошибка обновления текста кнопки', error);
+    }
+}
+
+// Функция печати заказа
+function printOrder() {
+    try {
+        console.log('printOrder: Печать заказа');
+
+        // Получаем текущий заказ из открытого окна
+        const orderTitle = document.getElementById('orderDetailsTitle');
+        let orderId = 'Unknown';
+        if (orderTitle) {
+        // Извлекаем ID заказа из заголовка формата "Замовлення GS1018 • 09.09.2025 • Прийнято"
+        const titleText = orderTitle.textContent;
+        console.log('printOrder: Анализируем заголовок:', titleText);
+
+        // Проверяем на украинский/русский/английский формат
+        let match = titleText.match(/(?:Замовлення|Заказ|Order)\s+([GS]\d+)/);
+        if (match) {
+            orderId = match[1];
+            console.log('printOrder: Найден ID заказа с помощью регулярного выражения:', orderId);
+        } else {
+            // Fallback: разделяем по разделителю
+            const parts = titleText.split(' • ');
+            if (parts.length > 0) {
+                const firstPart = parts[0];
+                // Убираем слово "Замовлення", "Заказ" или "Order"
+                orderId = firstPart.replace(/^(?:Замовлення|Заказ|Order)\s+/, '').trim();
+                console.log('printOrder: Найден ID заказа с помощью fallback:', orderId);
+            }
+        }
+        }
+        console.log('printOrder: Извлеченный ID заказа:', orderId, 'из заголовка:', orderTitle?.textContent);
+
+        // Создаем новое окно для печати
+        let printWindow;
+        try {
+            printWindow = window.open('', '_blank', 'width=800,height=600');
+            console.log('printOrder: Окно печати создано:', printWindow);
+
+            if (!printWindow) {
+                alert('Не удалось открыть окно печати. Возможно, заблокировано браузером. Разрешите всплывающие окна для этого сайта.');
+                return;
+            }
+        } catch (error) {
+            console.error('printOrder: Ошибка при создании окна печати:', error);
+            alert('Ошибка при открытии окна печати. Попробуйте отключить блокировщик всплывающих окон.');
+            return;
+        }
+
+        // Получаем username текущего пользователя
+        const currentUser = window.__authState && window.__authState.profile ?
+            (window.__authState.profile.username || window.__authState.profile.displayName || 'guest') : 'guest';
+
+        // Получаем данные заказа для конкретного пользователя
+        const userOrdersKey = `userOrders_${currentUser}`;
+        const orders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
+        const order = orders.find(o => o.id === orderId);
+
+        if (!order) {
+            alert('Замовлення не знайдено');
+            if (printWindow) printWindow.close();
+            return;
+        }
+
+        // Создаем HTML для печати
+        const printHTML = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Замовлення ${order.id}</title>
+                <meta charset="UTF-8">
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 20px; }
+                    .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+                    .order-info { margin-bottom: 20px; }
+                    .order-info div { margin-bottom: 5px; }
+                    .items { margin-top: 20px; }
+                    .item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #ddd; }
+                    .total { font-weight: bold; font-size: 1.2em; margin-top: 20px; text-align: right; }
+                    @media print { body { margin: 0; } }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>GuitarStrings.com.ua</h1>
+                    <h2>Замовлення №${order.id}</h2>
+                    <p>Дата: ${new Date(order.date).toLocaleDateString('uk-UA')}</p>
+                </div>
+
+                <div style="display: flex; gap: 40px; margin-bottom: 30px;">
+                    <div style="flex: 1;">
+                        <div class="order-info">
+                            <h3>Інформація про замовлення:</h3>
+                            <div>Спосіб оплати: ${getPaymentMethodText(order.paymentMethod)}</div>
+                            <div>Спосіб доставки: ${getDeliveryMethodText(order.deliveryMethod)}</div>
+                            <div>Статус: ${getOrderStatusText(order.status)}</div>
+                            ${order.bonusesUsed > 0 ? `<div>Використані бонуси: ${order.bonusesUsed}</div>` : ''}
+                            ${order.couponDiscount > 0 ? `<div>Знижка за купоном${order.couponCode ? ` ${order.couponCode}` : ''}: ${order.couponDiscount} ₴</div>` : ''}
+                        </div>
+                    </div>
+                    <div style="flex: 1;">
+                        <div class="order-info">
+                            <h3>Дані покупця:</h3>
+                            <div>ПІБ: ${order.customer.name || '-'}</div>
+                            <div>Телефон: ${order.customer.phone || '-'}</div>
+                            <div>Населений пункт: ${order.customer.settlement || '-'}</div>
+                            <div>Адреса доставки: ${order.customer.branch || '-'}</div>
+                            ${order.customer.comment ? `<div>Коментар: ${order.customer.comment}</div>` : ''}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="items">
+                    <h3>Замовлені товари:</h3>
+                    ${order.items.map(item => `
+                        <div class="item">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                ${item.image || item.photo ? `<img src="${item.image || item.photo}" alt="${item.name || item.title || 'Товар'}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">` : ''}
+                                <div>
+                                    <div style="font-weight: bold;">${item.name || item.title || 'Без названия'}</div>
+                                    <div style="font-size: 0.9em; color: #666;">${item.quantity || 1} шт. × ${parseInt(item.newPrice || item.price || 0)} ${getCurrencyWithDot()}</div>
+                                </div>
+                            </div>
+                            <div style="font-weight: bold;">${(item.quantity || 1) * parseInt(item.newPrice || item.price || 0)} ${getCurrencyWithDot()}</div>
+                        </div>
+                    `).join('')}
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; margin-top: 30px;">
+                    <div style="width: 300px; border: 1px solid #ddd; padding: 15px; border-radius: 5px;">
+                        ${(() => {
+                            const deliveryCost = calculateDeliveryCost(order.deliveryMethod, order.total);
+                            const paymentFee = calculatePaymentFee(order.paymentMethod, order.total);
+                            const itemsTotal = order.total;
+                            let result = '';
+
+                            // Вартість товарів (сумма товаров)
+                            result += `<div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                <span>Вартість товарів:</span>
+                                <span>${itemsTotal} ${getCurrencyWithDot()}</span>
+                            </div>`;
+
+                            // Вартість доставки - только если > 0
+                            if (deliveryCost > 0) {
+                                result += `<div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                    <span>Вартість доставки:</span>
+                                    <span>${deliveryCost} ${getCurrencyWithDot()}</span>
+                                </div>`;
+                            }
+
+                            // Використані бонуси - только если использованы
+                            if (order.bonusesUsed > 0) {
+                                result += `<div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                    <span>Використані бонуси:</span>
+                                    <span>-${order.bonusesUsed}</span>
+                                </div>`;
+                            }
+
+                            // Знижка за купоном - только если есть
+                            if (order.couponDiscount > 0) {
+                                const couponText = order.couponCode ?
+                                    `${order.couponCode}: -${order.couponDiscount} ${getCurrencyWithDot()}` :
+                                    `-${order.couponDiscount} ${getCurrencyWithDot()}`;
+                                result += `<div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                    <span>Знижка за купоном</span>
+                                    <span>${couponText}</span>
+                                </div>`;
+                            }
+
+                            // Бонуси за замовлення (начисленные бонусы)
+                            const bonusEarned = Math.round((itemsTotal - (order.couponDiscount || 0)) * 0.01);
+                            if (bonusEarned > 0) {
+                                result += `<div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                    <span>Бонуси за замовлення:</span>
+                                    <span>+${bonusEarned}</span>
+                                </div>`;
+                            }
+
+                            // Комиссия оплаты - только если > 0
+                            if (paymentFee > 0) {
+                                result += `<div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                    <span>Комісія оплати:</span>
+                                    <span>${paymentFee} ${getCurrencyWithDot()}</span>
+                                </div>`;
+                            }
+
+                            return result;
+                        })()}
+                        <div style="display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 2px solid #f8a818; font-weight: bold; font-size: 1.1em;">
+                            <span>Всього:</span>
+                            <span>${(() => {
+                                const deliveryCost = calculateDeliveryCost(order.deliveryMethod, order.total);
+                                const paymentFee = calculatePaymentFee(order.paymentMethod, order.total);
+                                const bonuses = order.bonusesUsed || 0;
+                                const discount = order.couponDiscount || 0;
+                                const itemsTotal = order.total;
+
+                                // Расчет в том же порядке, что и в корзине:
+                                // 1. Промежуточный итог = сумма товаров
+                                // 2. Вычесть скидку по купону
+                                // 3. Прибавить стоимость доставки
+                                // 4. Вычесть бонусы
+                                // 5. Прибавить комиссию оплаты
+                                const subtotal = itemsTotal - discount + deliveryCost - bonuses + paymentFee;
+
+                                return subtotal;
+                            })()} ${getCurrencyWithDot()}</span>
+                        </div>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `;
+
+        try {
+            printWindow.document.write(printHTML);
+            printWindow.document.close();
+
+            // Ждем загрузки и печатаем
+            printWindow.onload = function() {
+                try {
+                    printWindow.print();
+                    // Не закрываем автоматически, чтобы пользователь мог увидеть результат
+                    console.log('printOrder: Печать запущена');
+                } catch (printError) {
+                    console.error('printOrder: Ошибка при печати:', printError);
+                    alert('Ошибка при запуске печати. Возможно, попробуйте вручную вызвать печать в браузере (Ctrl+P).');
+                }
+            };
+
+            console.log('printOrder: Заказ отправлен на печать');
+        } catch (error) {
+            console.error('printOrder: Ошибка при подготовке к печати:', error);
+            alert('Ошибка при подготовке документа к печати.');
+            if (printWindow) printWindow.close();
+        }
+
+    } catch (error) {
+        console.error('printOrder: Ошибка печати заказа', error);
+        alert('Ошибка при печати заказа');
+    }
+}
+
+// Функция диагностики товаров в заказе
+window.diagnoseOrderItems = function(orderId) {
+    try {
+        console.log('=== ДИАГНОСТИКА ТОВАРОВ В ЗАКАЗЕ ===');
+
+        const currentUser = window.__authState && window.__authState.profile ?
+            (window.__authState.profile.username || window.__authState.profile.displayName || 'guest') : 'guest';
+
+        const userOrdersKey = `userOrders_${currentUser}`;
+        const orders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
+
+        console.log('diagnoseOrderItems: Пользователь:', currentUser);
+        console.log('diagnoseOrderItems: Ключ localStorage:', userOrdersKey);
+        console.log('diagnoseOrderItems: Все заказы пользователя:', orders);
+
+        const order = orders.find(o => o.id === orderId);
+        if (!order) {
+            console.log('diagnoseOrderItems: Заказ не найден. Доступные заказы:');
+            orders.forEach(o => console.log('  -', o.id));
+            return;
+        }
+
+        console.log('diagnoseOrderItems: Найден заказ:', order.id);
+        console.log('diagnoseOrderItems: Полный объект заказа:', order);
+        console.log('diagnoseOrderItems: Товары в заказе:', order.items);
+        console.log('diagnoseOrderItems: Количество товаров:', order.items?.length || 0);
+
+        if (order.items && order.items.length > 0) {
+            order.items.forEach((item, index) => {
+                console.log(`diagnoseOrderItems: Товар ${index + 1}:`, {
+                    name: item.name || item.title,
+                    price: item.newPrice || item.price,
+                    quantity: item.quantity,
+                    image: item.image || item.photo,
+                    fullItem: item
+                });
+            });
+        } else {
+            console.log('diagnoseOrderItems: Товары отсутствуют или массив пустой');
+        }
+
+        // Проверяем контейнер
+        const container = document.getElementById('orderItemsList');
+        console.log('diagnoseOrderItems: Контейнер найден:', !!container);
+        if (container) {
+            console.log('diagnoseOrderItems: HTML контейнера:', container.outerHTML);
+            console.log('diagnoseOrderItems: Текущее содержимое контейнера:', container.innerHTML);
+        } else {
+            console.log('diagnoseOrderItems: Контейнер orderItemsList не найден!');
+            // Проверяем все элементы с похожими ID
+            const allElements = document.querySelectorAll('[id*="order"]');
+            console.log('diagnoseOrderItems: Элементы с "order" в ID:');
+            allElements.forEach(el => console.log('  -', el.id));
+        }
+
+    } catch (error) {
+        console.error('diagnoseOrderItems: Ошибка диагностики', error);
+        console.error('diagnoseOrderItems: Стек ошибки:', error.stack);
+    }
+};
+
+// Функция продолжения покупок
+function continueShopping() {
+    try {
+        console.log('continueShopping: Продолжение покупок');
+
+        // Закрываем окно деталей заказа
+        closePopup('orderDetailsPopup');
+
+        // Переходим на страницу товаров и открываем категорию "Струны для электрогитары"
+        // Это то же самое, что делает кнопка "Товары" в футере
+        showProductsView();
+        setActiveBottomNav('products');
+
+        // Имитируем клик по баннеру "Струны для электрогитары" (главная категория)
+        const electricGuitarStrings = document.querySelector('.banner-title');
+        if (electricGuitarStrings) {
+            // Устанавливаем текущую категорию как "electricGuitarStrings"
+            currentCategory = 'electricGuitarStrings';
+            lastCategorySearch = 'electricGuitarStrings';
+
+            // Загружаем все товары (главная категория)
+            loadProducts();
+
+            console.log('continueShopping: Открыта категория "Струны для электрогитары"');
+        }
+
+        console.log('continueShopping: Переход на страницу товаров');
+
+    } catch (error) {
+        console.error('continueShopping: Ошибка перехода', error);
+    }
+}
+
+// Функция для создания тестового заказа с бонусами и купоном
+window.createTestOrder = function(bonusesUsed = 25, couponDiscount = 50, couponCode = 'test50') {
+    try {
+        console.log('=== СОЗДАНИЕ ТЕСТОВОГО ЗАКАЗА ===');
+
+        // Устанавливаем тестовые значения в localStorage корзины
+        localStorage.setItem('cartBonusesUsed', bonusesUsed.toString());
+        localStorage.setItem('cartCouponDiscount', couponDiscount.toString());
+        localStorage.setItem('cartCouponCode', couponCode);
+
+        console.log('createTestOrder: Установлены тестовые значения:');
+        console.log('cartBonusesUsed:', localStorage.getItem('cartBonusesUsed'));
+        console.log('cartCouponDiscount:', localStorage.getItem('cartCouponDiscount'));
+        console.log('cartCouponCode:', localStorage.getItem('cartCouponCode'));
+
+        // Создаем тестовый заказ
+        const orderId = 'TEST' + Date.now();
+
+        const testOrder = {
+            id: orderId,
+            date: new Date().toISOString(),
+            customer: {
+                name: 'Тестовый Пользователь',
+                phone: '+380501234567',
+                settlement: 'Одесса',
+                branch: 'Отделение №1'
+            },
+            paymentMethod: 'privat24',
+            deliveryMethod: 'nova',
+            items: [{
+                id: 'test_item_1',
+                name: 'Тестовый товар',
+                price: 100,
+                quantity: 2,
+                total: 200
+            }],
+            total: 200,
+            bonusesUsed: parseInt(bonusesUsed) || 0,
+            couponDiscount: parseInt(couponDiscount) || 0,
+            couponCode: couponCode,
+            status: 'accepted'
+        };
+
+        // Сохраняем заказ
+        saveOrderToLocalStorage(testOrder);
+
+        console.log('createTestOrder: Создан тестовый заказ:', testOrder);
+
+        return orderId;
+
+    } catch (error) {
+        console.error('createTestOrder: Ошибка создания тестового заказа', error);
+    }
+};
+
+// Функция для исправления существующих заказов с недостающими бонусами и купоном
+window.fixExistingOrders = function() {
+    try {
+        console.log('=== ИСПРАВЛЕНИЕ СУЩЕСТВУЮЩИХ ЗАКАЗОВ ===');
+
+        const currentUser = window.__authState && window.__authState.profile ?
+            (window.__authState.profile.username || window.__authState.profile.displayName || 'guest') : 'guest';
+
+        const userOrdersKey = `userOrders_${currentUser}`;
+        const ordersRaw = localStorage.getItem(userOrdersKey);
+
+        if (!ordersRaw) {
+            console.log('fixExistingOrders: Заказы не найдены');
+            return;
+        }
+
+        let orders = JSON.parse(ordersRaw);
+        let fixedCount = 0;
+
+        orders.forEach((order, index) => {
+            if (order) {
+                let wasFixed = false;
+
+                // Исправляем бонусы
+                if (order.bonusesUsed === undefined || order.bonusesUsed === null) {
+                    order.bonusesUsed = 0;
+                    wasFixed = true;
+                    console.log(`fixExistingOrders: Исправлены бонусы в заказе ${order.id}: ${order.bonusesUsed}`);
+                }
+
+                // Исправляем купон
+                if (order.couponDiscount === undefined || order.couponDiscount === null) {
+                    order.couponDiscount = 0;
+                    wasFixed = true;
+                    console.log(`fixExistingOrders: Исправлена скидка по купону в заказе ${order.id}: ${order.couponDiscount}`);
+                }
+
+                // Исправляем код купона
+                if (order.couponCode === undefined || order.couponCode === null) {
+                    order.couponCode = '';
+                    wasFixed = true;
+                    console.log(`fixExistingOrders: Исправлен код купона в заказе ${order.id}: "${order.couponCode}"`);
+                }
+
+                if (wasFixed) {
+                    fixedCount++;
+                }
+            }
+        });
+
+        if (fixedCount > 0) {
+            localStorage.setItem(userOrdersKey, JSON.stringify(orders));
+            console.log(`fixExistingOrders: Исправлено ${fixedCount} заказов`);
+        } else {
+            console.log('fixExistingOrders: Все заказы уже корректны');
+        }
+
+    } catch (error) {
+        console.error('fixExistingOrders: Ошибка исправления заказов', error);
+    }
+};
+
+// Функция для тестирования отображения бонусов и купона в заказе
+window.testBonusCouponDisplay = function() {
+    try {
+        console.log('=== ТЕСТИРОВАНИЕ ОТОБРАЖЕНИЯ БОНУСОВ И КУПОНА ===');
+
+        // Получаем текущего пользователя
+        const currentUser = window.__authState && window.__authState.profile ?
+            (window.__authState.profile.username || window.__authState.profile.displayName || 'guest') : 'guest';
+
+        const userOrdersKey = `userOrders_${currentUser}`;
+        console.log('testBonusCouponDisplay: Проверяем заказы для пользователя:', currentUser);
+
+        const ordersRaw = localStorage.getItem(userOrdersKey);
+        const orders = JSON.parse(ordersRaw || '[]');
+
+        if (orders.length === 0) {
+            console.log('testBonusCouponDisplay: Нет заказов для тестирования');
+            return;
+        }
+
+        console.log('testBonusCouponDisplay: Найдено заказов:', orders.length);
+        orders.forEach((order, index) => {
+            console.log(`testBonusCouponDisplay: Заказ ${index + 1}:`, {
+                id: order.id,
+                bonusesUsed: order.bonusesUsed,
+                couponDiscount: order.couponDiscount,
+                couponCode: order.couponCode,
+                total: order.total
+            });
+        });
+
+        // Проверяем localStorage данные корзины
+        console.log('testBonusCouponDisplay: Данные корзины в localStorage:');
+        console.log('cartBonusesUsed:', localStorage.getItem('cartBonusesUsed'));
+        console.log('cartCouponDiscount:', localStorage.getItem('cartCouponDiscount'));
+        console.log('cartCouponCode:', localStorage.getItem('cartCouponCode'));
+
+    } catch (error) {
+        console.error('testBonusCouponDisplay: Ошибка тестирования', error);
+    }
+};
+
+// Экспортируем функции глобально для HTML обработчиков
+window.updateDeliveryCost = updateDeliveryCost;
+window.updatePickupUi = updatePickupUi;
+window.testBonusCouponDisplay = testBonusCouponDisplay;
+window.createTestOrder = createTestOrder;
+window.fixExistingOrders = fixExistingOrders;
+window.diagnoseOrderItems = diagnoseOrderItems;

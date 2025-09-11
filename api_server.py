@@ -164,7 +164,7 @@ def _generate_captcha():
     b = (int(time.time()) * 7) % 10
     if a < 3: a = a + 3
     if b < 3: b = b + 2
-    question = f"Сколько будет {a} + {b}?"
+    question = f"{a} + {b}"
     answer = str(a + b)
     captcha_id = hashlib.sha256(f"{time.time()}:{a}:{b}".encode('utf-8')).hexdigest()[:16]
     CAPTCHA_STORE[captcha_id] = { 'answer': answer, 'expires': time.time() + 300 }
@@ -1002,6 +1002,88 @@ def sms_confirm():
         return jsonify({'success': True, 'profile': session['user']}), 200
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+# =======================
+# ORDER MANAGEMENT
+# =======================
+
+# Global orders storage (in production, use database)
+ORDERS_DB = []
+ORDERS_FILE = Path('orders.db.json')
+
+def load_orders_from_disk():
+    """Load orders from disk on startup."""
+    global ORDERS_DB
+    try:
+        if ORDERS_FILE.exists():
+            with open(ORDERS_FILE, 'r', encoding='utf-8') as f:
+                ORDERS_DB = json.load(f)
+            print(f"Loaded {len(ORDERS_DB)} orders from disk")
+        else:
+            ORDERS_DB = []
+            print("No orders file found, starting with empty orders database")
+    except Exception as e:
+        print(f"Error loading orders from disk: {e}")
+        ORDERS_DB = []
+
+def save_orders_to_disk():
+    """Save orders to disk."""
+    try:
+        with open(ORDERS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(ORDERS_DB, f, ensure_ascii=False, indent=2)
+        print(f"Saved {len(ORDERS_DB)} orders to disk")
+    except Exception as e:
+        print(f"Error saving orders to disk: {e}")
+
+@app.route('/api/save_order', methods=['POST'])
+def save_order():
+    """Save order to server database."""
+    try:
+        order_data = request.get_json()
+
+        if not order_data:
+            return jsonify({'success': False, 'error': 'No order data provided'}), 400
+
+        # Validate required fields
+        required_fields = ['id', 'date', 'customer', 'items', 'total']
+        for field in required_fields:
+            if field not in order_data:
+                return jsonify({'success': False, 'error': f'Missing required field: {field}'}), 400
+
+        # Check if order with this ID already exists
+        existing_order = next((order for order in ORDERS_DB if order['id'] == order_data['id']), None)
+        if existing_order:
+            return jsonify({'success': False, 'error': f'Order with ID {order_data["id"]} already exists'}), 409
+
+        # Add order to database
+        ORDERS_DB.append(order_data)
+        save_orders_to_disk()
+
+        print(f"Order saved: {order_data['id']} - Total: {order_data['total']} UAH")
+
+        return jsonify({
+            'success': True,
+            'message': f'Order {order_data["id"]} saved successfully',
+            'order_id': order_data['id']
+        }), 201
+
+    except Exception as e:
+        print(f"Error saving order: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/orders', methods=['GET'])
+def get_orders():
+    """Get all orders (admin endpoint)."""
+    try:
+        # In production, add authentication check here
+        return jsonify({
+            'success': True,
+            'orders': ORDERS_DB,
+            'total': len(ORDERS_DB)
+        }), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 def preload_cache_async():
     """Kick off product cache build in a background thread without blocking server startup."""
     def _worker():
@@ -1017,9 +1099,11 @@ def preload_cache_async():
 
 
 if __name__ == '__main__':
-    print("Starting server... (версия 13.02 - исправление цен La Bella)")
+    print("Starting server... (версия 13.03 - добавлена система заказов)")
     # Load users DB from disk
     _load_users_from_disk()
+    # Load orders DB from disk
+    load_orders_from_disk()
     # Do not block startup; build cache in the background
     preload_cache_async()
     print("Starting Flask server on port 8000...")
