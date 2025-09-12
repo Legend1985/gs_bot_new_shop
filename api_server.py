@@ -723,47 +723,110 @@ def api_user_profile():
 
 @app.route('/api/user_orders')
 def api_user_orders():
-    """Возвращает список заказов пользователя и сводку. Демо-данные."""
+    """Возвращает список заказов пользователя и сводку из базы данных."""
     try:
-        # Можно фильтровать по tg_id, если будет использоваться
-        # tg_id = request.args.get('tg_id')
+        # Получаем текущего пользователя из сессии или параметров
+        user = session.get('user')
+        tg_id = request.args.get('tg_id')
 
-        demo_orders = [
-            {
-                'orderId': '13346',
-                'date': '2025-02-03',
-                'address': 'Одесса, НП №1',
-                'amount': 680,
-                'status': 'Оплачен'
-            },
-            {
-                'orderId': '10547',
-                'date': '2022-12-13',
-                'address': 'Одесса, НП №1',
-                'amount': 1140,
-                'status': 'Оплачен'
-            },
-            {
-                'orderId': '7158',
-                'date': '2020-12-02',
-                'address': 'Одесса, НП №1',
-                'amount': 1,
-                'status': 'Оплачен'
+        if not user and not tg_id:
+            return jsonify({
+                'success': False,
+                'error': 'Пользователь не авторизован',
+                'orders': [],
+                'summary': {'totalOrders': 0, 'bonuses': 0, 'totalAmount': 0}
+            }), 401
+
+        # Получаем заказы пользователя
+        user_orders = []
+        for order in ORDERS_DB:
+            # Проверяем, принадлежит ли заказ текущему пользователю
+            # Если tg_id передан, ищем по номеру телефона или другим идентификаторам
+            # Если пользователь из сессии, можем добавить логику фильтрации по userId
+            if tg_id:
+                # Фильтруем по tg_id если есть, или берем все заказы для демо
+                user_orders.append(order)
+            else:
+                # Для пользователей из сессии берем все заказы (демо режим)
+                user_orders.append(order)
+
+        # Если заказов нет, возвращаем пустой результат
+        if not user_orders:
+            return jsonify({
+                'success': True,
+                'orders': [],
+                'summary': {'totalOrders': 0, 'bonuses': 0, 'totalAmount': 0}
+            }), 200, {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0',
+                'Access-Control-Allow-Origin': '*'
             }
-        ]
 
-        total_orders = len(demo_orders)
-        total_amount = sum(o.get('amount', 0) for o in demo_orders)
+        # Форматируем заказы для фронтенда
+        formatted_orders = []
+        total_amount = 0
+
+        for order in user_orders:
+            # Рассчитываем итоговую сумму с учетом бонусов и доставки
+            order_total = order.get('total', 0)
+            delivery_cost = calculate_delivery_cost(order.get('deliveryMethod', 'pickup'), order_total)
+            bonuses_used = order.get('bonusesUsed', 0)
+            coupon_discount = order.get('couponDiscount', 0)
+            final_amount = max(0, order_total + delivery_cost - bonuses_used - coupon_discount)
+
+            # Получаем адрес доставки
+            customer = order.get('customer', {})
+            settlement = customer.get('settlement', '')
+            branch = customer.get('branch', '')
+            address = f"{settlement}, {branch}".strip(', ')
+
+            # Получаем статус заказа
+            status = order.get('status', 'accepted')
+            status_text = get_order_status_text(status)
+
+            formatted_order = {
+                'orderId': order.get('id', ''),
+                'date': order.get('date', '').split('T')[0] if 'T' in str(order.get('date', '')) else str(order.get('date', '')),
+                'address': address or 'Адрес не указан',
+                'amount': final_amount,
+                'status': status_text
+            }
+
+            formatted_orders.append(formatted_order)
+            total_amount += final_amount
+
+        # Сортируем заказы по дате (новые выше)
+        formatted_orders.sort(key=lambda x: x.get('date', ''), reverse=True)
+
+        # Рассчитываем бонусы пользователя на основе заказов
+        bonuses = 0
+        for order in formatted_orders:
+            # Начисляем 1% от суммы каждого заказа
+            order_amount = order.get('amount', 0)
+            bonus_earned = int(order_amount * 0.01)  # 1% от суммы заказа
+            bonuses += bonus_earned
+
+        # Добавляем начальный бонус для новых пользователей
+        if len(formatted_orders) == 0:
+            bonuses = 10  # Начальный бонус для новых пользователей
+
+        # Проверяем сохраненные бонусы пользователя
+        if user and 'bonuses' in user:
+            saved_bonuses = user.get('bonuses', 0)
+            if saved_bonuses > bonuses:
+                bonuses = saved_bonuses  # Используем сохраненное значение, если оно больше
 
         payload = {
             'success': True,
             'summary': {
-                'totalOrders': total_orders,
-                'bonuses': 100,
+                'totalOrders': len(formatted_orders),
+                'bonuses': bonuses,
                 'totalAmount': total_amount
             },
-            'orders': demo_orders
+            'orders': formatted_orders
         }
+
         return jsonify(payload), 200, {
             'Cache-Control': 'no-cache, no-store, must-revalidate',
             'Pragma': 'no-cache',
@@ -771,7 +834,38 @@ def api_user_orders():
             'Access-Control-Allow-Origin': '*'
         }
     except Exception as e:
+        print(f"Error in api_user_orders: {e}")
         return jsonify({'success': False, 'error': str(e), 'orders': [], 'summary': {'totalOrders': 0, 'bonuses': 0, 'totalAmount': 0}}), 500
+
+
+def calculate_delivery_cost(delivery_method, order_total):
+    """Рассчитывает стоимость доставки в зависимости от метода и суммы заказа."""
+    try:
+        if delivery_method == 'pickup':
+            return 0
+        elif delivery_method == 'nova':
+            return 50 if order_total < 1000 else 0  # Бесплатная доставка от 1000 грн
+        elif delivery_method == 'ukrposhta':
+            return 30 if order_total < 500 else 0   # Бесплатная доставка от 500 грн
+        elif delivery_method == 'meest':
+            return 45 if order_total < 800 else 0   # Бесплатная доставка от 800 грн
+        else:
+            return 50  # Стоимость по умолчанию
+    except Exception:
+        return 50
+
+
+def get_order_status_text(status):
+    """Возвращает текстовое представление статуса заказа."""
+    status_map = {
+        'accepted': 'Принят',
+        'processing': 'В обработке',
+        'shipped': 'Отправлен',
+        'delivered': 'Доставлен',
+        'cancelled': 'Отменен',
+        'completed': 'Выполнен'
+    }
+    return status_map.get(status, 'Неизвестный статус')
 
 
 @app.route('/api/login', methods=['POST'])

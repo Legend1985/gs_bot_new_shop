@@ -166,6 +166,17 @@
       "gauge": "10"
     },
     {
+      "name": "Dunlop DHCN1060 Heavy Core Drop C# 10-60",
+      "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/dunlop_dhcn1060_10-60_0x170.png",
+      "price": 389,
+      "newPrice": 389,
+      "oldPrice": 450,
+      "availability": "В наличии",
+      "rating": 4.5,
+      "category": "electro",
+      "gauge": "10"
+    },
+    {
       "name": "D'Addario EXL110-3D Nickel Wound Regular Light 10-46",
       "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/daddario_exl110_10-46_0x170.png",
       "price": 280,
@@ -197,7 +208,9 @@
       "rating": 4.1,
       "category": "electro",
       "gauge": "10"
-    }
+    },
+    {
+      "name": "Product with error",
       "price": 0,
       "newPrice": 0,
       "oldPrice": 0,

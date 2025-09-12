@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест бейджей калибра</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .badge-test { padding: 15px; margin: 10px 0; border-radius: 8px; border: 2px solid #ddd; }
+        .badge-success { border-color: #28a745; background: #d4edda; }
+        .badge-warning { border-color: #ffc107; background: #fff3cd; }
+        .badge-error { border-color: #dc3545; background: #f8d7da; }
+        .product { background: #f8f9fa; padding: 10px; margin: 5px 0; border-radius: 4px; }
+        .gauge-badge { display: inline-block; padding: 2px 6px; background: #007bff; color: white; border-radius: 3px; font-size: 11px; margin: 2px; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Тест бейджей калибра товаров</h1>
+
+    <div id="results"></div>
+
+    <script>
+        async function testGaugeBadges() {
+            const resultsEl = document.getElementById('results');
+            resultsEl.innerHTML = '<div class="badge-test">Загрузка товаров...</div>';
+
+            try {
+                // Получаем все товары
+                const response = await fetch('http://localhost:8000/api/products?start=0&limit=100');
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error('Ошибка API');
+                }
+
+                let results = '';
+
+                // Группируем товары по калибру
+                const gaugeGroups = {};
+                data.products.forEach(product => {
+                    const gauge = product.gauge || 'unknown';
+                    if (!gaugeGroups[gauge]) {
+                        gaugeGroups[gauge] = [];
+                    }
+                    gaugeGroups[gauge].push(product);
+                });
+
+                // Проверяем каждый калибр
+                ['09', '10', '11'].forEach(gauge => {
+                    const products = gaugeGroups[gauge] || [];
+                    const sampleProducts = products.slice(0, 3); // Показываем первые 3 товара
+
+                    let status = 'success';
+                    let statusText = '✅ Бейдж работает';
+
+                    if (products.length === 0) {
+                        status = 'warning';
+                        statusText = '⚠️ Нет товаров с этим калибром';
+                    } else if (products.length < 5) {
+                        status = 'warning';
+                        statusText = `⚠️ Мало товаров (${products.length})`;
+                    }
+
+                    results += `
+                        <div class="badge-test ${status}">
+                            <h3>${gauge} калибр - ${statusText}</h3>
+                            <p><strong>Всего товаров:</strong> ${products.length}</p>
+                            <div class="product">
+                                <strong>Примеры товаров:</strong><br>
+                                ${sampleProducts.map(p => `
+                                    <div>
+                                        ${p.name}
+                                        <span class="gauge-badge">${gauge} калибр</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                });
+
+                // Специальная проверка товара Dunlop
+                const dunlopProducts = data.products.filter(p =>
+                    p.name && p.name.toLowerCase().includes('dunlop') &&
+                    p.name.toLowerCase().includes('dhcn1060')
+                );
+
+                if (dunlopProducts.length > 0) {
+                    results += `
+                        <div class="badge-test success">
+                            <h3>🎸 Товары Dunlop DHCN1060</h3>
+                            <p><strong>Найдено товаров:</strong> ${dunlopProducts.length}</p>
+                            ${dunlopProducts.map(p => `
+                                <div class="product">
+                                    <strong>${p.name}</strong><br>
+                                    <span class="gauge-badge">${p.gauge} калибр</span>
+                                    <span>Цена: ${p.price} грн</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                } else {
+                    results += `
+                        <div class="badge-test error">
+                            <h3>❌ Товары Dunlop DHCN1060 не найдены</h3>
+                            <p>Проверьте, что товары добавлены в static_products.json</p>
+                        </div>
+                    `;
+                }
+
+                resultsEl.innerHTML = results;
+
+            } catch (error) {
+                resultsEl.innerHTML = `
+                    <div class="badge-test error">
+                        <h3>❌ Ошибка тестирования</h3>
+                        <p>${error.message}</p>
+                        <p>Убедитесь, что сервер запущен на http://localhost:8000</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Запускаем тест при загрузке
+        window.onload = testGaugeBadges;
+    </script>
+</body>
+</html>

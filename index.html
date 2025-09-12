@@ -451,7 +451,7 @@
                         <img id="accountAvatar" class="account-avatar" src="" alt="Avatar" style="display:none;">
                         <div class="account-title-block">
                             <h2 id="accountUserName">—</h2>
-                            <div class="account-bonuses" id="accountBonuses" data-translate="bonusInfo">Кол-во бонусов: 100</div>
+                            <div class="account-bonuses" id="accountBonuses" data-translate="bonusInfo">Кол-во бонусов: ...</div>
                         </div>
                     </div>
                     <div class="account-actions">
@@ -773,9 +773,9 @@
                 </div>
                 
                 <!-- Кнопка оплаты -->
-                <div class="cart-actions">
-                    <button class="btn btn-pay" onclick="checkout()">
-                        <span data-translate="pay">ОПЛАТИТЬ</span> 
+                <div class="cart-actions" style="display: block !important; visibility: visible !important; opacity: 1 !important;">
+                    <button class="btn btn-pay" onclick="checkout()" style="display: flex !important; visibility: visible !important; opacity: 1 !important;">
+                        <span data-translate="pay">ОПЛАТИТЬ</span>
                         <span id="cartPayAmount">0 грн</span>
                     </button>
                 </div>
@@ -861,6 +861,14 @@
                             <span class="info-label">Адрес доставки:</span>
                             <span class="info-value" id="orderDetailBranch">-</span>
                         </div>
+                        <div class="info-compact-item" id="orderDetailPickupAddressRow" style="display:none;">
+                            <span class="info-label">Адрес самовывоза:</span>
+                            <span class="info-value" id="orderDetailPickupAddress">-</span>
+                        </div>
+                        <div class="info-compact-item" id="orderDetailPickupTimeRow" style="display:none;">
+                            <span class="info-label">Время самовывоза:</span>
+                            <span class="info-value" id="orderDetailPickupTime">-</span>
+                        </div>
                         <div class="info-compact-item">
                             <span class="info-label">Комментарий:</span>
                             <span class="info-value" id="orderDetailComment">-</span>
@@ -882,24 +890,20 @@
                         <span class="order-total-label">Вартість товарів:</span>
                         <span class="order-total-value" id="orderItemsTotal">-</span>
                     </div>
-                    <div class="order-total-row">
-                        <span class="order-total-label">Стоимость доставки:</span>
+                    <div class="order-total-row" id="orderDeliveryCostRow">
+                        <span class="order-total-label">Вартість доставки:</span>
                         <span class="order-total-value" id="orderDeliveryCost">-</span>
                     </div>
-                    <div class="order-total-row">
-                        <span class="order-total-label">Комиссия оплаты:</span>
-                        <span class="order-total-value" id="orderPaymentFee">-</span>
-                    </div>
                     <div class="order-total-row" id="orderBonusesRow" style="display: none;">
-                        <span class="order-total-label">Использованные бонусы:</span>
+                        <span class="order-total-label">Використані бонуси:</span>
                         <span class="order-total-value" id="orderBonusesTotal">-</span>
                     </div>
                     <div class="order-total-row" id="orderCouponRow" style="display: none;">
-                        <span class="order-total-label">Скидка по купону:</span>
+                        <span class="order-total-label">Знижка за купоном:</span>
                         <span class="order-total-value" id="orderCouponTotal">-</span>
                     </div>
                     <div class="order-total-row order-total-final">
-                        <span class="order-total-label">Итого:</span>
+                        <span class="order-total-label">Всього:</span>
                         <span class="order-total-value" id="orderFinalTotal">-</span>
                     </div>
                 </div>

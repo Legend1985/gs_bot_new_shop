@@ -3786,31 +3786,204 @@ body.is-telegram .product-compare-inline { display: none !important; }
 
 .btn-pay {
     width: 100%;
-    background: var(--primary-color);
-    color: white;
-    border: none;
+    background: #f8a818 !important;
+    background-color: #f8a818 !important;
+    color: white !important;
+    border: none !important;
     padding: 18px 24px;
     border-radius: 8px;
     font-size: 1.2rem;
     font-weight: 700;
     cursor: pointer;
     transition: all 0.3s ease;
-    display: flex;
+    display: flex !important;
     align-items: center;
     justify-content: center;
     gap: 15px;
+    box-shadow: none !important;
+}
+
+.btn-pay span,
+.btn-pay [data-translate],
+.btn-pay span *,
+.btn-pay [data-translate] * {
+    color: white !important;
+    background: transparent !important;
+    text-shadow: none !important;
+    -webkit-text-fill-color: white !important;
+    -webkit-text-stroke: 0px transparent !important;
 }
 
 .btn-pay:hover {
-    background: var(--primary-dark);
+    background: #e6950a !important;
+    background-color: #e6950a !important;
     transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2) !important;
+    color: white !important;
+    border-color: #e6950a !important;
+}
+
+.btn-pay:hover span,
+.btn-pay:hover * {
     color: white !important;
 }
 
-.btn-pay:hover,
-.btn-pay:hover * {
+/* Дополнительные правила для гарантии видимости текста */
+.cart-actions .btn-pay:hover {
+    background: var(--primary-dark) !important;
     color: white !important;
+    border-color: var(--primary-dark) !important;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2) !important;
+}
+
+.cart-actions .btn-pay:hover span,
+.cart-actions .btn-pay:hover span *,
+.cart-actions .btn-pay:hover::before,
+.cart-actions .btn-pay:hover::after {
+    color: white !important;
+    background: transparent !important;
+}
+
+/* Исправляем hover эффект для кнопки оплаты */
+.cart-actions .btn-pay {
+    position: relative;
+    z-index: 1;
+}
+
+.cart-actions .btn-pay:hover {
+    background: var(--primary-dark);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+/* КРИТИЧЕСКИЕ СТИЛИ ДЛЯ КНОПКИ ОПЛАТЫ */
+.cart-actions {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+.cart-actions .btn-pay {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    background: #f8a818 !important;
+    background-color: #f8a818 !important;
+    color: white !important;
+    border: none !important;
+    box-shadow: none !important;
+    position: relative !important;
+    z-index: 9999 !important;
+}
+
+/* ПЕРЕЗАПИСЬ ВСЕХ ВОЗМОЖНЫХ СТИЛЕЙ */
+.cart-actions .btn-pay,
+.cart-actions .btn-pay:hover,
+.cart-actions .btn-pay:active,
+.cart-actions .btn-pay:focus,
+.cart-actions .btn-pay:visited,
+.cart-actions .btn-pay:link {
+    background: #f8a818 !important;
+    background-color: #f8a818 !important;
+    color: white !important;
+    border: none !important;
+}
+
+/* ПЕРЕЗАПИСЬ ДЛЯ ВСЕХ ДОЧЕРНИХ ЭЛЕМЕНТОВ */
+.cart-actions .btn-pay *,
+.cart-actions .btn-pay span,
+.cart-actions .btn-pay [data-translate],
+.cart-actions .btn-pay span *,
+.cart-actions .btn-pay [data-translate] * {
+    color: white !important;
+    background: transparent !important;
+    text-shadow: none !important;
+    -webkit-text-fill-color: white !important;
+    -webkit-text-stroke: 0px transparent !important;
+    border: none !important;
+}
+
+/* СПЕЦИФИЧЕСКИЕ ПРАВИЛА ДЛЯ РАЗНЫХ СОСТОЯНИЙ */
+body .cart-popup .cart-actions .btn-pay,
+body .cart-popup .cart-actions .btn-pay:hover,
+body .cart-popup .cart-actions .btn-pay:active,
+body .cart-popup .cart-actions .btn-pay:focus,
+body .cart-popup .cart-actions .btn-pay *,
+body .cart-popup .cart-actions .btn-pay span,
+body .cart-popup .cart-actions .btn-pay [data-translate] {
+    background: #f8a818 !important;
+    background-color: #f8a818 !important;
+    color: white !important;
+    border: none !important;
+    border-color: #f8a818 !important;
+    text-decoration: none !important;
+    -webkit-text-fill-color: white !important;
+    -webkit-text-stroke: 0px white !important;
+}
+
+/* ГАРАНТИЯ ВИДИМОСТИ ТЕКСТА В КНОПКЕ */
+.cart-actions .btn-pay,
+.cart-actions .btn-pay *,
+.cart-actions .btn-pay span,
+.cart-actions .btn-pay span *,
+.cart-actions .btn-pay [data-translate],
+.cart-actions .btn-pay [data-translate] *,
+.cart-actions .btn-pay::before,
+.cart-actions .btn-pay::after,
+.cart-actions .btn-pay span::before,
+.cart-actions .btn-pay span::after,
+.cart-actions .btn-pay [data-translate]::before,
+.cart-actions .btn-pay [data-translate]::after {
+    color: white !important;
+    background-color: transparent !important;
+    background: transparent !important;
+    text-shadow: none !important;
+    -webkit-text-fill-color: white !important;
+    -webkit-text-stroke: 0px white !important;
+    border: none !important;
+    outline: none !important;
+    font-weight: bold !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* Дополнительная защита для hover состояния */
+.cart-actions .btn-pay:hover,
+.cart-actions .btn-pay:hover *,
+.cart-actions .btn-pay:hover span,
+.cart-actions .btn-pay:hover span *,
+.cart-actions .btn-pay:hover [data-translate],
+.cart-actions .btn-pay:hover [data-translate] * {
+    color: white !important;
+    background-color: transparent !important;
+    background: transparent !important;
+    text-shadow: none !important;
+    -webkit-text-fill-color: white !important;
+    -webkit-text-stroke: 0px transparent !important;
+}
+
+/* Дополнительная защита для конкретного селектора */
+body .cart-popup .cart-actions .btn-pay,
+body .cart-popup .cart-actions .btn-pay *,
+body .cart-popup .cart-actions .btn-pay span,
+body .cart-popup .cart-actions .btn-pay [data-translate] {
+    color: white !important;
+    background: transparent !important;
+}
+
+body .cart-popup .cart-actions .btn-pay:hover,
+body .cart-popup .cart-actions .btn-pay:hover *,
+body .cart-popup .cart-actions .btn-pay:hover span,
+body .cart-popup .cart-actions .btn-pay:hover [data-translate] {
+    color: white !important;
+    background: transparent !important;
+}
+
+.btn-pay:active {
+    background: var(--primary-color);
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .btn-pay:active,

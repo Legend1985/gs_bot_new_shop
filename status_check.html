@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Проверка статуса сайта GuitarStrings</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .status-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success { color: #28a745; font-weight: bold; }
+        .error { color: #dc3545; font-weight: bold; }
+        .warning { color: #ffc107; font-weight: bold; }
+        .info { color: #007bff; }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .test-result.success { background: #d4edda; border: 1px solid #c3e6cb; }
+        .test-result.error { background: #f8d7da; border: 1px solid #f5c6cb; }
+        .test-result.warning { background: #fff3cd; border: 1px solid #ffeaa7; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        .loading { color: #666; font-style: italic; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Диагностика сайта GuitarStrings.com.ua</h1>
+
+    <div class="status-section">
+        <h3>📊 Общий статус</h3>
+        <div id="overall-status" class="loading">Выполняется проверка...</div>
+        <div id="server-status"></div>
+        <div id="api-status"></div>
+        <div id="files-status"></div>
+    </div>
+
+    <div class="status-section">
+        <h3>🔗 Быстрые ссылки</h3>
+        <button onclick="openMainSite()">🏠 Открыть сайт</button>
+        <button onclick="openTestConnection()">🔧 Тест подключения</button>
+        <button onclick="refreshPage()">🔄 Обновить страницу</button>
+        <button onclick="checkStatus()">📊 Проверить статус</button>
+    </div>
+
+    <div class="status-section">
+        <h3>📋 Детальная диагностика</h3>
+        <div id="detailed-tests"></div>
+    </div>
+
+    <div class="status-section">
+        <h3>ℹ️ Информация о системе</h3>
+        <ul>
+            <li><strong>Локальный сервер:</strong> <a href="http://localhost:8000" target="_blank">http://localhost:8000</a></li>
+            <li><strong>Время проверки:</strong> <span id="check-time">-</span></li>
+            <li><strong>Версия сайта:</strong> v25.21 (после исправлений)</li>
+            <li><strong>Бекап создан:</strong> 2025-09-12_19-27</li>
+        </ul>
+    </div>
+
+    <script>
+        let serverRunning = false;
+        let apiWorking = false;
+        let filesAvailable = false;
+
+        // Проверка основного статуса
+        async function checkOverallStatus() {
+            const overallStatusEl = document.getElementById('overall-status');
+
+            try {
+                // Проверка сервера
+                const serverResponse = await fetch('http://localhost:8000/', { timeout: 5000 });
+                serverRunning = serverResponse.ok;
+
+                // Проверка API
+                const apiResponse = await fetch('http://localhost:8000/api/products?start=0&limit=1', { timeout: 5000 });
+                const apiData = await apiResponse.json();
+                apiWorking = apiResponse.ok && apiData.success && apiData.products.length > 0;
+
+                // Проверка файлов
+                const filesPromises = [
+                    fetch('http://localhost:8000/app.js').then(r => r.ok),
+                    fetch('http://localhost:8000/style.css').then(r => r.ok),
+                    fetch('http://localhost:8000/translations.js').then(r => r.ok)
+                ];
+                const filesResults = await Promise.all(filesPromises);
+                filesAvailable = filesResults.every(result => result);
+
+                // Обновление статуса
+                if (serverRunning && apiWorking && filesAvailable) {
+                    overallStatusEl.innerHTML = '✅ <strong>Сайт работает корректно!</strong><br>Все компоненты функционируют нормально.';
+                    overallStatusEl.className = 'success';
+                } else {
+                    let issues = [];
+                    if (!serverRunning) issues.push('сервер не отвечает');
+                    if (!apiWorking) issues.push('API товаров не работает');
+                    if (!filesAvailable) issues.push('некоторые файлы недоступны');
+
+                    overallStatusEl.innerHTML = `⚠️ <strong>Обнаружены проблемы:</strong><br>${issues.join(', ')}`;
+                    overallStatusEl.className = 'warning';
+                }
+
+            } catch (error) {
+                overallStatusEl.innerHTML = `❌ <strong>Ошибка подключения:</strong><br>${error.message}`;
+                overallStatusEl.className = 'error';
+            }
+        }
+
+        // Детальная проверка компонентов
+        async function checkDetailedStatus() {
+            const detailedTestsEl = document.getElementById('detailed-tests');
+            detailedTestsEl.innerHTML = '<div class="loading">Выполняется детальная проверка...</div>';
+
+            const tests = [
+                { name: 'Основной сервер', url: 'http://localhost:8000/', type: 'server' },
+                { name: 'API товаров', url: 'http://localhost:8000/api/products?start=0&limit=1', type: 'api' },
+                { name: 'Файл app.js', url: 'http://localhost:8000/app.js', type: 'file' },
+                { name: 'Файл style.css', url: 'http://localhost:8000/style.css', type: 'file' },
+                { name: 'Файл translations.js', url: 'http://localhost:8000/translations.js', type: 'file' },
+                { name: 'Главная страница', url: 'http://localhost:8000/index.html', type: 'file' }
+            ];
+
+            let results = [];
+
+            for (const test of tests) {
+                try {
+                    const response = await fetch(test.url, { timeout: 3000 });
+                    let status = response.ok ? 'success' : 'error';
+                    let details = `Статус: ${response.status}`;
+
+                    if (test.type === 'api' && response.ok) {
+                        const data = await response.clone().json();
+                        details += `, товаров: ${data.total || 'неизвестно'}`;
+                        if (!data.success || !data.products) status = 'warning';
+                    }
+
+                    results.push({
+                        name: test.name,
+                        status: status,
+                        details: details
+                    });
+                } catch (error) {
+                    results.push({
+                        name: test.name,
+                        status: 'error',
+                        details: `Ошибка: ${error.message}`
+                    });
+                }
+            }
+
+            // Отображение результатов
+            detailedTestsEl.innerHTML = results.map(result => `
+                <div class="test-result ${result.status}">
+                    <strong>${result.name}:</strong> ${result.details}
+                </div>
+            `).join('');
+        }
+
+        // Функции для открытия страниц
+        function openMainSite() {
+            window.open('http://localhost:8000', '_blank');
+        }
+
+        function openTestConnection() {
+            window.open('http://localhost:8000/test_connection.html', '_blank');
+        }
+
+        function refreshPage() {
+            window.location.reload();
+        }
+
+        async function checkStatus() {
+            await checkOverallStatus();
+            await checkDetailedStatus();
+            document.getElementById('check-time').textContent = new Date().toLocaleString('uk-UA');
+        }
+
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', function() {
+            checkStatus();
+
+            // Автоматическая проверка каждые 30 секунд
+            setInterval(checkStatus, 30000);
+        });
+    </script>
+</body>
+</html>

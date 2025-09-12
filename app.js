@@ -427,6 +427,7 @@ const GAUGE_10_ELECTRIC = new Set([
     'Elixir 12052 Nanoweb Light 10-46 12 sets',
     'GHS Boomers GBL 10-46 Regular 1 set',
     'Dunlop DHCN1060-6 Heavy Core 10-60',
+    'dunlop dhcn1060 heavy core drop c# 10-60',
     'La Bella HRS-R Hard Rockin Steel Nickel-Plated Regular 10-46',
     'Pyramid R451 100 Pure Nickel Classics Round Core 10-46 Regular',
     'Elixir 16542 Nanoweb Light 10-46 3 Sets',
@@ -801,6 +802,9 @@ function saveCartToStorage() {
         localStorage.setItem('cart', JSON.stringify(cart));
         localStorage.setItem('cartItemCount', cartItemCount.toString());
         console.log('Корзина сохранена в localStorage');
+
+        // Принудительно обновляем стили кнопки оплаты после изменения корзины
+        forcePayButtonStyles();
     } catch (error) {
         console.error('Ошибка сохранения корзины:', error);
     }
@@ -1109,6 +1113,9 @@ function updateCartCalculations() {
              totalWithDelivery,
              finalAmount
          });
+
+         // Принудительно обновляем стили кнопки оплаты после расчетов
+         forcePayButtonStyles();
      }
 }
 
@@ -1289,24 +1296,16 @@ function updateDeliveryMethods() {
     const deliveryOptions = deliverySelect.querySelectorAll('option');
     
     if (selectedPayment === 'meeting') {
-        // Если выбрана оплата "при встрече в Одессе", показываем только самовывоз
-        console.log('updateDeliveryMethods: Показываем только самовывоз');
+        // Если выбрана оплата "при встрече в Одессе", показываем все способы доставки
+        console.log('updateDeliveryMethods: Оплата при встрече - показываем все способы доставки');
 
         deliveryOptions.forEach(option => {
-            if (option.value === 'pickup') {
+            // Показываем все способы доставки, но самовывоз будет рекомендуемым
                 option.style.display = 'block';
                 option.disabled = false;
-            } else {
-                // Скрываем все остальные способы доставки при оплате "при встрече"
-                option.style.display = 'none';
-                option.disabled = true;
-            }
         });
 
-        // Устанавливаем самовывоз как выбранный по умолчанию
-        if (deliverySelect.value !== 'pickup') {
-        deliverySelect.value = 'pickup';
-        }
+        // Не устанавливаем самовывоз принудительно, позволяем пользователю выбирать
         
     } else {
         // Для других способов оплаты показываем способы доставки в зависимости от суммы корзины
@@ -1382,7 +1381,11 @@ function updatePickupUi(selectedMethod) {
         const paymentMethodSelect = document.getElementById('paymentMethodSelect');
         const isMeetingPickup = selectedMethod === 'pickup' && paymentMethodSelect && paymentMethodSelect.value === 'meeting';
 
+        console.log('updatePickupUi: selectedMethod:', selectedMethod);
+        console.log('updatePickupUi: isMeetingPickup:', isMeetingPickup);
+
         if (selectedMethod === 'pickup') {
+            console.log('updatePickupUi: Настройка для самовывоза');
             // Город = Одесса только для самовывоза, но только если поле пустое или содержит автозаполненное значение
             const currentValue = cityEl.value.trim();
             const od = window.translations ? window.translations.getTranslation('pickupOdessa', lang) : 'Одесса';
@@ -1417,19 +1420,25 @@ function updatePickupUi(selectedMethod) {
 
                 // Получаем доступные временные слоты
                 const times = getPickupTimes();
+                console.log('updatePickupUi: Получены временные слоты:', times);
 
                 // Показываем элементы самовывоза в корзине
                 const cartPickupAddressRow = document.getElementById('cartPickupAddressRow');
+                console.log('updatePickupUi: cartPickupAddressRow found:', !!cartPickupAddressRow);
                 if (cartPickupAddressRow) {
                     cartPickupAddressRow.style.display = 'flex';
+                    console.log('updatePickupUi: cartPickupAddressRow displayed');
                 }
 
                 const cartPickupTimeRow = document.getElementById('cartPickupTimeRow');
+                console.log('updatePickupUi: cartPickupTimeRow found:', !!cartPickupTimeRow);
                 if (cartPickupTimeRow) {
                     cartPickupTimeRow.style.display = 'flex';
+                    console.log('updatePickupUi: cartPickupTimeRow displayed');
 
                     // Заполняем выпадающий список времени в корзине
                     const timeSelect = document.getElementById('cartPickupTimeSelect');
+                    console.log('updatePickupUi: timeSelect found:', !!timeSelect);
                     if (timeSelect) {
                         // Очищаем существующие опции кроме первой
                         while (timeSelect.options.length > 1) {
@@ -1443,6 +1452,7 @@ function updatePickupUi(selectedMethod) {
                             opt.textContent = t;
                             timeSelect.appendChild(opt);
                         });
+                        console.log('updatePickupUi: Временные слоты добавлены в селект');
                     }
                 }
 
@@ -1472,19 +1482,25 @@ function updatePickupUi(selectedMethod) {
 
                 // Получаем доступные временные слоты
                 const times = getPickupTimes();
+                console.log('updatePickupUi: Получены временные слоты:', times);
 
                 // Показываем элементы самовывоза в корзине
                 const cartPickupAddressRow = document.getElementById('cartPickupAddressRow');
+                console.log('updatePickupUi: cartPickupAddressRow found:', !!cartPickupAddressRow);
                 if (cartPickupAddressRow) {
                     cartPickupAddressRow.style.display = 'flex';
+                    console.log('updatePickupUi: cartPickupAddressRow displayed');
                 }
 
                 const cartPickupTimeRow = document.getElementById('cartPickupTimeRow');
+                console.log('updatePickupUi: cartPickupTimeRow found:', !!cartPickupTimeRow);
                 if (cartPickupTimeRow) {
                     cartPickupTimeRow.style.display = 'flex';
+                    console.log('updatePickupUi: cartPickupTimeRow displayed');
 
                     // Заполняем выпадающий список времени в корзине
                     const timeSelect = document.getElementById('cartPickupTimeSelect');
+                    console.log('updatePickupUi: timeSelect found:', !!timeSelect);
                     if (timeSelect) {
                         // Очищаем существующие опции кроме первой
                         while (timeSelect.options.length > 1) {
@@ -1498,6 +1514,7 @@ function updatePickupUi(selectedMethod) {
                             opt.textContent = t;
                             timeSelect.appendChild(opt);
                         });
+                        console.log('updatePickupUi: Временные слоты добавлены в селект');
                     }
                 }
             }
@@ -1669,14 +1686,136 @@ function closePopup(popupId) {
 }
 
 // Функция показа корзины
-function showCartPopup() {
+async function showCartPopup() {
     console.log('showCartPopup: Показываем корзину');
     const popup = document.getElementById('cartPopup');
     if (popup) {
+        // Загружаем актуальные бонусы пользователя при открытии корзины
+        try {
+            if (window.__authState && window.__authState.isAuthenticated) {
+                const ordersResp = await fetch('/api/user_orders', { credentials: 'include' });
+                const orders = await ordersResp.json().catch(() => ({ success:false, orders:[], summary:{ totalOrders:0, bonuses:0, totalAmount:0 } }));
+                const bonuses = orders.summary?.bonuses ?? 0;
+
+                // Обновляем профиль пользователя с актуальными бонусами
+                if (window.__authState.profile) {
+                    window.__authState.profile.bonuses = bonuses;
+                }
+
+                console.log('showCartPopup: Загружены актуальные бонусы:', bonuses);
+
+                // Инициализируем баланс бонусов после загрузки
+                initializeUserBonus();
+            }
+        } catch (bonusError) {
+            console.warn('showCartPopup: Не удалось загрузить бонусы:', bonusError);
+        }
+
         renderCartItems();
         updateCartCalculations();
         updateDeliveryMethods(); // Инициализируем способы доставки
         updatePaymentButtonText(); // Инициализируем текст кнопки оплаты
+
+        // Инициализируем UI для самовывоза при открытии корзины
+        const deliverySelect = document.getElementById('deliveryMethodSelect');
+        if (deliverySelect && deliverySelect.value) {
+            updatePickupUi(deliverySelect.value);
+            console.log('showCartPopup: UI для самовывоза инициализирован, delivery:', deliverySelect.value);
+        }
+
+        // Проверяем видимость кнопки оплаты
+        const cartActions = document.querySelector('.cart-actions');
+        const payButton = document.querySelector('.cart-actions .btn-pay');
+
+        // Принудительно применяем стили к кнопке оплаты
+        if (payButton) {
+            console.log('showCartPopup: Применяем стили к кнопке оплаты');
+            // Удаляем все существующие inline-стили
+            payButton.removeAttribute('style');
+
+            // Применяем базовые стили
+            payButton.style.setProperty('display', 'flex', 'important');
+            payButton.style.setProperty('visibility', 'visible', 'important');
+            payButton.style.setProperty('opacity', '1', 'important');
+            payButton.style.setProperty('background', '#f8a818', 'important');
+            payButton.style.setProperty('background-color', '#f8a818', 'important');
+            payButton.style.setProperty('color', 'white', 'important');
+            payButton.style.setProperty('border', 'none', 'important');
+            payButton.style.setProperty('box-shadow', 'none', 'important');
+            payButton.style.setProperty('position', 'relative', 'important');
+            payButton.style.setProperty('z-index', '9999', 'important');
+
+            // Применяем стили к дочерним элементам
+            const spans = payButton.querySelectorAll('span, [data-translate]');
+            console.log('showCartPopup: Найдено span элементов:', spans.length);
+            spans.forEach(span => {
+                span.style.setProperty('color', 'white', 'important');
+                span.style.setProperty('background', 'transparent', 'important');
+                span.style.setProperty('text-shadow', 'none', 'important');
+                span.style.setProperty('-webkit-text-fill-color', 'white', 'important');
+                span.style.setProperty('-webkit-text-stroke', '0px transparent', 'important');
+                span.style.setProperty('border', 'none', 'important');
+            });
+
+            // Повторно применяем стили через setTimeout для гарантии
+            setTimeout(() => {
+                console.log('showCartPopup: Повторное применение стилей');
+                payButton.style.setProperty('background', '#f8a818', 'important');
+                payButton.style.setProperty('color', 'white', 'important');
+
+                spans.forEach(span => {
+                    span.style.setProperty('color', 'white', 'important');
+                });
+            }, 50);
+
+            // Проверяем результат применения стилей
+            setTimeout(() => {
+                console.log('showCartPopup: Проверка стилей после применения');
+                const computedStyle = getComputedStyle(payButton);
+                console.log('showCartPopup: computed display:', computedStyle.display);
+                console.log('showCartPopup: computed background:', computedStyle.background);
+                console.log('showCartPopup: computed color:', computedStyle.color);
+                console.log('showCartPopup: computed visibility:', computedStyle.visibility);
+                console.log('showCartPopup: computed opacity:', computedStyle.opacity);
+            }, 100);
+        }
+
+        console.log('showCartPopup: Контейнер cart-actions найден:', !!cartActions);
+        console.log('showCartPopup: Кнопка оплаты найдена:', !!payButton);
+
+        if (cartActions) {
+            console.log('showCartPopup: Стили контейнера cart-actions:', getComputedStyle(cartActions));
+            console.log('showCartPopup: Контейнер cart-actions display:', cartActions.style.display);
+            console.log('showCartPopup: Контейнер cart-actions visibility:', cartActions.style.visibility);
+        }
+
+        if (payButton) {
+            console.log('showCartPopup: Стили кнопки оплаты:', getComputedStyle(payButton));
+            console.log('showCartPopup: Кнопка оплаты отображается:', payButton.offsetWidth > 0 && payButton.offsetHeight > 0);
+            console.log('showCartPopup: Кнопка оплаты display:', payButton.style.display);
+            console.log('showCartPopup: Кнопка оплаты visibility:', payButton.style.visibility);
+            console.log('showCartPopup: Кнопка оплаты opacity:', payButton.style.opacity);
+        }
+
+        // Проверяем корзину
+        console.log('showCartPopup: Корзина пуста?', cart.length === 0);
+        console.log('showCartPopup: Количество товаров в корзине:', cart.length);
+
+        // Принудительно делаем контейнер и кнопку оплаты видимыми
+        if (cartActions) {
+            cartActions.style.display = 'block';
+            cartActions.style.visibility = 'visible';
+            cartActions.style.opacity = '1';
+            console.log('showCartPopup: Принудительно сделали контейнер cart-actions видимым');
+        }
+
+        if (payButton) {
+            payButton.style.display = 'flex';
+            payButton.style.visibility = 'visible';
+            payButton.style.opacity = '1';
+            console.log('showCartPopup: Принудительно сделали кнопку оплаты видимой');
+        }
+
         popup.style.display = 'flex';
     }
 }
@@ -3328,8 +3467,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Инициализируем корзину
     initializeCart();
 
-    // Инициализируем баланс бонусов
-    initializeUserBonus();
+    // Инициализация баланса бонусов будет выполнена после загрузки данных пользователя
+    // initializeUserBonus();
     
     // Сбрасываем состояние бесконечной прокрутки
     currentPage = 0;
@@ -3674,6 +3813,28 @@ function setupEventHandlers() {
                     dropdownLogoutSection.style.display = 'block';
                     // Кэш авторизации
                     try { window.__authState = { isAuthenticated: true, profile: data.profile || { username } }; } catch (e) {}
+
+                    // Загружаем актуальные бонусы пользователя
+                    try {
+                        const ordersResp = await fetch('/api/user_orders', { credentials: 'include' });
+                        const orders = await ordersResp.json().catch(() => ({ success:false, orders:[], summary:{ totalOrders:0, bonuses:0, totalAmount:0 } }));
+                        const bonuses = orders.summary?.bonuses ?? 0;
+
+                        // Обновляем профиль пользователя с актуальными бонусами
+                        if (window.__authState && window.__authState.profile) {
+                            window.__authState.profile.bonuses = bonuses;
+                        }
+
+                        // Обновляем отображение бонусов
+                        updateBonusDisplay(bonuses);
+
+                        // Инициализируем баланс бонусов после загрузки
+                        initializeUserBonus();
+
+                        console.log('login: Загружены актуальные бонусы:', bonuses);
+                    } catch (bonusError) {
+                        console.warn('login: Не удалось загрузить бонусы:', bonusError);
+                    }
                     // Открываем кабинет
                     showAccountView();
                 } catch (err) {
@@ -3841,9 +4002,25 @@ function setupEventHandlers() {
             const offerPopup = document.getElementById('offerPopup');
             const menuPopup = document.getElementById('menuPopup');
             const settingsPopup = document.getElementById('settingsPopup');
+            const orderDetailsPopup = document.getElementById('orderDetailsPopup');
+            const orderAcceptedPopup = document.getElementById('orderAcceptedPopup');
+
+            // Закрываем детали заказа если они открыты
+            if (orderDetailsPopup && orderDetailsPopup.style.display === 'flex') {
+                closePopup('orderDetailsPopup');
+                console.log('closeOrderDetailsPopup: Детали заказа закрыты (ESC)');
+                return;
+            }
+
+            // Закрываем подтверждение заказа если оно открыто
+            if (orderAcceptedPopup && orderAcceptedPopup.style.display === 'flex') {
+                closePopup('orderAcceptedPopup');
+                console.log('closeOrderAcceptedPopup: Подтверждение заказа закрыто (ESC)');
+                return;
+            }
 
             // Закрываем корзину если она открыта
-            if (cartPopup && cartPopup.style.display === 'flex') {
+            if (cartPopup && (cartPopup.style.display === 'flex' || cartPopup.style.display === 'block')) {
                 closeCartPopup();
                 console.log('closeCartPopup: Корзина закрыта (ESC)');
                 return;
@@ -4081,10 +4258,18 @@ function setupEventHandlers() {
                if (paymentMethodSelect && paymentMethodSelect.value === 'meeting' && this.value !== 'pickup') {
                    paymentMethodSelect.value = 'wayforpay';
                    console.log('setupEventHandlers: Автоматически изменен способ оплаты на WayForPay');
+
+                   // После изменения оплаты, обновляем способы доставки
+                   setTimeout(() => {
+                       updateDeliveryMethods();
+                   }, 10);
                }
 
                updateDeliveryCost();
+               updateDeliveryMethods(); // Обновляем доступные способы доставки
                updateCartCalculations(); // Дополнительно обновляем расчеты корзины
+               updatePickupUi(this.value); // Обновляем UI для самовывоза
+               forcePayButtonStyles(); // Принудительно обновляем стили кнопки оплаты
            });
        }
       
@@ -5622,9 +5807,22 @@ async function renderAccountPage() {
         const totalOrdersEl = document.getElementById('accTotalOrders');
         const accBonusesEl = document.getElementById('accBonuses');
         const totalAmountEl = document.getElementById('accTotalAmount');
+        const bonuses = orders.summary?.bonuses ?? 0;
+
         if (totalOrdersEl) totalOrdersEl.textContent = orders.summary?.totalOrders ?? 0;
-        if (accBonusesEl) accBonusesEl.textContent = orders.summary?.bonuses ?? 0;
+        if (accBonusesEl) accBonusesEl.textContent = bonuses;
         if (totalAmountEl) totalAmountEl.textContent = `${(orders.summary?.totalAmount ?? 0)} ${getCurrencyWithDot()}`;
+
+        // Обновляем отображение бонусов и сохраняем в профиле
+        updateBonusDisplay(bonuses);
+
+        // Сохраняем бонусы в профиле пользователя
+        if (window.__authState && window.__authState.profile) {
+            window.__authState.profile.bonuses = bonuses;
+        }
+
+        // Инициализируем баланс бонусов после загрузки данных
+        initializeUserBonus();
         // Таблица заказов
         const body = document.getElementById('ordersTableBody');
         if (body) {
@@ -5824,7 +6022,7 @@ function ensureAccountSection() {
                 <img id="accountAvatar" class="account-avatar" src="" alt="Avatar" style="display:none;">
                 <div class="account-title-block">
                     <h2 id="accountUserName">—</h2>
-                    <div class="account-bonuses" id="accountBonuses" data-translate="bonusInfo">Кол-во бонусов: 100</div>
+                    <div class="account-bonuses" id="accountBonuses" data-translate="bonusInfo">Кол-во бонусов: ...</div>
                 </div>
             </div>
             <div class="account-actions">
@@ -6086,9 +6284,22 @@ function generateOrderId() {
 // Функция сохранения заказа в localStorage
 function saveOrderToLocalStorage(order) {
     try {
-        const orders = JSON.parse(localStorage.getItem('userOrders') || '[]');
+        // Получаем текущего пользователя
+        const currentUser = window.__authState && window.__authState.profile ?
+            (window.__authState.profile.username || window.__authState.profile.displayName || 'guest') : 'guest';
+        const userOrdersKey = `userOrders_${currentUser}`;
+
+        console.log('saveOrderToLocalStorage: Сохраняем заказ для пользователя:', currentUser, 'ключ:', userOrdersKey);
+
+        const orders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
         orders.push(order);
-        localStorage.setItem('userOrders', JSON.stringify(orders));
+        localStorage.setItem(userOrdersKey, JSON.stringify(orders));
+
+        // Также сохраняем в общий ключ для совместимости
+        const allOrders = JSON.parse(localStorage.getItem('userOrders') || '[]');
+        allOrders.push(order);
+        localStorage.setItem('userOrders', JSON.stringify(allOrders));
+
         console.log('saveOrderToLocalStorage: Заказ сохранен в localStorage', order);
     } catch (error) {
         console.error('saveOrderToLocalStorage: Ошибка сохранения заказа', error);
@@ -6103,11 +6314,16 @@ function addUserBonus(bonusAmount) {
             return;
         }
 
-        // Получаем текущий баланс бонусов из localStorage
-        const currentBonus = parseInt(localStorage.getItem('userBonusBalance') || '0');
+        // Получаем текущий баланс бонусов из профиля пользователя или localStorage
+        const currentBonus = window.__authState.profile?.bonuses || parseInt(localStorage.getItem('userBonusBalance') || '0');
         const newBonusBalance = currentBonus + bonusAmount;
 
-        // Сохраняем новый баланс
+        // Сохраняем новый баланс в профиле пользователя
+        if (window.__authState.profile) {
+            window.__authState.profile.bonuses = newBonusBalance;
+        }
+
+        // Также сохраняем в localStorage для совместимости
         localStorage.setItem('userBonusBalance', newBonusBalance.toString());
 
         // Обновляем отображение баланса в интерфейсе
@@ -6121,10 +6337,27 @@ function addUserBonus(bonusAmount) {
 
 // Функция обновления отображения баланса бонусов
 function updateBonusDisplay(bonusBalance) {
-    // Обновляем отображение в кабинете
-    const bonusElement = document.getElementById('userBonusBalance');
-    if (bonusElement) {
-        bonusElement.textContent = bonusBalance;
+    // Обновляем отображение в личном кабинете
+    const accountBonusElement = document.getElementById('accBonuses');
+    if (accountBonusElement) {
+        accountBonusElement.textContent = bonusBalance;
+    }
+
+    // Обновляем отображение в шапке кабинета
+    const accountBonusesElement = document.getElementById('accountBonuses');
+    if (accountBonusesElement) {
+        // Получаем текущий текст и заменяем только число
+        const currentText = accountBonusesElement.textContent;
+        const lang = getCurrentLanguage ? getCurrentLanguage() : (localStorage.getItem('selectedLanguage') || 'uk');
+
+        let newText = 'Кол-во бонусов: ' + bonusBalance;
+        if (lang === 'uk') {
+            newText = 'Кількість бонусів: ' + bonusBalance;
+        } else if (lang === 'en') {
+            newText = 'Bonus amount: ' + bonusBalance;
+        }
+
+        accountBonusesElement.textContent = newText;
     }
 
     // Обновляем отображение в корзине
@@ -6143,6 +6376,10 @@ function updateBonusDisplay(bonusBalance) {
 // Функция списания бонусов из баланса пользователя
 function deductUserBonus(bonusAmount) {
     try {
+        console.log('deductUserBonus: Попытка списать бонусы, сумма:', bonusAmount);
+        console.log('deductUserBonus: window.__authState:', !!window.__authState);
+        console.log('deductUserBonus: isAuthenticated:', window.__authState?.isAuthenticated);
+
         if (!window.__authState || !window.__authState.isAuthenticated) {
             console.log('deductUserBonus: Пользователь не авторизован, бонусы не списаны');
             return false;
@@ -6150,6 +6387,7 @@ function deductUserBonus(bonusAmount) {
 
         // Получаем текущий баланс бонусов
         const currentBonus = getUserBonusBalance();
+        console.log('deductUserBonus: Текущий баланс бонусов:', currentBonus);
 
         if (currentBonus < bonusAmount) {
             console.warn(`deductUserBonus: Недостаточно бонусов. Доступно: ${currentBonus}, требуется: ${bonusAmount}`);
@@ -6158,7 +6396,12 @@ function deductUserBonus(bonusAmount) {
 
         const newBonusBalance = currentBonus - bonusAmount;
 
-        // Сохраняем новый баланс
+        // Сохраняем новый баланс в профиле пользователя
+        if (window.__authState.profile) {
+            window.__authState.profile.bonuses = newBonusBalance;
+        }
+
+        // Также сохраняем в localStorage для совместимости
         localStorage.setItem('userBonusBalance', newBonusBalance.toString());
 
         // Обновляем отображение баланса в интерфейсе
@@ -6174,6 +6417,11 @@ function deductUserBonus(bonusAmount) {
 
 // Функция получения текущего баланса бонусов
 function getUserBonusBalance() {
+    // Сначала проверяем профиль пользователя
+    if (window.__authState && window.__authState.profile && window.__authState.profile.bonuses !== undefined) {
+        return window.__authState.profile.bonuses;
+    }
+    // Если профиль не доступен, используем localStorage
     return parseInt(localStorage.getItem('userBonusBalance') || '0');
 }
 
@@ -6332,6 +6580,42 @@ async function sendOrderNotification(order) {
 // Флаг для предотвращения сброса данных при отправке заказа
 let isCheckoutInProgress = false;
 
+// Функция принудительного применения стилей к кнопке оплаты
+function forcePayButtonStyles() {
+    try {
+        const payButton = document.querySelector('.cart-actions .btn-pay');
+        if (payButton) {
+            // Удаляем все существующие inline-стили
+            payButton.removeAttribute('style');
+
+            // Применяем базовые стили
+            payButton.style.setProperty('display', 'flex', 'important');
+            payButton.style.setProperty('visibility', 'visible', 'important');
+            payButton.style.setProperty('opacity', '1', 'important');
+            payButton.style.setProperty('background', '#f8a818', 'important');
+            payButton.style.setProperty('background-color', '#f8a818', 'important');
+            payButton.style.setProperty('color', 'white', 'important');
+            payButton.style.setProperty('border', 'none', 'important');
+            payButton.style.setProperty('box-shadow', 'none', 'important');
+            payButton.style.setProperty('position', 'relative', 'important');
+            payButton.style.setProperty('z-index', '9999', 'important');
+
+            // Применяем стили к дочерним элементам
+            const spans = payButton.querySelectorAll('span, [data-translate]');
+            spans.forEach(span => {
+                span.style.setProperty('color', 'white', 'important');
+                span.style.setProperty('background', 'transparent', 'important');
+                span.style.setProperty('text-shadow', 'none', 'important');
+                span.style.setProperty('-webkit-text-fill-color', 'white', 'important');
+                span.style.setProperty('-webkit-text-stroke', '0px transparent', 'important');
+                span.style.setProperty('border', 'none', 'important');
+            });
+        }
+    } catch (error) {
+        console.error('forcePayButtonStyles: Ошибка применения стилей:', error);
+    }
+}
+
 // Основная функция оформления заказа
 function checkout() {
     try {
@@ -6400,10 +6684,19 @@ function checkout() {
             errors.push('Область обязательна для заполнения при доставке Укрпоштой');
         }
 
-        // Проверяем номер отделения/индекс
-        if (!branchValue) {
+        // Проверяем номер отделения/индекс (кроме самовывоза)
+        if (!branchValue && deliveryMethod !== 'pickup') {
             const fieldName = deliveryMethod === 'ukrposhta' ? 'Индекс' : 'Номер отделения';
             errors.push(`${fieldName} обязателен для заполнения`);
+        }
+
+        // Проверяем выбор времени для самовывоза
+        if (deliveryMethod === 'pickup') {
+            const pickupTimeSelect = document.getElementById('cartPickupTimeSelect');
+            const pickupTimeValue = pickupTimeSelect ? pickupTimeSelect.value.trim() : '';
+            if (!pickupTimeValue) {
+                errors.push('Время самовывоза обязательно для заполнения');
+            }
         }
 
         // Проверяем ФИО (всегда обязательно)
@@ -6431,6 +6724,10 @@ function checkout() {
         const commentTextarea = document.querySelector('.cart-comment');
         const comment = commentTextarea && commentTextarea.value.trim() ? commentTextarea.value.trim() : '';
 
+        // Получаем выбранное время самовывоза
+        const pickupTimeSelect = document.getElementById('cartPickupTimeSelect');
+        const pickupTime = pickupTimeSelect && pickupTimeSelect.value ? pickupTimeSelect.value : '';
+
         // Создаем объект заказа
         const order = {
             id: orderId,
@@ -6450,10 +6747,30 @@ function checkout() {
             couponDiscount: couponDiscount,
             couponCode: couponCode,
             comment: comment,
+            pickupTime: pickupTime, // Время самовывоза
             status: 'принято'
         };
 
+        console.log('checkout: Создан объект заказа:', order);
+        console.log('checkout: Данные пользователя:', order.customer);
+        console.log('checkout: Товары в заказе:', order.items);
+        console.log('checkout: Бонусы к списанию:', bonusesUsed, 'Купон:', couponDiscount);
+        console.log('checkout: Итоговая сумма:', order.total);
+
         console.log('checkout: Создан заказ', order);
+        console.log('checkout: Данные формы:', {
+            customerName,
+            customerPhone,
+            customerSettlement,
+            customerRegion,
+            branchValue,
+            paymentMethod,
+            deliveryMethod,
+            bonusesUsed,
+            couponDiscount,
+            couponCode,
+            comment
+        });
 
         // Сохраняем заказ в localStorage
         saveOrderToLocalStorage(order);
@@ -6469,9 +6786,14 @@ function checkout() {
 
         // Списываем использованные бонусы из баланса пользователя
         if (bonusesUsed > 0) {
+            console.log(`checkout: Начинаем списание ${bonusesUsed} бонусов`);
             const deductSuccess = deductUserBonus(bonusesUsed);
             if (deductSuccess) {
                 console.log(`checkout: Списано ${bonusesUsed} бонусов из баланса пользователя`);
+                // Принудительно обновляем отображение баланса
+                const newBalance = getUserBonusBalance();
+                updateBonusDisplay(newBalance);
+                console.log(`checkout: Новый баланс бонусов: ${newBalance}`);
             } else {
                 console.warn(`checkout: Не удалось списать ${bonusesUsed} бонусов из баланса`);
             }
@@ -6599,9 +6921,37 @@ function showOrderDetails(orderId) {
     try {
         console.log('showOrderDetails: Показ деталей заказа', orderId);
 
-        // Получаем заказы из localStorage
-        const orders = JSON.parse(localStorage.getItem('userOrders') || '[]');
-        const order = orders.find(o => o.id === orderId);
+        // Получаем заказы из localStorage - сначала ищем в ключе текущего пользователя
+        const currentUser = window.__authState && window.__authState.profile ?
+            (window.__authState.profile.username || window.__authState.profile.displayName || 'guest') : 'guest';
+        const userOrdersKey = `userOrders_${currentUser}`;
+        console.log('showOrderDetails: currentUser:', currentUser, 'userOrdersKey:', userOrdersKey);
+
+        let orders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
+        console.log('showOrderDetails: orders from user key:', orders.length, 'orders');
+        let order = orders.find(o => o.id === orderId);
+        console.log('showOrderDetails: order found in user key:', !!order);
+
+        // Если не найден в ключе текущего пользователя, ищем во всех ключах userOrders
+        if (!order) {
+            console.log('showOrderDetails: Заказ не найден в ключе текущего пользователя, ищу в других ключах');
+            const allKeys = Object.keys(localStorage).filter(key => key.startsWith('userOrders'));
+            for (const key of allKeys) {
+                if (key === userOrdersKey) continue; // Уже проверили
+                const userOrders = JSON.parse(localStorage.getItem(key) || '[]');
+                order = userOrders.find(o => o.id === orderId);
+                if (order) {
+                    console.log('showOrderDetails: Заказ найден в ключе', key);
+                    break;
+                }
+            }
+        }
+
+        // Также проверяем старый ключ userOrders (для совместимости)
+        if (!order) {
+            orders = JSON.parse(localStorage.getItem('userOrders') || '[]');
+            order = orders.find(o => o.id === orderId);
+        }
 
         if (!order) {
             console.log('showOrderDetails: Заказ не найден', orderId);
@@ -6628,6 +6978,7 @@ function showOrderDetails(orderId) {
 function fillOrderDetails(order) {
     try {
         console.log('fillOrderDetails: Заполнение деталей заказа', order.id);
+        console.log('fillOrderDetails: полный объект заказа:', order);
 
         // Переводим заголовки в зависимости от языка
         const lang = getCurrentLanguage ? getCurrentLanguage() : (localStorage.getItem('selectedLanguage') || 'uk');
@@ -6644,7 +6995,11 @@ function fillOrderDetails(order) {
             const headerDateEl = document.getElementById('orderHeaderDate');
             const headerStatusEl = document.getElementById('orderHeaderStatus');
             if (headerDateEl) {
+                try {
                 headerDateEl.textContent = new Date(order.date).toLocaleDateString();
+                } catch (e) {
+                    headerDateEl.textContent = order.date || '-';
+                }
             }
             if (headerStatusEl) {
                 headerStatusEl.textContent = getOrderStatusText(order.status);
@@ -6670,85 +7025,155 @@ function fillOrderDetails(order) {
         }
 
         // Переводим метки стоимости товаров
-        const itemsCostLabel = document.querySelector('#orderItemsTotal').previousElementSibling;
+        const itemsCostElement = document.querySelector('#orderItemsTotal');
+        if (itemsCostElement) {
+            const itemsCostLabel = itemsCostElement.previousElementSibling;
         if (itemsCostLabel) {
             let costTitle = 'Вартість товарів:';
             if (lang === 'ru') costTitle = 'Стоимость товаров:';
             else if (lang === 'en') costTitle = 'Items cost:';
             itemsCostLabel.textContent = costTitle;
+            }
         }
 
         // Переводим метки полей в блоке информации о заказе
-        const paymentLabel = document.querySelector('#orderDetailPayment').previousElementSibling;
+        const paymentElement = document.querySelector('#orderDetailPayment');
+        if (paymentElement) {
+            const paymentLabel = paymentElement.previousElementSibling;
         if (paymentLabel) {
             let paymentTitle = 'Способ оплаты:';
             if (lang === 'uk') paymentTitle = 'Спосіб оплати:';
             else if (lang === 'en') paymentTitle = 'Payment method:';
             paymentLabel.textContent = paymentTitle;
+            }
         }
 
-        const deliveryLabel = document.querySelector('#orderDetailDelivery').previousElementSibling;
+        const deliveryElement = document.querySelector('#orderDetailDelivery');
+        if (deliveryElement) {
+            const deliveryLabel = deliveryElement.previousElementSibling;
         if (deliveryLabel) {
             let deliveryTitle = 'Способ доставки:';
             if (lang === 'uk') deliveryTitle = 'Спосіб доставки:';
             else if (lang === 'en') deliveryTitle = 'Delivery method:';
             deliveryLabel.textContent = deliveryTitle;
+            }
         }
 
-        const nameLabel = document.querySelector('#orderDetailName').previousElementSibling;
+        const nameElement = document.querySelector('#orderDetailName');
+        if (nameElement) {
+            const nameLabel = nameElement.previousElementSibling;
         if (nameLabel) {
             let nameTitle = 'Прізвище та ім\'я:';
             if (lang === 'ru') nameTitle = 'ФИО:';
             else if (lang === 'en') nameTitle = 'Full name:';
             nameLabel.textContent = nameTitle;
+            }
         }
 
-        const phoneLabel = document.querySelector('#orderDetailPhone').previousElementSibling;
+        const phoneElement = document.querySelector('#orderDetailPhone');
+        if (phoneElement) {
+            const phoneLabel = phoneElement.previousElementSibling;
         if (phoneLabel) {
             let phoneTitle = 'Телефон:';
             if (lang === 'uk') phoneTitle = 'Телефон:';
             else if (lang === 'en') phoneTitle = 'Phone:';
             phoneLabel.textContent = phoneTitle;
+            }
         }
 
-        const settlementLabel = document.querySelector('#orderDetailSettlement').previousElementSibling;
+        const settlementElement = document.querySelector('#orderDetailSettlement');
+        if (settlementElement) {
+            const settlementLabel = settlementElement.previousElementSibling;
         if (settlementLabel) {
             let settlementTitle = 'Населённый пункт:';
             if (lang === 'uk') settlementTitle = 'Населений пункт:';
             else if (lang === 'en') settlementTitle = 'Settlement:';
             settlementLabel.textContent = settlementTitle;
+            }
         }
 
-        const deliveryBranchLabel = document.querySelector('#orderDetailBranch').previousElementSibling;
+        const deliveryBranchElement = document.querySelector('#orderDetailBranch');
+        if (deliveryBranchElement) {
+            const deliveryBranchLabel = deliveryBranchElement.previousElementSibling;
         if (deliveryBranchLabel) {
             let branchTitle = 'Адрес доставки:';
             if (lang === 'uk') branchTitle = 'Адреса доставки:';
             else if (lang === 'en') branchTitle = 'Delivery address:';
             deliveryBranchLabel.textContent = branchTitle;
+            }
         }
 
-        const pickupLabel = document.querySelector('#orderDetailPickupAddress').previousElementSibling;
-        if (pickupLabel) {
-            let pickupTitle = 'Адрес самовывоза:';
-            if (lang === 'uk') pickupTitle = 'Адреса самовивозу:';
-            else if (lang === 'en') pickupTitle = 'Pickup address:';
-            pickupLabel.textContent = pickupTitle;
+        // Переводим метку для поля времени самовывоза
+        const pickupTimeElement = document.querySelector('#orderDetailPickupTime');
+        if (pickupTimeElement) {
+            const pickupTimeLabel = pickupTimeElement.previousElementSibling;
+            if (pickupTimeLabel) {
+                let pickupTimeTitle = 'Время самовывоза:';
+                if (lang === 'uk') pickupTimeTitle = 'Час самовивозу:';
+                else if (lang === 'en') pickupTimeTitle = 'Pickup time:';
+                pickupTimeLabel.textContent = pickupTimeTitle;
+            }
         }
 
-        const commentLabel = document.querySelector('#orderDetailComment').previousElementSibling;
+        const commentElement = document.querySelector('#orderDetailComment');
+        if (commentElement) {
+            const commentLabel = commentElement.previousElementSibling;
         if (commentLabel) {
             let commentTitle = 'Комментарий:';
             if (lang === 'uk') commentTitle = 'Коментар:';
             else if (lang === 'en') commentTitle = 'Comment:';
             commentLabel.textContent = commentTitle;
+            }
         }
 
         // Заполняем информацию о заказе
-        document.getElementById('orderDetailPayment').textContent = getPaymentMethodText(order.paymentMethod) || '-';
-        document.getElementById('orderDetailDelivery').textContent = getDeliveryMethodText(order.deliveryMethod) || '-';
+        const paymentEl = document.getElementById('orderDetailPayment');
+        const deliveryEl = document.getElementById('orderDetailDelivery');
+        const commentEl = document.getElementById('orderDetailComment');
+
+        console.log('fillOrderDetails: Заполнение основных полей заказа');
+        console.log('fillOrderDetails: paymentEl найден:', !!paymentEl);
+        console.log('fillOrderDetails: deliveryEl найден:', !!deliveryEl);
+        console.log('fillOrderDetails: commentEl найден:', !!commentEl);
+        console.log('fillOrderDetails: order.paymentMethod:', order.paymentMethod);
+        console.log('fillOrderDetails: order.deliveryMethod:', order.deliveryMethod);
+        console.log('fillOrderDetails: order.comment:', order.comment);
+
+        if (paymentEl) {
+            paymentEl.textContent = getPaymentMethodText(order.paymentMethod) || '-';
+            console.log('fillOrderDetails: paymentEl.textContent set to:', paymentEl.textContent);
+        }
+        if (deliveryEl) {
+            deliveryEl.textContent = getDeliveryMethodText(order.deliveryMethod) || '-';
+            console.log('fillOrderDetails: deliveryEl.textContent set to:', deliveryEl.textContent);
+        }
 
         // Заполняем комментарий
-        document.getElementById('orderDetailComment').textContent = order.comment || '-';
+        if (commentEl) commentEl.textContent = order.comment || '-';
+
+        // Управляем отображением поля времени самовывоза
+        const pickupTimeRow = document.getElementById('orderDetailPickupTimeRow');
+
+        if (order.deliveryMethod === 'pickup') {
+            // Показываем поле времени самовывоза
+            if (pickupTimeRow) {
+                pickupTimeRow.style.display = 'block';
+                const pickupTimeEl = document.getElementById('orderDetailPickupTime');
+                if (pickupTimeEl) {
+                    pickupTimeEl.textContent = order.pickupTime || '-';
+                    console.log('fillOrderDetails: pickupTime set to:', pickupTimeEl.textContent);
+                }
+            }
+
+            // Показываем только комментарий пользователя в поле комментария
+            if (commentEl) commentEl.textContent = order.comment || '-';
+        } else {
+            // Скрываем поле времени самовывоза для других способов доставки
+            if (pickupTimeRow) pickupTimeRow.style.display = 'none';
+
+            // Показываем только комментарий пользователя
+            if (commentEl) commentEl.textContent = order.comment || '-';
+        }
 
         // Использованные бонусы и купон (скрыты в верхнем блоке по требованию)
         const bonusesUsed = order.bonusesUsed || 0;
@@ -6781,50 +7206,87 @@ function fillOrderDetails(order) {
             finalTotal -= couponDiscount;
         }
 
-        // Заполняем итоговый расчет (без комиссии оплаты)
-        document.getElementById('orderItemsTotal').textContent = `${itemsTotal} ${getCurrencyWithDot()}`;
+        // Заполняем итоговый расчет
+        const itemsTotalEl = document.getElementById('orderItemsTotal');
+        if (itemsTotalEl) itemsTotalEl.textContent = `${itemsTotal} ${getCurrencyWithDot()}`;
 
-        // Стоимость доставки показываем только если это Укрпочта
+        // Стоимость доставки показываем для всех способов доставки
         const deliveryCostElement = document.getElementById('orderDeliveryCost');
-        const deliveryCostRow = deliveryCostElement ? deliveryCostElement.closest('.order-total-row') : null;
-        if (order.deliveryMethod === 'ukrposhta' && deliveryCost > 0) {
-            deliveryCostElement.textContent = `${deliveryCost} ${getCurrencyWithDot()}`;
-            if (deliveryCostRow) deliveryCostRow.style.display = 'flex';
-        } else {
-            if (deliveryCostRow) deliveryCostRow.style.display = 'none';
+        const deliveryCostRow = document.getElementById('orderDeliveryCostRow');
+        const deliveryCostLabel = deliveryCostRow ? deliveryCostRow.querySelector('.order-total-label') : null;
+
+        if (deliveryCostLabel) {
+            let deliveryText = 'Вартість доставки:';
+            if (lang === 'ru') deliveryText = 'Стоимость доставки:';
+            else if (lang === 'en') deliveryText = 'Delivery cost:';
+            deliveryCostLabel.textContent = deliveryText;
         }
 
-        // Комиссия оплаты скрыта
-        const paymentFeeElement = document.getElementById('orderPaymentFee');
-        const paymentFeeRow = paymentFeeElement ? paymentFeeElement.closest('.order-total-row') : null;
-        if (paymentFeeRow) paymentFeeRow.style.display = 'none';
-
-        document.getElementById('orderFinalTotal').textContent = `${finalTotal} ${getCurrencyWithDot()}`;
+        if (deliveryCost > 0) {
+            if (deliveryCostElement) deliveryCostElement.textContent = `${deliveryCost} ${getCurrencyWithDot()}`;
+            if (deliveryCostRow) deliveryCostRow.style.display = 'flex';
+        } else {
+            if (deliveryCostElement) deliveryCostElement.textContent = `0 ${getCurrencyWithDot()}`;
+            if (deliveryCostRow) deliveryCostRow.style.display = 'flex';
+        }
 
         // Показываем/скрываем строки с бонусами и купоном
         const bonusesRow = document.getElementById('orderBonusesRow');
         const couponRow = document.getElementById('orderCouponRow');
+        const bonusesTotalEl = document.getElementById('orderBonusesTotal');
+        const couponTotalEl = document.getElementById('orderCouponTotal');
 
-        if (bonusesUsed > 0) {
+        console.log('fillOrderDetails: bonusesUsed:', bonusesUsed, 'couponDiscount:', couponDiscount);
+
+        if (bonusesUsed > 0 && bonusesRow && bonusesTotalEl) {
             bonusesRow.style.display = 'flex';
-            document.getElementById('orderBonusesTotal').textContent = `-${bonusesUsed}`;
-        } else {
+            bonusesTotalEl.textContent = `-${bonusesUsed} ${getCurrencyWithDot()}`;
+
+            // Перевод метки бонусов
+            const bonusesLabel = bonusesRow.querySelector('.order-total-label');
+            if (bonusesLabel) {
+                let bonusText = 'Використані бонуси:';
+                if (lang === 'ru') bonusText = 'Использованные бонусы:';
+                else if (lang === 'en') bonusText = 'Used bonuses:';
+                bonusesLabel.textContent = bonusText;
+            }
+
+            console.log('fillOrderDetails: Показываем строку с бонусами');
+        } else if (bonusesRow) {
             bonusesRow.style.display = 'none';
         }
 
-        if (couponDiscount > 0) {
+        if (couponDiscount > 0 && couponRow && couponTotalEl) {
             couponRow.style.display = 'flex';
-            const couponCode = order.couponCode || '';
-            const couponText = couponCode ? `${couponCode}: ` : '';
-            document.getElementById('orderCouponTotal').textContent = `-${couponDiscount} ${getCurrencyWithDot()}`;
-            // Изменяем текст метки купона
+            couponTotalEl.textContent = `-${couponDiscount} ${getCurrencyWithDot()}`;
+
+            // Перевод метки купона
             const couponLabel = couponRow.querySelector('.order-total-label');
             if (couponLabel) {
-                couponLabel.textContent = `Знижка за купоном ${couponText}`;
+                let discountText = 'Знижка за купоном:';
+                if (lang === 'ru') discountText = 'Скидка по купону:';
+                else if (lang === 'en') discountText = 'Coupon discount:';
+                couponLabel.textContent = discountText;
             }
-        } else {
+
+            console.log('fillOrderDetails: Показываем строку с купоном');
+        } else if (couponRow) {
             couponRow.style.display = 'none';
         }
+
+        const finalTotalEl = document.getElementById('orderFinalTotal');
+        const finalTotalLabel = finalTotalEl ? finalTotalEl.previousElementSibling : null;
+
+        if (finalTotalLabel) {
+            let totalText = 'Всього:';
+            if (lang === 'ru') totalText = 'Итого:';
+            else if (lang === 'en') totalText = 'Total:';
+            finalTotalLabel.textContent = totalText;
+        }
+
+        if (finalTotalEl) finalTotalEl.textContent = `${finalTotal} ${getCurrencyWithDot()}`;
+
+        console.log('fillOrderDetails: Итоговый расчет - itemsTotal:', itemsTotal, 'deliveryCost:', deliveryCost, 'bonusesUsed:', bonusesUsed, 'couponDiscount:', couponDiscount, 'finalTotal:', finalTotal);
 
         // Добавляем информацию о начисленных бонусах за этот заказ
         const bonusEarned = Math.round(finalTotal * 0.01);
@@ -6862,20 +7324,86 @@ function fillOrderDetails(order) {
         }
 
         // Заполняем данные покупателя
-        document.getElementById('orderDetailName').textContent = order.customer?.name || '-';
-        document.getElementById('orderDetailPhone').textContent = order.customer?.phone || '-';
-        document.getElementById('orderDetailSettlement').textContent = order.customer?.settlement || '-';
-        document.getElementById('orderDetailRegion').textContent = order.customer?.region || '-';
+        const nameEl = document.getElementById('orderDetailName');
+        const phoneEl = document.getElementById('orderDetailPhone');
+        const settlementEl = document.getElementById('orderDetailSettlement');
+        const regionEl = document.getElementById('orderDetailRegion');
+
+        console.log('fillOrderDetails: customer data:', order.customer);
+        console.log('fillOrderDetails: DOM elements found - nameEl:', !!nameEl, 'phoneEl:', !!phoneEl, 'settlementEl:', !!settlementEl, 'regionEl:', !!regionEl);
+        console.log('fillOrderDetails: order object keys:', Object.keys(order));
+        console.log('fillOrderDetails: order.customer keys:', order.customer ? Object.keys(order.customer) : 'no customer');
+
+        // Принудительно создаем элементы, если они не найдены
+        if (!nameEl) {
+            console.log('fillOrderDetails: nameEl not found, creating...');
+            const nameRow = document.querySelector('.order-info-section .info-row:nth-child(1)');
+            if (nameRow) {
+                const valueEl = nameRow.querySelector('.info-value') || nameRow.querySelector('span:last-child');
+                if (valueEl) {
+                    valueEl.textContent = order.customer?.name || '-';
+                    console.log('fillOrderDetails: name set via alternative method:', valueEl.textContent);
+                }
+            }
+        } else {
+            nameEl.textContent = order.customer?.name || '-';
+            console.log('fillOrderDetails: name set to:', nameEl.textContent);
+        }
+
+        if (!phoneEl) {
+            console.log('fillOrderDetails: phoneEl not found, creating...');
+            const phoneRow = document.querySelector('.order-info-section .info-row:nth-child(2)');
+            if (phoneRow) {
+                const valueEl = phoneRow.querySelector('.info-value') || phoneRow.querySelector('span:last-child');
+                if (valueEl) {
+                    valueEl.textContent = order.customer?.phone || '-';
+                    console.log('fillOrderDetails: phone set via alternative method:', valueEl.textContent);
+                }
+            }
+        } else {
+            phoneEl.textContent = order.customer?.phone || '-';
+            console.log('fillOrderDetails: phone set to:', phoneEl.textContent);
+        }
+
+        if (!settlementEl) {
+            console.log('fillOrderDetails: settlementEl not found, creating...');
+            const settlementRow = document.querySelector('.order-info-section .info-row:nth-child(3)');
+            if (settlementRow) {
+                const valueEl = settlementRow.querySelector('.info-value') || settlementRow.querySelector('span:last-child');
+                if (valueEl) {
+                    valueEl.textContent = order.customer?.settlement || '-';
+                    console.log('fillOrderDetails: settlement set via alternative method:', valueEl.textContent);
+                }
+            }
+        } else {
+            settlementEl.textContent = order.customer?.settlement || '-';
+            console.log('fillOrderDetails: settlement set to:', settlementEl.textContent);
+        }
+
+        if (!regionEl) {
+            console.log('fillOrderDetails: regionEl not found, creating...');
+            const regionRow = document.querySelector('.order-info-section .info-row:nth-child(4)');
+            if (regionRow) {
+                const valueEl = regionRow.querySelector('.info-value') || regionRow.querySelector('span:last-child');
+                if (valueEl) {
+                    valueEl.textContent = order.customer?.region || '-';
+                    console.log('fillOrderDetails: region set via alternative method:', valueEl.textContent);
+                }
+            }
+        } else {
+            regionEl.textContent = order.customer?.region || '-';
+            console.log('fillOrderDetails: region set to:', regionEl.textContent);
+        }
 
         // Изменяем метку для branch в зависимости от способа доставки и языка
         const branchLabel = document.querySelector('#orderDetailBranch').previousElementSibling;
         let branchLabelText = 'Номер отделения';
 
-        // Для самовывоза меняем метку на "Точное время самовывоза"
+        // Для самовывоза меняем метку на "Адрес самовывоза"
         if (order.deliveryMethod === 'pickup') {
-            branchLabelText = 'Точное время самовывоза';
-            if (lang === 'uk') branchLabelText = 'Точний час самовивозу';
-            else if (lang === 'en') branchLabelText = 'Exact pickup time';
+            branchLabelText = 'Адрес самовывоза';
+            if (lang === 'uk') branchLabelText = 'Адреса самовивозу';
+            else if (lang === 'en') branchLabelText = 'Pickup address';
         } else if (order.deliveryMethod === 'ukrposhta') {
             // Для Укрпошты меняем метку на "Индекс"
             branchLabelText = 'Индекс';
@@ -6888,10 +7416,20 @@ function fillOrderDetails(order) {
 
         if (branchLabel) branchLabel.textContent = branchLabelText + ':';
 
-        document.getElementById('orderDetailBranch').textContent = order.customer?.branch || '-';
+        const branchEl = document.getElementById('orderDetailBranch');
+        if (branchEl) {
+            if (order.deliveryMethod === 'pickup') {
+                // Для самовывоза показываем адрес
+                branchEl.textContent = 'Троїцька кут Канатної, місце зустрічі біля входу в "китайське кафе" по Троїцькій.';
+            } else {
+                // Для других способов доставки показываем номер отделения/индекс
+                branchEl.textContent = order.customer?.branch || '-';
+            }
+        }
 
 
         // Заполняем список товаров
+        console.log('fillOrderDetails: items data:', order.items);
         fillOrderItems(order.items || []);
 
         console.log('fillOrderDetails: Детали заказа заполнены');
@@ -6904,17 +7442,28 @@ function fillOrderDetails(order) {
 // Функция заполнения списка товаров в заказе
 function fillOrderItems(items) {
     try {
+        console.log('fillOrderItems: Начинаем заполнение товаров, items:', items);
         const container = document.getElementById('orderItemsList');
-        if (!container) return;
+        console.log('fillOrderItems: container найден:', !!container);
+
+        if (!container) {
+            console.log('fillOrderItems: container не найден, выходим');
+            return;
+        }
 
         container.innerHTML = '';
 
         if (items.length === 0) {
+            console.log('fillOrderItems: Нет товаров в заказе');
             container.innerHTML = '<div class="empty-order-items">Нет товаров в заказе</div>';
             return;
         }
 
-        items.forEach(item => {
+        console.log('fillOrderItems: Обработка', items.length, 'товаров');
+
+        items.forEach((item, index) => {
+            console.log('fillOrderItems: Обработка товара', index + 1, ':', item);
+
             const itemEl = document.createElement('div');
             itemEl.className = 'order-item';
 
@@ -6925,6 +7474,8 @@ function fillOrderItems(items) {
             const total = price * quantity;
 
             const unitPrice = parseInt(item.newPrice || item.price || 0);
+
+            console.log('fillOrderItems: Товар', index + 1, 'данные:', { name, quantity, price, total });
             itemEl.innerHTML = `
                 <img src="${imageUrl}" alt="${name}" class="order-item-image" onerror="this.src='/static/images/no-image.png'">
                 <div class="order-item-details">
@@ -6935,9 +7486,11 @@ function fillOrderItems(items) {
             `;
 
             container.appendChild(itemEl);
+            console.log('fillOrderItems: Товар', index + 1, 'добавлен в контейнер');
         });
 
         console.log('fillOrderItems: Список товаров заполнен', items.length);
+        console.log('fillOrderItems: Количество элементов в контейнере:', container.children.length);
 
     } catch (error) {
         console.error('fillOrderItems: Ошибка заполнения списка товаров', error);
@@ -6946,6 +7499,25 @@ function fillOrderItems(items) {
 
 // Функция получения текста способа оплаты
 function getPaymentMethodText(method) {
+    const lang = getCurrentLanguage ? getCurrentLanguage() : (localStorage.getItem('selectedLanguage') || 'uk');
+
+    if (lang === 'uk') {
+        const translations = {
+            'wayforpay': 'WayForPay (Visa, Mastercard)',
+            'privat24': 'Приват 24',
+            'terminal': 'Термінал Приватбанку',
+            'meeting': 'Під час зустрічі в Одесі'
+        };
+        return translations[method] || method || '-';
+    } else if (lang === 'en') {
+        const translations = {
+            'wayforpay': 'WayForPay (Visa, Mastercard)',
+            'privat24': 'Privat 24',
+            'terminal': 'PrivatBank Terminal',
+            'meeting': 'Upon meeting in Odesa'
+        };
+        return translations[method] || method || '-';
+    } else {
     const translations = {
         'wayforpay': 'WayForPay (Visa, Mastercard)',
         'privat24': 'Приват 24',
@@ -6953,10 +7525,34 @@ function getPaymentMethodText(method) {
         'meeting': 'При встрече в Одессе'
     };
     return translations[method] || method || '-';
+    }
 }
 
 // Функция получения текста способа доставки
 function getDeliveryMethodText(method) {
+    const lang = getCurrentLanguage ? getCurrentLanguage() : (localStorage.getItem('selectedLanguage') || 'uk');
+
+    if (lang === 'uk') {
+        const translations = {
+            'nova': 'Nova Посhta',
+            'meest': 'Meest Express',
+            'ukrposhta': 'УКРПОШТА',
+            'pickup': 'Самовивіз',
+            'free1001': 'Безкоштовна доставка від 1001грн',
+            'free2000': 'Безкоштовна доставка від 2000грн'
+        };
+        return translations[method] || method || '-';
+    } else if (lang === 'en') {
+        const translations = {
+            'nova': 'Nova Poshta',
+            'meest': 'Meest Express',
+            'ukrposhta': 'UKRPOST',
+            'pickup': 'Pickup',
+            'free1001': 'Free delivery from 1001 UAH',
+            'free2000': 'Free delivery from 2000 UAH'
+        };
+        return translations[method] || method || '-';
+    } else {
     const translations = {
         'nova': 'Nova Посhta',
         'meest': 'Meest Express',
@@ -6966,6 +7562,7 @@ function getDeliveryMethodText(method) {
         'free2000': 'Бесплатная доставка от 2000грн'
     };
     return translations[method] || method || '-';
+    }
 }
 
 // Функция расчета стоимости доставки
@@ -7017,22 +7614,50 @@ function closeOrderAcceptedPopup() {
 function updatePaymentButtonText() {
     try {
         const paymentMethodSelect = document.getElementById('paymentMethodSelect');
+        const deliveryMethodSelect = document.getElementById('deliveryMethodSelect');
         const payButton = document.querySelector('.cart-actions .btn-pay span[data-translate="pay"]');
 
-        if (!paymentMethodSelect || !payButton) return;
+        console.log('updatePaymentButtonText: paymentMethodSelect найден:', !!paymentMethodSelect);
+        console.log('updatePaymentButtonText: payButton найден:', !!payButton);
+
+        // Если не нашли кнопку по селектору, попробуем найти по другому пути
+        let payButtonAlt = payButton;
+        if (!payButton) {
+            payButtonAlt = document.querySelector('.cart-actions .btn-pay');
+            console.log('updatePaymentButtonText: Альтернативный поиск кнопки:', !!payButtonAlt);
+            if (payButtonAlt) {
+                // Создаем span элемент для текста, если его нет
+                let textSpan = payButtonAlt.querySelector('span[data-translate="pay"]');
+                if (!textSpan) {
+                    textSpan = document.createElement('span');
+                    textSpan.setAttribute('data-translate', 'pay');
+                    payButtonAlt.insertBefore(textSpan, payButtonAlt.firstChild);
+                    console.log('updatePaymentButtonText: Создан span элемент для текста');
+                }
+                payButton = textSpan;
+            }
+        }
+
+        if (!paymentMethodSelect || !payButton) {
+            console.log('updatePaymentButtonText: Возврат из-за отсутствия элементов');
+            return;
+        }
 
         const selectedPayment = paymentMethodSelect.value;
+        const selectedDelivery = deliveryMethodSelect ? deliveryMethodSelect.value : '';
         const lang = getCurrentLanguage ? getCurrentLanguage() : (localStorage.getItem('selectedLanguage') || 'uk');
 
+        // Логика определения текста кнопки по способу оплаты:
+        // 1. Если оплата при встрече - "Отправить заказ"
+        // 2. Для всех других способов оплаты - "Оплатить"
         if (selectedPayment === 'meeting') {
-            // Если оплата при встрече, показываем "Подтвердить заказ"
-            payButton.textContent = window.translations ? window.translations.getTranslation('confirmOrder', lang) : 'ПОДТВЕРДИТЬ ЗАКАЗ';
+            payButton.textContent = window.translations ? window.translations.getTranslation('sendOrder', lang) : 'ОТПРАВИТЬ ЗАКАЗ';
         } else {
             // Иначе показываем "Оплатить"
             payButton.textContent = window.translations ? window.translations.getTranslation('pay', lang) : 'ОПЛАТИТЬ';
         }
 
-        console.log('updatePaymentButtonText: Обновлен текст кнопки оплаты для способа:', selectedPayment);
+        console.log('updatePaymentButtonText: Обновлен текст кнопки оплаты для способа оплаты:', selectedPayment, 'и доставки:', selectedDelivery);
 
     } catch (error) {
         console.error('updatePaymentButtonText: Ошибка обновления текста кнопки', error);
