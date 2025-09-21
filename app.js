@@ -2476,7 +2476,7 @@ async function searchByNameAndBadge(searchTerm, badgeClass) {
 
     try {
         // Загружаем все товары
-        const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+        const response = await fetch('/api/products?start=0&limit=1000');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -2650,7 +2650,7 @@ async function searchProducts(query) {
     
     try {
         // Загружаем ВСЕ найденные товары без ограничений
-        const response = await fetch(`http://localhost:8000/api/products?search=${encodeURIComponent(currentSearchTerm)}&start=0&limit=1000`);
+        const response = await fetch(`/api/products?search=${encodeURIComponent(currentSearchTerm)}&start=0&limit=1000`);
         const data = await response.json();
         
         if (data && data.products && data.products.length > 0) {
@@ -2851,7 +2851,7 @@ async function loadProducts(page = 0, append = false) {
         const start = page * 30;
         console.log('loadProducts: Отправляем запрос к API:', `/api/products?start=${start}&limit=30`);
 
-        const response = await fetch(`http://localhost:8000/api/products?start=${start}&limit=30`);
+        const response = await fetch(`/api/products?start=${start}&limit=30`);
         console.log('loadProducts: Получен ответ от сервера, статус:', response.status);
 
         if (!response.ok) {
@@ -4217,7 +4217,7 @@ function setupEventHandlers() {
 
         async function fetchCaptcha(target) {
             try {
-                const resp = await fetch('http://localhost:8000/api/captcha');
+                const resp = await fetch('/api/captcha');
                 const data = await resp.json();
                 if (!data.success) return;
                 if (target === 'login') {
@@ -5488,7 +5488,7 @@ async function searchDRProducts() {
     
     try {
         // Сначала загружаем все товары в DOM для поиска по пометкам
-        const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+        const response = await fetch('/api/products?start=0&limit=1000');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -5557,7 +5557,7 @@ async function searchLaBellaProducts() {
     
     try {
         // Сначала загружаем все товары в DOM для поиска по пометкам
-        const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+        const response = await fetch('/api/products?start=0&limit=1000');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -5626,7 +5626,7 @@ async function search7StringProducts() {
     
     try {
         // Сначала загружаем все товары в DOM для поиска по пометкам
-        const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+        const response = await fetch('/api/products?start=0&limit=1000');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -5688,7 +5688,7 @@ async function search8StringProducts() {
     
     try {
         // Сначала загружаем все товары в DOM для поиска по пометкам
-        const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+        const response = await fetch('/api/products?start=0&limit=1000');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -5748,7 +5748,7 @@ async function search8StringProducts() {
 async function searchFlatwoundElectricProducts() {
     console.log('searchFlatwoundElectricProducts: Поиск плоской обмотки по пометкам в карточках');
     try {
-        const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+        const response = await fetch('/api/products?start=0&limit=1000');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -5780,7 +5780,7 @@ async function searchFlatwoundElectricProducts() {
 async function searchGauge10ElectricProducts() {
     console.log('searchGauge10ElectricProducts: Поиск товаров с пометкой 10 калибр электро');
     try {
-        const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+        const response = await fetch('/api/products?start=0&limit=1000');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -5812,7 +5812,7 @@ async function searchGauge10ElectricProducts() {
 async function searchGauge09ElectricProducts() {
     console.log('searchGauge09ElectricProducts: Поиск товаров с пометкой 09 калибр электро');
     try {
-        const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+        const response = await fetch('/api/products?start=0&limit=1000');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -5844,7 +5844,7 @@ async function searchGauge09ElectricProducts() {
 async function searchGauge11ElectricProducts() {
     console.log('searchGauge11ElectricProducts: Поиск товаров с пометкой 11 калибр электро');
     try {
-        const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+        const response = await fetch('/api/products?start=0&limit=1000');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -5879,7 +5879,7 @@ async function searchNickelPlatedElectricProducts() {
 
     try {
         // Загружаем все товары для поиска по пометкам
-        const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+        const response = await fetch('/api/products?start=0&limit=1000');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -5936,7 +5936,7 @@ async function searchNickelPlatedElectricProducts() {
 async function searchStainlessSteelProducts() {
     console.log('searchStainlessSteelProducts: Поиск товаров Stainless Steel Electric Strings');
     try {
-        const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+        const response = await fetch('/api/products?start=0&limit=1000');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -5951,7 +5951,7 @@ async function searchStainlessSteelProducts() {
             'https://guitarstrings.com.ua/electro/stainless-steel-electric'
         ];
         const enc = (u) => encodeURIComponent(u);
-        const fetchedHtml = await Promise.all(pages.map(u => fetch(`http://localhost:8000/proxy_fetch?url=${enc(u)}`, { cache: 'no-store' }).then(r => r.ok ? r.text() : '')));
+        const fetchedHtml = await Promise.all(pages.map(u => fetch(`/proxy_fetch?url=${enc(u)}`, { cache: 'no-store' }).then(r => r.ok ? r.text() : '')));
         const docParser = new DOMParser();
         const liveNameSet = new Set();
         fetchedHtml.forEach(html => {
@@ -6036,7 +6036,7 @@ async function searchStainlessSteelProducts() {
 async function searchCobaltProducts() {
     console.log('searchCobaltProducts: Поиск товаров Cobalt Electric Strings');
     try {
-        const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+        const response = await fetch('/api/products?start=0&limit=1000');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -6051,7 +6051,7 @@ async function searchCobaltProducts() {
             'https://guitarstrings.com.ua/electro/cobalt-electric'
         ];
         const enc = (u) => encodeURIComponent(u);
-        const fetchedHtml = await Promise.all(pages.map(u => fetch(`http://localhost:8000/proxy_fetch?url=${enc(u)}`, { cache: 'no-store' }).then(r => r.ok ? r.text() : '')));
+        const fetchedHtml = await Promise.all(pages.map(u => fetch(`/proxy_fetch?url=${enc(u)}`, { cache: 'no-store' }).then(r => r.ok ? r.text() : '')));
         const docParser = new DOMParser();
         const liveNameSet = new Set();
         fetchedHtml.forEach(html => {
@@ -6121,7 +6121,7 @@ async function searchCobaltProducts() {
 async function searchColoredElectricProducts() {
     console.log('searchColoredElectricProducts: Поиск товаров Colored Electric Strings');
     try {
-        const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+        const response = await fetch('/api/products?start=0&limit=1000');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -6136,7 +6136,7 @@ async function searchColoredElectricProducts() {
             'https://guitarstrings.com.ua/electro/colored-electric'
         ];
         const enc = (u) => encodeURIComponent(u);
-        const fetchedHtml = await Promise.all(pages.map(u => fetch(`http://localhost:8000/proxy_fetch?url=${enc(u)}`, { cache: 'no-store' }).then(r => r.ok ? r.text() : '')));
+        const fetchedHtml = await Promise.all(pages.map(u => fetch(`/proxy_fetch?url=${enc(u)}`, { cache: 'no-store' }).then(r => r.ok ? r.text() : '')));
         const docParser = new DOMParser();
         const liveNameSet = new Set();
         fetchedHtml.forEach(html => {
@@ -6205,7 +6205,7 @@ async function searchColoredElectricProducts() {
 async function searchPureNickelElectricProducts() {
     console.log('searchPureNickelElectricProducts: Поиск товаров Pure Nickel Electric Strings');
     try {
-        const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+        const response = await fetch('/api/products?start=0&limit=1000');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -6220,7 +6220,7 @@ async function searchPureNickelElectricProducts() {
             'https://guitarstrings.com.ua/electro/pure-nickel-electric'
         ];
         const enc = (u) => encodeURIComponent(u);
-        const fetchedHtml = await Promise.all(pages.map(u => fetch(`http://localhost:8000/proxy_fetch?url=${enc(u)}`, { cache: 'no-store' }).then(r => r.ok ? r.text() : '')));
+        const fetchedHtml = await Promise.all(pages.map(u => fetch(`/proxy_fetch?url=${enc(u)}`, { cache: 'no-store' }).then(r => r.ok ? r.text() : '')));
         const docParser = new DOMParser();
         const liveNameSet = new Set();
         fetchedHtml.forEach(html => {
@@ -6290,7 +6290,7 @@ async function searchPureNickelElectricProducts() {
 async function search9StringProducts() {
     console.log('search9StringProducts: Поиск 9-струнных товаров по пометкам в карточках');
     try {
-        const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+        const response = await fetch('/api/products?start=0&limit=1000');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -6328,7 +6328,7 @@ async function search9StringProducts() {
 async function search12StringProducts() {
     console.log('search12StringProducts: Поиск 12-струнных товаров по пометкам в карточках');
     try {
-        const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+        const response = await fetch('/api/products?start=0&limit=1000');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -7435,6 +7435,39 @@ function generateOrderId() {
     }
 }
 
+// Функция очистки данных заказа для отправки на сервер
+function cleanOrderDataForServer(order) {
+    try {
+        console.log('cleanOrderDataForServer: Очистка данных заказа:', order.id);
+        
+        // Создаем глубокую копию заказа
+        const cleanOrder = JSON.parse(JSON.stringify(order, (key, value) => {
+            if (typeof value === 'string') {
+                // Удаляем или экранируем проблемные символы
+                return value
+                    .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Удаляем управляющие символы
+                    .replace(/[\\"]/g, '') // Удаляем обратные слеши и кавычки
+                    .replace(/[\r\n\t]/g, ' ') // Заменяем переносы строк и табы на пробелы
+                    .trim();
+            }
+            return value;
+        }));
+        
+        // Проверяем обязательные поля
+        if (!cleanOrder.id) {
+            console.error('cleanOrderDataForServer: Отсутствует ID заказа');
+            return null;
+        }
+        
+        console.log('cleanOrderDataForServer: Заказ очищен успешно');
+        return cleanOrder;
+        
+    } catch (error) {
+        console.error('cleanOrderDataForServer: Ошибка очистки данных заказа:', error);
+        return order; // Возвращаем исходный заказ в случае ошибки
+    }
+}
+
 // Функция сохранения заказа в localStorage
 function saveOrderToLocalStorage(order) {
     try {
@@ -7568,11 +7601,14 @@ function syncLocalOrdersToServer(username, localOrders) {
                                 return;
                             }
 
+                            // Очищаем данные заказа перед отправкой
+                            const cleanOrder = cleanOrderDataForServer(order);
+                            
                             fetch('/api/save_order', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 credentials: 'include',
-                                body: JSON.stringify(order)
+                                body: JSON.stringify(cleanOrder)
                             })
                             .then(response => response.json())
                             .then(result => {
@@ -8347,13 +8383,16 @@ function checkout() {
         // Всегда отправляем заказ на сервер для синхронизации, если есть userId
         if (order.userId && order.userId !== 'guest') {
             console.log('checkout: Отправляем заказ на сервер:', order.id, 'для пользователя:', order.userId);
+            // Очищаем данные заказа перед отправкой
+            const cleanOrder = cleanOrderDataForServer(order);
+            
             fetch('/api/save_order', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 credentials: 'include',
-                body: JSON.stringify(order)
+                body: JSON.stringify(cleanOrder)
             })
             .then(response => response.json())
             .then(saveResult => {

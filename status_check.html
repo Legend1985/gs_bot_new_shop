@@ -93,7 +93,7 @@
                 serverRunning = serverResponse.ok;
 
                 // Проверка API
-                const apiResponse = await fetch('http://localhost:8000/api/products?start=0&limit=1', { timeout: 5000 });
+                const apiResponse = await fetch('http://localhost:5000/api/products?start=0&limit=1', { timeout: 5000 });
                 const apiData = await apiResponse.json();
                 apiWorking = apiResponse.ok && apiData.success && apiData.products.length > 0;
 
@@ -133,7 +133,7 @@
 
             const tests = [
                 { name: 'Основной сервер', url: 'http://localhost:8000/', type: 'server' },
-                { name: 'API товаров', url: 'http://localhost:8000/api/products?start=0&limit=1', type: 'api' },
+                { name: 'API товаров', url: 'http://localhost:5000/api/products?start=0&limit=1', type: 'api' },
                 { name: 'Файл app.js', url: 'http://localhost:8000/app.js', type: 'file' },
                 { name: 'Файл style.css', url: 'http://localhost:8000/style.css', type: 'file' },
                 { name: 'Файл translations.js', url: 'http://localhost:8000/translations.js', type: 'file' },
