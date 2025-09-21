@@ -1246,49 +1246,10 @@ def save_orders_to_disk():
 def save_order():
     """Save order to server database."""
     try:
-        print("📦 Получен запрос на сохранение заказа")
-        print(f"📦 Content-Type: {request.content_type}")
-        print(f"📦 Request data type: {type(request.data)}")
-        
-        # Попытка получения JSON данных с обработкой ошибок кодировки
-        order_data = None
-        
-        try:
-            # Сначала пробуем стандартный способ
-            order_data = request.get_json(force=True)
-        except Exception as json_error:
-            print(f"❌ Ошибка get_json: {json_error}")
-            
-            # Пробуем получить raw data и декодировать вручную
-            try:
-                raw_data = request.get_data()
-                print(f"📦 Raw data length: {len(raw_data)}")
-                
-                # Пробуем разные кодировки
-                text_data = None
-                for encoding in ['utf-8', 'utf-8-sig', 'latin1', 'cp1252']:
-                    try:
-                        text_data = raw_data.decode(encoding)
-                        print(f"✅ Успешно декодировано с {encoding}")
-                        break
-                    except UnicodeDecodeError:
-                        continue
-                
-                if text_data:
-                    # Очищаем данные от проблемных символов
-                    cleaned_data = clean_json_string(text_data)
-                    order_data = json.loads(cleaned_data)
-                else:
-                    raise ValueError("Не удалось декодировать данные ни с одной кодировкой")
-                    
-            except Exception as decode_error:
-                print(f"❌ Ошибка декодирования: {decode_error}")
-                return jsonify({'success': False, 'error': f'Ошибка декодирования данных: {str(decode_error)}'}), 400
+        order_data = request.get_json()
 
         if not order_data:
             return jsonify({'success': False, 'error': 'No order data provided'}), 400
-
-        print(f"📦 Получены данные заказа: ID={order_data.get('id', 'unknown')}")
 
         # Validate required fields
         required_fields = ['id', 'date', 'customer', 'items']
@@ -1300,79 +1261,40 @@ def save_order():
         if 'total' not in order_data and 'finalTotal' not in order_data:
             return jsonify({'success': False, 'error': 'Missing required field: total or finalTotal'}), 400
 
-        # Очищаем данные заказа от проблемных символов
-        cleaned_order_data = clean_order_data_python(order_data)
-
         # Check if order with this ID already exists
-        existing_order = next((order for order in ORDERS_DB if order['id'] == cleaned_order_data['id']), None)
+        existing_order = next((order for order in ORDERS_DB if order['id'] == order_data['id']), None)
         if existing_order:
             # Update existing order instead of returning error
-            print(f"📦 Обновляем существующий заказ {cleaned_order_data['id']}")
-            existing_order.update(cleaned_order_data)
+            print(f"Order update: Обновляем существующий заказ {order_data['id']}")
+            existing_order.update(order_data)
             save_orders_to_disk()
             return jsonify({
                 'success': True,
-                'message': f'Order {cleaned_order_data["id"]} updated successfully',
-                'order_id': cleaned_order_data['id'],
+                'message': f'Order {order_data["id"]} updated successfully',
+                'order_id': order_data['id'],
                 'updated': True
             }), 200
 
         # Add order to database
-        ORDERS_DB.append(cleaned_order_data)
+        ORDERS_DB.append(order_data)
         save_orders_to_disk()
 
-        total_amount = cleaned_order_data.get('total') or cleaned_order_data.get('finalTotal') or cleaned_order_data.get('amount', 0)
-        user_id = cleaned_order_data.get('userId', 'unknown')
-        customer_name = cleaned_order_data.get('customer', {}).get('name', 'unknown')
+        total_amount = order_data.get('total') or order_data.get('finalTotal') or order_data.get('amount', 0)
+        user_id = order_data.get('userId', 'unknown')
+        customer_name = order_data.get('customer', {}).get('name', 'unknown')
 
-        print(f"📦 Заказ сохранен: {cleaned_order_data['id']} - User: {user_id} - Customer: {customer_name} - Total: {total_amount} UAH")
+        print(f"Order saved: {order_data['id']} - User: {user_id} - Customer: {customer_name} - Total: {total_amount} UAH")
+        print(f"Order saved details: userId={user_id}, customer.phone={order_data.get('customer', {}).get('phone')}")
 
         return jsonify({
             'success': True,
-            'message': f'Order {cleaned_order_data["id"]} saved successfully',
-            'order_id': cleaned_order_data['id']
+            'message': f'Order {order_data["id"]} saved successfully',
+            'order_id': order_data['id']
         }), 201
 
     except Exception as e:
-        print(f"❌ Error saving order: {e}")
-        print(f"❌ Exception type: {type(e)}")
-        import traceback
-        print(f"❌ Traceback: {traceback.format_exc()}")
+        print(f"Error saving order: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
-
-def clean_json_string(text):
-    """Очистка JSON строки от проблемных символов"""
-    import re
-    
-    # Удаляем управляющие символы, кроме разрешенных
-    text = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]', '', text)
-    
-    # Заменяем проблемные кавычки
-    text = text.replace('"', '"').replace('"', '"').replace('„', '"').replace('"', '"')
-    
-    # Удаляем лишние пробелы и переносы
-    text = re.sub(r'\s+', ' ', text)
-    
-    return text.strip()
-
-def clean_order_data_python(order_data):
-    """Очистка данных заказа от проблемных символов в Python"""
-    import json
-    
-    def clean_value(obj):
-        if isinstance(obj, str):
-            # Удаляем управляющие символы
-            cleaned = ''.join(char for char in obj if ord(char) >= 32 or char in '\t\n\r')
-            # Удаляем лишние пробелы
-            return cleaned.strip()
-        elif isinstance(obj, dict):
-            return {key: clean_value(value) for key, value in obj.items()}
-        elif isinstance(obj, list):
-            return [clean_value(item) for item in obj]
-        else:
-            return obj
-    
-    return clean_value(order_data)
 
 @app.route('/api/orders', methods=['GET'])
 def get_orders():
@@ -1409,5 +1331,5 @@ if __name__ == '__main__':
     load_orders_from_disk()
     # Do not block startup; build cache in the background
     preload_cache_async()
-    print("Starting Flask server on port 5000...")
-    app.run(host='0.0.0.0', port=5000, debug=True) 
+    print("Starting Flask server on port 8000...")
+    app.run(host='0.0.0.0', port=8000, debug=True) 
