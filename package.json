@@ -1,0 +1,18 @@
+{
+  "name": "gs-bot-new-shop",
+  "version": "1.0.0",
+  "description": "GuitarStrings.com.ua - интернет-магазин гитарных струн",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "install-deps": "npm install"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "axios": "^1.6.0"
+  },
+  "keywords": ["guitar", "strings", "shop", "ecommerce"],
+  "author": "GuitarStrings Team",
+  "license": "MIT"
+}
