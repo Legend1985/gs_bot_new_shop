@@ -4,7 +4,7 @@ setlocal enabledelayedexpansion
 
 :: ===================================================================
 :: SERVICE MANAGER для api_server.py
-:: Версия: 1.0
+:: Версия: 1.1
 :: Использование: service_manager.bat [start|stop|restart|status]
 :: ===================================================================
 
