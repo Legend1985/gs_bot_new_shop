@@ -1,5 +1,6 @@
 # Backups
 *.backup
+backup_*
 # Environment variables and secrets
 .env
 .env.local
