@@ -553,6 +553,7 @@ const NICKEL_PLATED_ELECTRIC = new Set([
     'Dunlop DHCN1150 Heavier Core 11-50',
     'Ernie Ball 2211 Mondo Slinky 10.5-52',
     'Dunlop DHCN1254 Heaviest Core 12-54',
+    'Dunlop DHCN1060 Heavy Core Drop C# 10-60',
     'Ernie Ball 2217 Zippy Slinky 7-36',
     'DR MT-10 Tite-Fit Nickel Plated Electric Guitar Strings Meduim 10-46',
     'Dunlop DEN1156 Nickel Wound Hybrid 11-56',
@@ -875,6 +876,9 @@ function addToCart(product) {
     
     updateCartBadge();
     saveCartToStorage();
+
+    // Обновляем способы доставки после добавления товара
+    updateDeliveryMethods();
 }
 
 // Функция обновления бейджа корзины
@@ -965,14 +969,20 @@ function renderCartItems() {
 // Функция удаления товара из корзины
 function removeFromCart(index) {
     console.log('removeFromCart: Удаляем товар из корзины, индекс:', index);
+    console.log('removeFromCart: Корзина до удаления:', cart.length, 'товаров');
     
     if (index >= 0 && index < cart.length) {
         cart.splice(index, 1);
         cartItemCount = cart.length;
+        console.log('removeFromCart: Корзина после удаления:', cart.length, 'товаров');
+
         updateCartBadge();
         renderCartItems();
         updateCartCalculations();
+
+        // Сохраняем корзину сразу после удаления
         saveCartToStorage();
+        console.log('removeFromCart: Корзина сохранена в localStorage');
     }
 }
 
@@ -1001,7 +1011,6 @@ function changeQuantity(index, change) {
 }
 // Функция обновления расчетов корзины
 function updateCartCalculations() {
-    console.log('updateCartCalculations: Обновляем расчеты корзины');
     
     let newPricesTotal = 0;
     let oldPricesTotal = 0;
@@ -1024,6 +1033,7 @@ function updateCartCalculations() {
     // Получаем скидку по купону и использованные бонусы
     const couponDiscount = getCouponDiscount();
     const usedBonuses = getUsedBonuses();
+
     
     // Рассчитываем скидку по купону
     let couponAmount = 0;
@@ -1037,9 +1047,17 @@ function updateCartCalculations() {
         }
     }
     
-    // Рассчитываем общую сумму с учетом всех скидок
-    const totalAfterDiscounts = newPricesTotal - couponAmount - usedBonuses;
-    const finalTotal = Math.max(0, totalAfterDiscounts); // Не может быть меньше 0
+    // Рассчитываем скидку по бонусам (10 бонусов = 1грн)
+    const bonusDiscount = Math.round(usedBonuses / 10); // Конвертируем бонусы в гривны с округлением
+
+    // Сохраняем значения в localStorage для использования при оформлении заказа
+    localStorage.setItem('cartBonusesUsed', usedBonuses.toString()); // Количество использованных бонусов
+    localStorage.setItem('cartBonusDiscount', bonusDiscount.toString()); // Сумма скидки по бонусам в гривнах
+    localStorage.setItem('cartCouponDiscount', couponAmount.toString()); // Сохраняем рассчитанную сумму скидки
+
+    // Рассчитываем сумму товаров с учетом скидок (купон и бонусы применяются только к товарам)
+    const itemsTotalAfterDiscounts = newPricesTotal - couponAmount - bonusDiscount;
+    const itemsFinalTotal = Math.max(0, itemsTotalAfterDiscounts); // Стоимость товаров после всех скидок
     
     // Обновляем отображение итогов
     const subtotalElement = document.querySelector('#cartSubtotal');
@@ -1048,9 +1066,23 @@ function updateCartCalculations() {
     const payAmountElement = document.querySelector('#cartPayAmount');
     const couponElement = document.querySelector('#cartCouponUsed');
     const bonusElement = document.querySelector('#cartBonusUsed');
+
+    console.log('updateCartCalculations: Элементы найдены:', {
+        subtotalElement: !!subtotalElement,
+        discountElement: !!discountElement,
+        totalElement: !!totalElement,
+        payAmountElement: !!payAmountElement,
+        couponElement: !!couponElement,
+        bonusElement: !!bonusElement
+    });
     
     // Обновляем способы доставки в зависимости от суммы корзины
     updateDeliveryMethods();
+
+    // Дополнительный вызов после всех расчетов для гарантии обновления
+    setTimeout(() => {
+        updateDeliveryMethods();
+    }, 100);
     
          if (subtotalElement) {
          subtotalElement.textContent = `${oldPricesTotal.toFixed(0)} ${getCurrencyWithDot()}`;
@@ -1078,7 +1110,7 @@ function updateCartCalculations() {
      // Обновляем отображение бонусов (только если используются)
      if (bonusElement) {
          if (usedBonuses > 0) {
-             bonusElement.textContent = `-${usedBonuses.toFixed(0)} ${getCurrencyWithDot()}`;
+             bonusElement.textContent = `-${bonusDiscount.toFixed(0)} ${getCurrencyWithDot()}`;
              bonusElement.parentElement.style.display = 'flex';
          } else {
              bonusElement.parentElement.style.display = 'none';
@@ -1090,32 +1122,35 @@ function updateCartCalculations() {
      
      if (totalElement) {
          const deliveryCost = getDeliveryCost();
-         // Комиссия WayForPay отключена - не добавляем процент к итоговой сумме
-         const totalWithDelivery = finalTotal + deliveryCost;
+        // Купон и бонусы не применяются к доставке - добавляем доставку к товарам со скидками
+        const totalWithDelivery = itemsFinalTotal + deliveryCost;
          
          // Убеждаемся, что итоговая сумма не меньше 0
          const finalAmount = Math.max(0, totalWithDelivery);
          
+         console.log('updateCartCalculations: Обновляем итоговую сумму - itemsFinalTotal:', itemsFinalTotal, 'deliveryCost:', deliveryCost, 'finalAmount:', finalAmount);
+
+         if (totalElement) {
          totalElement.textContent = `${finalAmount.toFixed(0)} ${getCurrency()}.`;
+             console.log('updateCartCalculations: totalElement обновлен:', totalElement.textContent);
+         } else {
+             console.log('updateCartCalculations: totalElement не найден!');
+         }
          
          if (payAmountElement) {
              payAmountElement.textContent = `${finalAmount.toFixed(0)} ${getCurrency()}`;
+             console.log('updateCartCalculations: payAmountElement обновлен:', payAmountElement.textContent);
+         } else {
+             console.log('updateCartCalculations: payAmountElement не найден!');
          }
          
-         console.log('updateCartCalculations: Расчеты завершены:', {
-             newPricesTotal,
-             oldPricesTotal,
-             discount,
-             couponAmount,
-             usedBonuses,
-             finalTotal,
-             deliveryCost,
-             totalWithDelivery,
-             finalAmount
-         });
+         // Обновляем доступные способы доставки в зависимости от суммы корзины
+         updateDeliveryMethods();
 
          // Принудительно обновляем стили кнопки оплаты после расчетов
-         forcePayButtonStyles();
+         setTimeout(() => {
+             forcePayButtonStyles();
+         }, 100); // Небольшая задержка для применения стилей
      }
 }
 
@@ -1159,19 +1194,31 @@ function getPaymentCommission() {
 // Функция получения скидки по купону
 function getCouponDiscount() {
     const couponInput = document.getElementById('cartCouponInput');
-    if (!couponInput || !couponInput.value.trim()) return 0;
+    console.log('getCouponDiscount: couponInput exists:', !!couponInput);
+    console.log('getCouponDiscount: couponInput value:', couponInput ? couponInput.value : 'null');
+
+    if (!couponInput || !couponInput.value.trim()) {
+        console.log('getCouponDiscount: Купон не введен или поле пустое');
+        return 0;
+    }
     
     const couponCode = couponInput.value.trim().toLowerCase();
+    console.log('getCouponDiscount: Введен код купона:', couponCode);
     
     // Здесь можно добавить логику проверки купонов
     // Пока используем простую логику для тестирования
     if (couponCode === 'test10') {
+        console.log('getCouponDiscount: Применен купон test10 (10% скидка)');
         return 0.10; // 10% скидка
     } else if (couponCode === 'test20') {
+        console.log('getCouponDiscount: Применен купон test20 (20% скидка)');
         return 0.20; // 20% скидка
     } else if (couponCode === 'test50') {
+        console.log('getCouponDiscount: Применен купон test50 (50 грн скидка)');
         return 50; // 50 грн скидка
     }
+
+    console.log('getCouponDiscount: Неизвестный код купона:', couponCode);
     
     return 0; // Неверный купон
 }
@@ -1179,6 +1226,20 @@ function getCouponDiscount() {
 // Функция получения количества используемых бонусов
 function getUsedBonuses() {
     const bonusesInput = document.getElementById('cartBonusesInput');
+
+    // Проверяем авторизацию пользователя
+    if (!window.__authState || !window.__authState.isAuthenticated) {
+        console.log('getUsedBonuses: Пользователь не авторизован, бонусы недоступны');
+
+        // Показываем подсказку для гостей
+        if (bonusesInput && bonusesInput.value) {
+            alert('Щоб використовувати бонуси, необхідно зареєструватися та відправляти замовлення з залогіненого аккаунта.\n\nTo use bonuses, you need to register and place orders from a logged-in account.');
+            bonusesInput.value = '';
+        }
+
+        return 0;
+    }
+
     if (!bonusesInput || !bonusesInput.value) return 0;
     
     const usedBonuses = parseInt(bonusesInput.value) || 0;
@@ -1220,10 +1281,23 @@ function isCouponValid() {
 
     // Функция обновления стоимости доставки и комиссии
   function updateDeliveryCost() {
-      console.log('updateDeliveryCost: Обновляем стоимость доставки и комиссии');
-      
+      console.log('updateDeliveryCost: Вызываем обновление стоимости доставки');
       const deliveryCostElement = document.querySelector('#cartDelivery');
       const commissionElement = document.querySelector('#cartCommission');
+
+      // Проверяем, пуста ли корзина
+      const isCartEmpty = !cart || cart.length === 0;
+      console.log('updateDeliveryCost: Корзина пуста?', isCartEmpty, 'cart:', cart, 'cart.length:', cart ? cart.length : 'undefined');
+
+      if (isCartEmpty) {
+          // В пустой корзине не показываем стоимость доставки
+          if (deliveryCostElement && deliveryCostElement.parentElement) {
+              deliveryCostElement.parentElement.style.display = 'none';
+              console.log('updateDeliveryCost: Скрыли стоимость доставки для пустой корзины');
+          }
+          return;
+      }
+
       const deliveryCost = getDeliveryCost();
       
       // Показываем строку доставки только если выбрана платная доставка
@@ -1284,13 +1358,15 @@ function updateDeliveryMethods() {
     
     // Рассчитываем сумму корзины
     let cartTotal = 0;
-    cart.forEach(item => {
+    console.log('updateDeliveryMethods: Рассчитываем сумму корзины, cart.length:', cart.length);
+    cart.forEach((item, index) => {
         const newPrice = parseInt(item.newPrice || item.price || 0);
         const quantity = item.quantity || 1;
-        cartTotal += newPrice * quantity;
+        const itemTotal = newPrice * quantity;
+        cartTotal += itemTotal;
+        console.log('updateDeliveryMethods: Товар', index, '- цена:', newPrice, 'кол-во:', quantity, 'итого:', itemTotal, 'накоплено:', cartTotal);
     });
-    
-    console.log('updateDeliveryMethods: Сумма корзины:', cartTotal);
+    console.log('updateDeliveryMethods: Итоговая сумма корзины:', cartTotal);
     
     // Получаем все опции доставки
     const deliveryOptions = deliverySelect.querySelectorAll('option');
@@ -1316,6 +1392,7 @@ function updateDeliveryMethods() {
         const hasCoupon = couponDiscount > 0;
         
         deliveryOptions.forEach(option => {
+            console.log('updateDeliveryMethods: Обрабатываем опцию:', option.value, 'cartTotal:', cartTotal, 'hasCoupon:', hasCoupon);
             if (option.value === 'free1001') {
                 // Если используется купон, скрываем бесплатную доставку от 1001 грн
                 if (hasCoupon) {
@@ -1329,6 +1406,7 @@ function updateDeliveryMethods() {
                 } else {
                     option.style.display = 'none';
                     option.disabled = true;
+                    console.log('updateDeliveryMethods: Скрываем бесплатную доставку от 1001 грн (cartTotal < 1001)');
                 }
             } else if (option.value === 'free2000') {
                 // Если используется купон, скрываем бесплатную доставку от 2000 грн
@@ -1358,6 +1436,17 @@ function updateDeliveryMethods() {
     
     // Дополнительная настройка UI для самовывоза
     try { if (typeof updatePickupUi === 'function') updatePickupUi(deliverySelect.value); } catch (e) {}
+
+    // Инициализация видимости полей при первой загрузке корзины
+    const currentMethod = deliverySelect.value;
+    if (currentMethod !== 'ukrposhta') {
+        // Скрываем поле индекса для всех методов кроме укрпочты
+        const indexInput = document.getElementById('cartCustomerIndex');
+        const indexRow = indexInput ? indexInput.closest('.info-row') : null;
+        if (indexRow) {
+            indexRow.style.display = 'none';
+        }
+    }
     // Обновляем стоимость доставки
     updateDeliveryCost();
 }
@@ -1375,6 +1464,11 @@ function updatePickupUi(selectedMethod) {
         const cityEl = document.getElementById('cartCustomerSettlement');
         const branchEl = document.getElementById('cartCustomerBranch');
         const nameEl = document.getElementById('cartCustomerName');
+
+        // Объявляем переменные для элементов самовывоза в начале функции
+        const cartPickupAddressRow = document.getElementById('cartPickupAddressRow');
+        const cartPickupTimeRow = document.getElementById('cartPickupTimeRow');
+
         if (!cityEl || !branchEl) return;
 
         // Проверяем комбинацию оплаты "при встрече" + самовывоз
@@ -1400,37 +1494,46 @@ function updatePickupUi(selectedMethod) {
             // ФИО всегда обязательно
             if (nameEl) nameEl.required = true;
 
-            // Для оплаты "при встрече" + самовывоз показываем элементы самовывоза
-            if (isMeetingPickup) {
+            // Для самовывоза всегда скрываем поле номера отделения и показываем элементы самовывоза
                 const regionRow = document.getElementById('regionRow');
                 if (regionRow) {
                     regionRow.style.display = 'none';
                 }
 
-                // Для самовывоза оставляем лейбл "Номер отделения" без изменений
-                // Адрес будет показан в зеленых блоках ниже
-
                 // Для самовывоза скрываем поле номера отделения, так как оно не нужно
                 // Время и адрес показываются в зеленых блоках ниже
+                if (branchEl) {
                 branchEl.style.display = 'none';
+                    branchEl.style.visibility = 'hidden';
+                    branchEl.style.opacity = '0';
                 const branchRow = branchEl.closest('.info-row');
                 if (branchRow) {
                     branchRow.style.display = 'none';
+                        branchRow.style.visibility = 'hidden';
+                        branchRow.style.opacity = '0';
+                    }
                 }
+
+            // Для самовывоза показываем элементы самовывоза
+            if (cartPickupAddressRow) cartPickupAddressRow.style.display = 'flex';
+            if (cartPickupTimeRow) cartPickupTimeRow.style.display = 'flex';
+
+            // Для оплаты "при встрече" + самовывоз дополнительная обработка времени
+            if (isMeetingPickup) {
 
                 // Получаем доступные временные слоты
                 const times = getPickupTimes();
                 console.log('updatePickupUi: Получены временные слоты:', times);
 
                 // Показываем элементы самовывоза в корзине
-                const cartPickupAddressRow = document.getElementById('cartPickupAddressRow');
+                // cartPickupAddressRow уже объявлен в начале функции
                 console.log('updatePickupUi: cartPickupAddressRow found:', !!cartPickupAddressRow);
                 if (cartPickupAddressRow) {
                     cartPickupAddressRow.style.display = 'flex';
                     console.log('updatePickupUi: cartPickupAddressRow displayed');
                 }
 
-                const cartPickupTimeRow = document.getElementById('cartPickupTimeRow');
+                // cartPickupTimeRow уже объявлен в начале функции
                 console.log('updatePickupUi: cartPickupTimeRow found:', !!cartPickupTimeRow);
                 if (cartPickupTimeRow) {
                     cartPickupTimeRow.style.display = 'flex';
@@ -1469,15 +1572,18 @@ function updatePickupUi(selectedMethod) {
                     regionRow.style.display = 'none'; // Для самовывоза область не нужна
                 }
 
-                // Для самовывоза оставляем лейбл "Номер отделения" без изменений
-                // Адрес будет показан в зеленых блоках ниже
-
-                // Для самовывоза скрываем поле номера отделения, так как оно не нужно
-                // Время и адрес показываются в зеленых блоках ниже
+                // Для самовывоза скрываем номер отделения и индекс
+                const indexInput = document.getElementById('cartCustomerIndex');
+                const indexRow = indexInput ? indexInput.closest('.info-row') : null;
+                if (indexRow) {
+                    indexRow.style.display = 'none';
+                }
+                if (branchEl) {
                 branchEl.style.display = 'none';
                 const branchRow = branchEl.closest('.info-row');
                 if (branchRow) {
-                    branchRow.style.display = 'none';
+                        branchRow.style.display = 'none'; // Скрываем номер отделения для самовывоза
+                    }
                 }
 
                 // Получаем доступные временные слоты
@@ -1485,14 +1591,14 @@ function updatePickupUi(selectedMethod) {
                 console.log('updatePickupUi: Получены временные слоты:', times);
 
                 // Показываем элементы самовывоза в корзине
-                const cartPickupAddressRow = document.getElementById('cartPickupAddressRow');
+                // cartPickupAddressRow уже объявлен в начале функции
                 console.log('updatePickupUi: cartPickupAddressRow found:', !!cartPickupAddressRow);
                 if (cartPickupAddressRow) {
                     cartPickupAddressRow.style.display = 'flex';
                     console.log('updatePickupUi: cartPickupAddressRow displayed');
                 }
 
-                const cartPickupTimeRow = document.getElementById('cartPickupTimeRow');
+                // cartPickupTimeRow уже объявлен в начале функции
                 console.log('updatePickupUi: cartPickupTimeRow found:', !!cartPickupTimeRow);
                 if (cartPickupTimeRow) {
                     cartPickupTimeRow.style.display = 'flex';
@@ -1568,41 +1674,121 @@ function updatePickupUi(selectedMethod) {
                 pickupTimeEl.style.display = 'none';
             }
 
+            // Скрываем поле индекса для бесплатной доставки от 1001грн
+            const indexInput = document.getElementById('cartCustomerIndex');
+            const indexRow = indexInput ? indexInput.closest('.info-row') : null;
+            if (indexRow) {
+                indexRow.style.display = 'none';
+            }
+
+        } else if (selectedMethod === 'free2000') {
+            // Для бесплатной доставки от 2000грн - аналогично free1001
+            const currentValue = cityEl.value.trim();
+            const od = window.translations ? window.translations.getTranslation('pickupOdessa', lang) : 'Одесса';
+
+            // Устанавливаем Одессу только если поле пустое или содержит автозаполненное значение Одессы
+            if (!currentValue || currentValue === od || currentValue === 'Одесса') {
+                cityEl.value = od;
+            }
+
+            // Скрываем поле области
+            const regionRow = document.getElementById('regionRow');
+            if (regionRow) {
+                regionRow.style.display = 'none';
+            }
+
+            // Показываем поле номера отделения
+            if (branchEl) {
+                // Устанавливаем все стили одновременно для предотвращения мелькания
+                setTimeout(() => {
+            branchEl.style.display = 'block';
+                    branchEl.style.visibility = 'visible';
+                    branchEl.style.opacity = '1';
+                    branchEl.style.position = 'relative';
+                    branchEl.style.width = '100%';
+                    branchEl.style.maxWidth = '200px';
+
+            const branchRow = branchEl.closest('.info-row');
+            if (branchRow) {
+                branchRow.style.display = 'flex';
+                        branchRow.style.visibility = 'visible';
+                        branchRow.style.opacity = '1';
+                        branchRow.style.alignItems = 'center';
+                        branchRow.style.justifyContent = 'space-between';
+                        branchRow.style.width = '100%';
+                    }
+                    console.log('updatePickupUi: Показали поле номера отделения для free2000');
+                }, 10);
+            }
+
+            // Скрываем элементы времени самовывоза и адреса самовывоза для бесплатной доставки от 2000грн
+            const pickupTimeEl2 = document.querySelector('.pickup-time');
+            if (pickupTimeEl2) {
+                pickupTimeEl2.style.display = 'none';
+            }
+
+            // Скрываем поле индекса для бесплатной доставки от 2000грн
+            const indexInput2 = document.getElementById('cartCustomerIndex');
+            const indexRow2 = indexInput2 ? indexInput2.closest('.info-row') : null;
+            if (indexRow2) {
+                indexRow2.style.display = 'none';
+            }
+
         } else if (selectedMethod === 'ukrposhta') {
-            // Для Укрпошты показываем поле области и меняем лейбл на "Индекс"
+            // Для Укрпошты очищаем город (не должно быть авто-заполнения Одессы)
+            cityEl.value = '';
+
+            // Для Укрпошты показываем поле области
             const regionRow = document.getElementById('regionRow');
             if (regionRow) {
                 regionRow.style.display = 'flex';
             }
 
-            // Показываем поле индекса
-            branchEl.style.display = 'block';
-            const branchRow = branchEl.closest('.info-row');
-            if (branchRow) {
-                branchRow.style.display = 'flex';
+            // Показываем поле индекса, скрываем номер отделения
+            const indexInput = document.getElementById('cartCustomerIndex');
+            const indexRow = indexInput ? indexInput.closest('.info-row') : null;
+            if (indexRow) {
+                indexRow.style.display = 'flex';
+            }
+            if (branchEl) {
+                branchEl.style.display = 'none';
+                const branchRow = branchEl.closest('.info-row');
+                if (branchRow) {
+                    branchRow.style.display = 'none';
+                }
             }
 
-            // Меняем лейбл "Номер отделения" на "Индекс"
-            const branchLabelEl = document.querySelector('span[data-translate="branchNumber"]');
-            if (branchLabelEl) {
-                const indexText = lang === 'uk' ? 'Індекс:' : lang === 'en' ? 'Index:' : 'Индекс:';
-                branchLabelEl.textContent = indexText;
+            // Принудительно применяем стили к полю индекса для укрпочты
+            if (indexInput) {
+                // Используем setTimeout для гарантированного применения стилей
+                setTimeout(() => {
+                    indexInput.style.textAlign = 'left';
+                    indexInput.style.justifyContent = 'flex-start';
+                    indexInput.style.marginLeft = '0';
+                    indexInput.style.marginRight = 'auto';
+                    indexInput.style.maxWidth = '200px';
+                    indexInput.style.width = '200px';
+                    indexInput.style.display = 'block';
+                    indexInput.style.visibility = 'visible';
+                    indexInput.style.opacity = '1';
+                    indexInput.style.position = 'relative';
+
+                    const indexRow = indexInput.closest('.info-row');
+                    if (indexRow) {
+                        indexRow.style.display = 'flex';
+                        indexRow.style.visibility = 'visible';
+                        indexRow.style.opacity = '1';
+                        indexRow.style.alignItems = 'center';
+                        indexRow.style.justifyContent = 'space-between';
+                        indexRow.style.width = '100%';
+                    }
+                    console.log('updatePickupUi: Показали поле индекса для укрпочты');
+                }, 1);
             }
 
-            // Меняем placeholder на "Введите индекс"
-            if (branchEl.tagName && branchEl.tagName.toLowerCase() === 'input') {
-                branchEl.placeholder = window.translations ? window.translations.getTranslation('indexPlaceholder', lang) : 'Введите индекс';
-            }
-
-            // Убеждаемся, что поле - обычный input (не select)
-            if (branchEl.tagName && branchEl.tagName.toLowerCase() === 'select') {
-                const input = document.createElement('input');
-                input.type = 'text';
-                input.id = 'cartCustomerBranch';
-                input.className = branchEl.className;
-                input.placeholder = window.translations ? window.translations.getTranslation('indexPlaceholder', lang) : 'Введите индекс';
-                branchEl.parentNode.replaceChild(input, branchEl);
-            }
+            // Скрываем поля самовывоза для укрпочты
+            if (cartPickupAddressRow) cartPickupAddressRow.style.display = 'none';
+            if (cartPickupTimeRow) cartPickupTimeRow.style.display = 'none';
         } else {
             // Очищаем город для других способов доставки
             cityEl.value = '';
@@ -1631,27 +1817,37 @@ function updatePickupUi(selectedMethod) {
             }
 
             // Скрываем элементы самовывоза в корзине для других способов доставки
-            const cartPickupAddressRow = document.getElementById('cartPickupAddressRow');
             if (cartPickupAddressRow) {
                 cartPickupAddressRow.style.display = 'none';
             }
 
-            const cartPickupTimeRow = document.getElementById('cartPickupTimeRow');
             if (cartPickupTimeRow) {
                 cartPickupTimeRow.style.display = 'none';
             }
 
             // Показываем поле номера отделения для других способов доставки
+            if (branchEl) {
+                // Используем минимальный setTimeout для гарантированного применения стилей после DOM обновления
+                setTimeout(() => {
+                    // Устанавливаем все стили одновременно для предотвращения мелькания
             branchEl.style.display = 'block';
+                    branchEl.style.visibility = 'visible';
+                    branchEl.style.opacity = '1';
+                    branchEl.style.position = 'relative';
+                    branchEl.style.width = '100%';
+                    branchEl.style.maxWidth = '200px';
+
             const branchRow = branchEl.closest('.info-row');
             if (branchRow) {
                 branchRow.style.display = 'flex';
-            }
-
-            // Показываем элементы времени самовывоза и адреса самовывоза для других способов доставки
-            const pickupTimeEl = document.querySelector('.pickup-time');
-            if (pickupTimeEl) {
-                pickupTimeEl.style.display = 'block';
+                        branchRow.style.visibility = 'visible';
+                        branchRow.style.opacity = '1';
+                        branchRow.style.alignItems = 'center';
+                        branchRow.style.justifyContent = 'space-between';
+                        branchRow.style.width = '100%';
+                    }
+                    console.log('updatePickupUi: Показали поле номера отделения для', selectedMethod);
+                }, 1); // Минимальная задержка в 1мс
             }
 
 
@@ -1663,12 +1859,22 @@ function updatePickupUi(selectedMethod) {
 function getPickupTimes() {
     const d = new Date();
     const day = d.getDay(); // 0=Sun, 6=Sat
+    const currentHour = d.getHours();
+    const currentMinute = d.getMinutes();
+    const currentTime = currentHour * 60 + currentMinute; // минуты от начала дня
+
     if (day === 0) {
         // Sunday - показываем времена для понедельника (следующего дня)
         const mondayPrefix = window.translations ? window.translations.getTranslation('monday', getCurrentLanguage()) : 'Понедельник';
         return [`${mondayPrefix} 13:30`, `${mondayPrefix} 12:00`];
     }
     if (day === 6) {
+        // Saturday - после 12:30 показываем времена для понедельника
+        const saturdayCutoff = 12 * 60 + 30; // 12:30 в минутах
+        if (currentTime >= saturdayCutoff) {
+            const mondayPrefix = window.translations ? window.translations.getTranslation('monday', getCurrentLanguage()) : 'Понедельник';
+            return [`${mondayPrefix} 13:30`, `${mondayPrefix} 12:00`];
+        }
         return ['12:30', '12:00'];
     }
     return ['13:30', '12:00'];
@@ -1690,6 +1896,101 @@ async function showCartPopup() {
     console.log('showCartPopup: Показываем корзину');
     const popup = document.getElementById('cartPopup');
     if (popup) {
+        // Добавляем CSS правило непосредственно в DOM для максимальной гарантии
+        const styleElement = document.createElement('style');
+        styleElement.id = 'red-stars-style';
+        styleElement.textContent = `
+            .required-star {
+                color: #ff0000 !important;
+                font-weight: bold !important;
+                font-size: 16px !important;
+                -webkit-text-fill-color: #ff0000 !important;
+                -moz-text-fill-color: #ff0000 !important;
+                text-shadow: none !important;
+                background: transparent !important;
+                border: none !important;
+                outline: none !important;
+            }
+            span.required-star, div.required-star {
+                color: #ff0000 !important;
+                font-weight: bold !important;
+                font-size: 16px !important;
+            }
+            span[data-translate] .required-star,
+            span[data-translate="fullName"] .required-star,
+            span[data-translate="phone"] .required-star,
+            span[data-translate="settlement"] .required-star,
+            span[data-translate="regionLabel"] .required-star,
+            span[data-translate="indexCode"] .required-star,
+            span[data-translate="branchNumber"] .required-star {
+                color: #ff0000 !important;
+                font-weight: bold !important;
+                font-size: 16px !important;
+            }
+        `;
+        document.head.appendChild(styleElement);
+        console.log('showCartPopup: Добавлено CSS правило для красных звездочек в DOM');
+
+        // Настраиваем MutationObserver для отслеживания новых звездочек
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                mutation.addedNodes.forEach((node) => {
+                    if (node.nodeType === 1) { // ELEMENT_NODE
+                        // Ищем звездочки в добавленных элементах
+                        const newStars = node.querySelectorAll ? node.querySelectorAll('.required-star') : [];
+                        if (node.classList && node.classList.contains('required-star')) {
+                            applyRedColorToStar(node);
+                        }
+                        newStars.forEach(star => applyRedColorToStar(star));
+                    }
+                });
+            });
+        });
+
+        // Функция применения красного цвета к звездочке
+        function applyRedColorToStar(star) {
+            star.style.setProperty('color', '#ff0000', 'important');
+            star.style.setProperty('font-weight', 'bold', 'important');
+            star.style.setProperty('font-size', '16px', 'important');
+            star.style.setProperty('-webkit-text-fill-color', '#ff0000', 'important');
+            star.style.setProperty('-moz-text-fill-color', '#ff0000', 'important');
+            star.style.setProperty('text-shadow', 'none', 'important');
+            console.log('MutationObserver: Применен красный цвет к звездочке');
+        }
+
+        // Запускаем наблюдение за изменениями в корзине
+        observer.observe(popup, {
+            childList: true,
+            subtree: true
+        });
+
+        console.log('showCartPopup: MutationObserver настроен для отслеживания звездочек');
+
+        // Показываем красные звездочки для укрпочты при открытии корзины
+        const checkAndShowRedStars = () => {
+            const deliveryMethodSelect = document.getElementById('deliveryMethodSelect');
+            console.log('showCartPopup: Проверяем красные звездочки, текущий способ доставки:', deliveryMethodSelect ? deliveryMethodSelect.value : 'не найден');
+
+            const ukrposhtaRedStars = document.querySelectorAll('.ukrposhta-red-star');
+            console.log('showCartPopup: Найдено красных звездочек укрпочты:', ukrposhtaRedStars.length);
+
+            if (deliveryMethodSelect && deliveryMethodSelect.value === 'ukrposhta') {
+                ukrposhtaRedStars.forEach((star, index) => {
+                    star.style.display = 'inline';
+                    console.log(`showCartPopup: Показана красная звездочка ${index + 1}`);
+                });
+            } else {
+                ukrposhtaRedStars.forEach((star, index) => {
+                    star.style.display = 'none';
+                    console.log(`showCartPopup: Скрыта красная звездочка ${index + 1}`);
+                });
+            }
+        };
+
+        // Проверяем несколько раз с задержками
+        setTimeout(checkAndShowRedStars, 100);
+        setTimeout(checkAndShowRedStars, 300);
+        setTimeout(checkAndShowRedStars, 600);
         // Загружаем актуальные бонусы пользователя при открытии корзины
         try {
             if (window.__authState && window.__authState.isAuthenticated) {
@@ -1711,16 +2012,52 @@ async function showCartPopup() {
             console.warn('showCartPopup: Не удалось загрузить бонусы:', bonusError);
         }
 
+        updateDeliveryMethods(); // Сначала скрываем неподходящие способы доставки
         renderCartItems();
         updateCartCalculations();
-        updateDeliveryMethods(); // Инициализируем способы доставки
+        updateDeliveryMethods(); // Инициализируем способы доставки еще раз
+        updateDeliveryCost(); // Обновляем стоимость доставки
         updatePaymentButtonText(); // Инициализируем текст кнопки оплаты
 
         // Инициализируем UI для самовывоза при открытии корзины
         const deliverySelect = document.getElementById('deliveryMethodSelect');
         if (deliverySelect && deliverySelect.value) {
             updatePickupUi(deliverySelect.value);
+            updateIndexFieldVisibility(deliverySelect.value);
             console.log('showCartPopup: UI для самовывоза инициализирован, delivery:', deliverySelect.value);
+
+            // Дополнительная инициализация поля номера отделения
+            const branchEl = document.getElementById('cartCustomerBranch');
+            if (branchEl && deliverySelect.value !== 'pickup' && deliverySelect.value !== 'ukrposhta') {
+                branchEl.style.display = 'block';
+                const branchRow = branchEl.closest('.info-row');
+                if (branchRow) {
+                    branchRow.style.display = 'flex';
+                    branchRow.style.visibility = 'visible';
+                }
+                console.log('showCartPopup: Поле номера отделения инициализировано для:', deliverySelect.value);
+            }
+        }
+
+        // Инициализируем валидацию поля индекса
+        const indexInput = document.getElementById('cartCustomerIndex');
+        if (indexInput) {
+            indexInput.addEventListener('input', function(e) {
+                // Удаляем все нецифровые символы
+                this.value = this.value.replace(/[^0-9]/g, '');
+            });
+
+            indexInput.addEventListener('keydown', function(e) {
+                // Разрешаем только цифры, backspace, delete, стрелки и tab
+                if (!/[0-9]/.test(e.key) &&
+                    e.key !== 'Backspace' &&
+                    e.key !== 'Delete' &&
+                    e.key !== 'ArrowLeft' &&
+                    e.key !== 'ArrowRight' &&
+                    e.key !== 'Tab') {
+                    e.preventDefault();
+                }
+            });
         }
 
         // Проверяем видимость кнопки оплаты
@@ -1730,12 +2067,7 @@ async function showCartPopup() {
         // Принудительно применяем стили к кнопке оплаты
         if (payButton) {
             console.log('showCartPopup: Применяем стили к кнопке оплаты');
-            // Удаляем все существующие inline-стили
-            payButton.removeAttribute('style');
-
-            // Применяем базовые стили
-            payButton.style.setProperty('display', 'flex', 'important');
-            payButton.style.setProperty('visibility', 'visible', 'important');
+            forcePayButtonStyles();
             payButton.style.setProperty('opacity', '1', 'important');
             payButton.style.setProperty('background', '#f8a818', 'important');
             payButton.style.setProperty('background-color', '#f8a818', 'important');
@@ -1817,6 +2149,12 @@ async function showCartPopup() {
         }
 
         popup.style.display = 'flex';
+
+        // Финальное обновление способов доставки для гарантии правильного отображения
+        setTimeout(() => {
+            updateDeliveryMethods();
+            console.log('showCartPopup: Финальное обновление способов доставки выполнено');
+        }, 200);
     }
 }
 
@@ -1891,8 +2229,11 @@ function toggleAvatarMenu() {
         console.error('toggleAvatarMenu: Элементы не найдены');
         return;
     }
-    const isOpen = avatarMenu.dataset.portaled === '1' && avatarMenu.style.display === 'block' || avatarMenu.classList.contains('show');
+    const isOpen = avatarMenu.style.display === 'block' || avatarMenu.classList.contains('show');
+    console.log('toggleAvatarMenu: isOpen check:', isOpen, 'display:', avatarMenu.style.display, 'hasShow:', avatarMenu.classList.contains('show'));
+
     if (isOpen) {
+        console.log('toggleAvatarMenu: Меню уже открыто, закрываем');
         // close and restore
         closeAvatarMenu();
         return;
@@ -2129,6 +2470,72 @@ function closeSearchPopup() {
 }
 
 // Функция поиска товаров
+// Функция поиска по названию товара + бейджам
+async function searchByNameAndBadge(searchTerm, badgeClass) {
+    console.log('searchByNameAndBadge: Поиск по названию "' + searchTerm + '" + бейджам "' + badgeClass + '"');
+
+    try {
+        // Загружаем все товары
+        const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log(`searchByNameAndBadge: Загружено ${data.products.length} товаров`);
+
+        if (data && data.products && data.products.length > 0) {
+            // Отображаем все товары в DOM
+            displayProducts(data.products);
+
+            // Ищем товары по названию ИЛИ по бейджам
+            const allProductCards = document.querySelectorAll('.product-card');
+            let foundProducts = 0;
+
+            allProductCards.forEach(card => {
+                const titleEl = card.querySelector('.product-title');
+                const name = titleEl ? titleEl.textContent.trim().toLowerCase() : '';
+
+                // Проверяем название товара
+                const nameMatches = name.includes(searchTerm.toLowerCase());
+
+                // Проверяем бейджи
+                let hasBadge = false;
+                if (badgeClass === 'nickel-plated') {
+                    hasBadge = !!card.querySelector('.product-nickelplated, .product-nickel');
+                } else if (badgeClass === 'pure-nickel') {
+                    hasBadge = !!card.querySelector('.product-pure, .product-purenickel');
+                } else if (badgeClass === 'stainless-steel') {
+                    hasBadge = !!card.querySelector('.product-stainless');
+                } else if (badgeClass === 'flatwound') {
+                    hasBadge = !!card.querySelector('.product-flatwound');
+                }
+
+                // Показываем товар если есть совпадение по названию ИЛИ по бейджу
+                if (nameMatches || hasBadge) {
+                    card.style.display = 'flex';
+                    foundProducts++;
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+
+            console.log(`searchByNameAndBadge: Найдено ${foundProducts} товаров по названию "${searchTerm}" или бейджам "${badgeClass}"`);
+
+            if (foundProducts === 0) {
+                showNoSearchResults(`${searchTerm} / ${badgeClass}`);
+            }
+
+            isCategoryFilterActive = true;
+        } else {
+            showNoSearchResults(searchTerm);
+        }
+    } catch (error) {
+        console.error('searchByNameAndBadge: Ошибка поиска:', error);
+        showNoSearchResults(searchTerm);
+    }
+}
+
 async function searchProducts(query) {
     console.log('searchProducts: Поиск товаров по запросу:', query);
     
@@ -2158,6 +2565,71 @@ async function searchProducts(query) {
          currentSearchTerm === 'La Bella' || currentSearchTerm === 'La bella' || currentSearchTerm === 'LABELLA') {
          currentSearchTerm = 'La Bella';
          console.log('searchProducts: Нормализован запрос La Bella в:', currentSearchTerm);
+     }
+
+     // Специальная обработка для названий бейджей и кнопок из главного баннера
+     if (currentSearchTerm === 'nickel') {
+         console.log('searchProducts: Распознан запрос "nickel" - ищем по названию + бейджам');
+         await searchByNameAndBadge('nickel', 'nickel-plated');
+         return;
+     }
+
+     if (currentSearchTerm === 'pure') {
+         console.log('searchProducts: Распознан запрос "pure" - ищем по названию + бейджам');
+         await searchByNameAndBadge('pure', 'pure-nickel');
+         return;
+     }
+
+     if (currentSearchTerm === 'stainless') {
+         console.log('searchProducts: Распознан запрос "stainless" - ищем по названию + бейджам');
+         await searchByNameAndBadge('stainless', 'stainless-steel');
+         return;
+     }
+
+     if (currentSearchTerm === 'flatwound') {
+         console.log('searchProducts: Распознан запрос "flatwound" - ищем по названию + бейджам');
+         await searchByNameAndBadge('flatwound', 'flatwound');
+         return;
+     }
+
+     // Специальная обработка для 12-струнных товаров
+     if (currentSearchTerm === '12-string' || currentSearchTerm === '12 string' || currentSearchTerm === '12-струн' || currentSearchTerm === '12 струн') {
+         console.log('searchProducts: Распознан запрос "' + currentSearchTerm + '" - ищем 12-струнные товары');
+         await search12StringProducts();
+         return;
+     }
+
+     // Обработка полных названий
+     if (currentSearchTerm.includes('nickel plated') || currentSearchTerm.includes('nickel-plated') ||
+         currentSearchTerm === 'nickel plated') {
+         console.log('searchProducts: Распознан запрос на Nickel Plated - вызываем специальную функцию');
+         await searchNickelPlatedElectricProducts();
+         return;
+     }
+
+     if (currentSearchTerm.includes('pure nickel') || currentSearchTerm === 'pure nickel') {
+         console.log('searchProducts: Распознан запрос на Pure Nickel - вызываем специальную функцию');
+         await searchPureNickelElectricProducts();
+         return;
+     }
+
+     if (currentSearchTerm.includes('stainless steel') || currentSearchTerm.includes('stainless-steel') ||
+         currentSearchTerm === 'stainless steel') {
+         console.log('searchProducts: Распознан запрос на Stainless Steel - вызываем специальную функцию');
+         await searchStainlessSteelProducts();
+         return;
+     }
+
+     if (currentSearchTerm.includes('cobalt') || currentSearchTerm === 'cobalt') {
+         console.log('searchProducts: Распознан запрос на Cobalt - вызываем специальную функцию');
+         await searchCobaltProducts();
+         return;
+     }
+
+     if (currentSearchTerm.includes('flatwound') || currentSearchTerm.includes('flat wound') || currentSearchTerm === 'flat wound') {
+         console.log('searchProducts: Распознан запрос на Flatwound - вызываем специальную функцию');
+         await searchFlatwoundElectricProducts();
+         return;
      }
      
      // Специальная обработка для DR - ищем по нескольким вариантам
@@ -2327,6 +2799,7 @@ function hideLoadingIndicator() {
 }
 // Функция загрузки товаров
 async function loadProducts(page = 0, append = false) {
+    console.log('loadProducts: Вызов функции, isLoading:', isLoading, 'isSearchActive:', isSearchActive);
     if (isLoading || isSearchActive) {
         console.log('loadProducts: Загрузка уже идет или активен поиск, пропускаем');
         return;
@@ -2626,6 +3099,13 @@ function displayProducts(products) {
                 filterProductsByCategory('9-string', true);
             });
         });
+        // 12 струн для электрогитары
+        document.querySelectorAll('.product-twelve-string').forEach(b => {
+            b.style.cursor = 'pointer';
+            b.addEventListener('click', function() {
+                filterProductsByCategory('12-string', true);
+            });
+        });
         // Струны электро с плоской обмоткой
         document.querySelectorAll('.product-flatwound').forEach(b => {
             b.style.cursor = 'pointer';
@@ -2886,6 +3366,7 @@ function createProductCard(product, index) {
     let sevenStringHtml = '';
     let eightStringHtml = '';
     let nineStringHtml = '';
+    let twelveStringHtml = '';
     let flatwoundHtml = '';
     let gauge10Html = '';
     
@@ -2942,6 +3423,19 @@ function createProductCard(product, index) {
                productName.includes('9-string 9-') ||
                productName.includes('9-стр') ||
                productName.includes(' nine-string');
+    })();
+
+    // Проверяем, является ли товар 12-струнным (по явным пометкам)
+    const is12StringProduct = (() => {
+        const productName = product.name.toLowerCase();
+        return productName.includes('12-string') ||
+               productName.includes('12 string') ||
+               productName.includes('12-струн для електрогітари') ||
+               productName.includes('12-струн для электрогитары') ||
+               productName.includes('12 струн для електрогітари') ||
+               productName.includes('12 струн для электрогитары') ||
+               productName.includes('12-стр') ||
+               productName.includes(' twelve-string');
     })();
 
     // Проверяем, плоская обмотка электро (flatwound/half rounds/chromes)
@@ -3026,6 +3520,10 @@ function createProductCard(product, index) {
     if (is9StringProduct) {
         nineStringHtml = `<span class="product-nine-string">${currentTranslations.nineStringInfo}</span>`;
     }
+    // Добавляем информацию о 12-струнных товарах
+    if (is12StringProduct) {
+        twelveStringHtml = `<span class="product-twelve-string">${currentTranslations.twelveStringInfo}</span>`;
+    }
     if (isFlatwoundElectric) {
         flatwoundHtml = `<span class="product-flatwound">${currentTranslations.flatwoundInfo}</span>`;
     }
@@ -3048,7 +3546,7 @@ function createProductCard(product, index) {
                     /cobalt/i,
                     /colored/i,
                     /flat\s*wound|flatwound|half\s*rounds|chromes/i,
-                    /\b[789]-string\b/i
+                    /\b[789]|-string\b/i
                 ];
                 let idx = -1;
                 patterns.forEach(re => { const m = fullName.match(re); if (m && (idx === -1 || m.index < idx)) idx = m.index; });
@@ -3065,6 +3563,7 @@ function createProductCard(product, index) {
                 sevenStringHtml +
                 eightStringHtml +
                 nineStringHtml +
+                twelveStringHtml +
                 flatwoundHtml +
                 gauge09Html +
                 gauge10Html +
@@ -3271,6 +3770,11 @@ function switchLanguage(lang) {
                 // Специальная обработка для placeholder поиска
                 element.placeholder = translations[lang][key];
                 console.log(`switchLanguage: Обновлен ${key} (placeholder):`, translations[lang][key]);
+            } else if (key === 'captchaCheck') {
+                // Специальная обработка для поля капчи - убираем прочерк
+                const translation = translations[lang][key];
+                element.textContent = translation;
+                console.log(`switchLanguage: Обновлен ${key} (captcha): "${translation}"`);
             } else {
                 const oldText = element.textContent;
                 element.textContent = translations[lang][key];
@@ -3440,7 +3944,72 @@ function updateLanguageButtons(activeLang) {
 
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM загружен, инициализируем приложение');
+    console.log('DOMContentLoaded: Инициализируем приложение');
+
+    // Применяем красный цвет к звездочкам при загрузке страницы
+    setTimeout(() => {
+        const allStars = document.querySelectorAll('.required-star');
+        console.log('DOMContentLoaded: Применяем красный цвет к', allStars.length, 'звездочкам при загрузке');
+
+        allStars.forEach((star, index) => {
+            star.style.setProperty('color', '#ff0000', 'important');
+            star.style.setProperty('font-weight', 'bold', 'important');
+            star.style.setProperty('font-size', '16px', 'important');
+            star.style.setProperty('-webkit-text-fill-color', '#ff0000', 'important');
+            star.style.setProperty('-moz-text-fill-color', '#ff0000', 'important');
+            star.style.setProperty('text-shadow', 'none', 'important');
+        });
+
+        // Настраиваем глобальный MutationObserver для отслеживания новых звездочек
+        const globalObserver = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                mutation.addedNodes.forEach((node) => {
+                    if (node.nodeType === 1) { // ELEMENT_NODE
+                        const newStars = node.querySelectorAll ? node.querySelectorAll('.required-star') : [];
+                        if (node.classList && node.classList.contains('required-star')) {
+                            applyRedColorToStarGlobal(node);
+                        }
+                        newStars.forEach(star => applyRedColorToStarGlobal(star));
+                    }
+                });
+            });
+        });
+
+        function applyRedColorToStarGlobal(star) {
+            star.style.setProperty('color', '#ff0000', 'important');
+            star.style.setProperty('font-weight', 'bold', 'important');
+            star.style.setProperty('font-size', '16px', 'important');
+            star.style.setProperty('-webkit-text-fill-color', '#ff0000', 'important');
+            star.style.setProperty('-moz-text-fill-color', '#ff0000', 'important');
+            star.style.setProperty('text-shadow', 'none', 'important');
+            console.log('Global MutationObserver: Применен красный цвет к новой звездочке');
+        }
+
+        // Запускаем глобальное наблюдение
+        globalObserver.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+
+        console.log('DOMContentLoaded: Глобальный MutationObserver настроен для звездочек');
+    }, 100);
+
+    // Сбрасываем переменные состояния
+    isLoading = false;
+    isSearchActive = false;
+    searchTerm = '';
+    currentPage = 0;
+    hasMoreProducts = true;
+
+    // Очищаем поисковый input при загрузке страницы
+    try {
+        const searchInput = document.querySelector('.search-input');
+        if (searchInput) {
+            searchInput.value = '';
+        }
+    } catch (e) {
+        console.warn('DOMContentLoaded: Ошибка очистки поискового input:', e);
+    }
     
     // Маркируем окружение Telegram WebApp (только при наличии реальных данных пользователя)
     try {
@@ -3655,12 +4224,16 @@ function setupEventHandlers() {
                     loginCaptchaId = data.captchaId;
                     const row = document.getElementById('loginCaptchaRow');
                     const label = document.getElementById('loginCaptchaQuestion');
-                    if (row && label) { row.style.display = 'block'; label.textContent = `Проверка: ${data.question}`; }
+                    const currentLang = localStorage.getItem('selectedLanguage') || 'uk';
+                    const prefix = getTranslation('captchaCheck', currentLang);
+                    if (row && label) { row.style.display = 'block'; label.textContent = `${prefix}: ${data.question}`; }
                 } else if (target === 'register') {
                     registerCaptchaId = data.captchaId;
                     const row = document.getElementById('registerCaptchaRow');
                     const label = document.getElementById('registerCaptchaQuestion');
-                    if (row && label) { row.style.display = 'block'; label.textContent = `Проверка: ${data.question}`; }
+                    const currentLang = localStorage.getItem('selectedLanguage') || 'uk';
+                    const prefix = getTranslation('captchaCheck', currentLang);
+                    if (row && label) { row.style.display = 'block'; label.textContent = `${prefix}: ${data.question}`; }
                 }
             } catch (e) { /* ignore */ }
         }
@@ -3669,42 +4242,151 @@ function setupEventHandlers() {
         if (showRegisterLink && showLoginLink) {
             showRegisterLink.addEventListener('click', (e) => {
                 e.preventDefault();
-                document.getElementById('dropdownLoginSection').style.display = 'none';
-                document.getElementById('dropdownRegisterSection').style.display = 'block';
+                console.log('Клик по "Создать аккаунт"');
+
+                // Сначала скрываем все секции
+                const allSections = ['dropdownLoginSection', 'dropdownRegisterSection', 'dropdownSmsLoginSection'];
+                allSections.forEach(sectionId => {
+                    const section = document.getElementById(sectionId);
+                    if (section) {
+                        section.style.display = 'none';
+                        section.classList.remove('show');
+                        console.log('Скрыта секция:', sectionId);
+                    }
+                });
+
+                // Небольшая задержка перед показом секции регистрации
+                setTimeout(() => {
+                    const regSection = document.getElementById('dropdownRegisterSection');
+                    console.log('Показываем секцию регистрации:', regSection);
+                    if (regSection) {
+                        regSection.style.display = 'block';
+                        regSection.classList.add('show');
+                        console.log('Секция регистрации показана');
+
+                        // Проверяем, что форма регистрации существует
+                        const registerForm = document.getElementById('registerForm');
+                        console.log('Форма регистрации:', registerForm);
+
+                        // Загружаем капчу
+                        fetchCaptcha('register');
+                    } else {
+                        console.error('Секция регистрации не найдена!');
+                    }
                 registerMessage.textContent = '';
                 fetchCaptcha('register');
+                }, 10);
             });
+        }
+
+        if (showLoginLink) {
             showLoginLink.addEventListener('click', (e) => {
                 e.preventDefault();
-                document.getElementById('dropdownRegisterSection').style.display = 'none';
-                document.getElementById('dropdownLoginSection').style.display = 'block';
+                // Сначала скрываем все секции
+                const allSections = ['dropdownLoginSection', 'dropdownRegisterSection', 'dropdownSmsLoginSection'];
+                allSections.forEach(sectionId => {
+                    const section = document.getElementById(sectionId);
+                    if (section) {
+                        section.style.display = 'none';
+                        section.classList.remove('show');
+                    }
+                });
+
+                // Небольшая задержка перед показом секции логина
+                setTimeout(() => {
+                    const loginSection = document.getElementById('dropdownLoginSection');
+                    if (loginSection) {
+                        loginSection.style.display = 'block';
+                        loginSection.classList.add('show');
+                    }
                 loginMessage.textContent = '';
                 fetchCaptcha('login');
+                }, 10);
             });
         }
 
         // Переключения на SMS-вход и обратно
         function showSmsLogin() {
-            if (dropdownLoginSection) dropdownLoginSection.style.display = 'none';
-            const reg = document.getElementById('dropdownRegisterSection');
-            if (reg) reg.style.display = 'none';
-            if (smsSection) smsSection.style.display = 'block';
+            // Агрессивно скрываем все секции
+            const allSections = ['dropdownLoginSection', 'dropdownRegisterSection', 'dropdownSmsLoginSection'];
+            allSections.forEach(sectionId => {
+                const section = document.getElementById(sectionId);
+                if (section) {
+                    // Сбрасываем все стили и классы
+                    section.style.display = 'none';
+                    section.classList.remove('show');
+                    section.style.visibility = 'hidden';
+                    section.style.opacity = '0';
+                }
+            });
+
+            // Небольшая задержка перед показом SMS секции
+            setTimeout(() => {
+                const smsSection = document.getElementById('dropdownSmsLoginSection');
+                if (smsSection) {
+                    smsSection.style.display = 'block';
+                    smsSection.classList.add('show');
+                    smsSection.style.visibility = 'visible';
+                    smsSection.style.opacity = '1';
+                }
             smsLoginMessage.textContent = '';
             if (smsPhoneInput && !smsPhoneInput.value) smsPhoneInput.value = '+380';
+            }, 10);
         }
         function showPasswordLogin() {
-            if (smsSection) smsSection.style.display = 'none';
-            const reg = document.getElementById('dropdownRegisterSection');
-            if (reg) reg.style.display = 'none';
-            if (dropdownLoginSection) dropdownLoginSection.style.display = 'block';
+            // Агрессивно скрываем все секции
+            const allSections = ['dropdownLoginSection', 'dropdownRegisterSection', 'dropdownSmsLoginSection'];
+            allSections.forEach(sectionId => {
+                const section = document.getElementById(sectionId);
+                if (section) {
+                    // Сбрасываем все стили и классы
+                    section.style.display = 'none';
+                    section.classList.remove('show');
+                    section.style.visibility = 'hidden';
+                    section.style.opacity = '0';
+                }
+            });
+
+            // Небольшая задержка перед показом секции логина
+            setTimeout(() => {
+                if (dropdownLoginSection) {
+                    dropdownLoginSection.style.display = 'block';
+                    dropdownLoginSection.classList.add('show');
+                    dropdownLoginSection.style.visibility = 'visible';
+                    dropdownLoginSection.style.opacity = '1';
+                    // Загружаем капчу сразу при открытии формы
+                    fetchCaptcha('login');
+                }
             loginMessage.textContent = '';
+            }, 10);
         }
         function showRegisterFromSms() {
-            if (smsSection) smsSection.style.display = 'none';
-            if (dropdownLoginSection) dropdownLoginSection.style.display = 'none';
+            // Агрессивно скрываем все секции
+            const allSections = ['dropdownLoginSection', 'dropdownRegisterSection', 'dropdownSmsLoginSection'];
+            allSections.forEach(sectionId => {
+                const section = document.getElementById(sectionId);
+                if (section) {
+                    // Сбрасываем все стили и классы
+                    section.style.display = 'none';
+                    section.classList.remove('show');
+                    section.style.visibility = 'hidden';
+                    section.style.opacity = '0';
+                }
+            });
+
+            // Небольшая задержка перед показом секции регистрации
+            setTimeout(() => {
             const reg = document.getElementById('dropdownRegisterSection');
-            if (reg) reg.style.display = 'block';
+                if (reg) {
+                    reg.style.display = 'block';
+                    reg.classList.add('show');
+                    reg.style.visibility = 'visible';
+                    reg.style.opacity = '1';
+                    // Загружаем капчу для регистрации
+                    fetchCaptcha('register');
+                }
             registerMessage.textContent = '';
+            }, 10);
         }
 
         if (showSmsLoginLink) showSmsLoginLink.addEventListener('click', (e) => { e.preventDefault(); showSmsLogin(); });
@@ -3782,7 +4464,29 @@ function setupEventHandlers() {
 
         if (loginForm && dropdownLogoutBtn && dropdownLoginSection && dropdownLogoutSection) {
             // Подгружаем капчу при открытии меню (первый показ)
-            fetchCaptcha('login');
+            fetchCaptcha('login').then(() => {
+                // Автозаполнение сохраненных данных после загрузки капчи
+                try {
+                    const rememberedUsername = localStorage.getItem('rememberedUsername');
+                    const rememberedPassword = localStorage.getItem('rememberedPassword');
+
+                    if (rememberedUsername) {
+                        document.getElementById('loginUsername').value = rememberedUsername;
+                        console.log('login: Автозаполнение логина:', rememberedUsername);
+                    }
+                    if (rememberedPassword) {
+                        document.getElementById('loginPassword').value = rememberedPassword;
+                        console.log('login: Автозаполнение пароля');
+                    }
+
+                    // Отмечаем чекбокс "Запомнить", если есть сохраненные данные
+                    if (rememberedUsername && rememberedPassword) {
+                        document.getElementById('loginRemember').checked = true;
+                    }
+                } catch (e) {
+                    console.warn('login: Ошибка автозаполнения:', e);
+                }
+            });
             loginForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const username = (document.getElementById('loginUsername').value || '').trim();
@@ -3808,11 +4512,36 @@ function setupEventHandlers() {
                         fetchCaptcha('login');
                         return;
                     }
+                    // Сохраняем данные для автозаполнения, если пользователь отметил "Запомнить"
+                    if (remember) {
+                        try {
+                            localStorage.setItem('rememberedUsername', username);
+                            localStorage.setItem('rememberedPassword', password);
+                            console.log('login: Данные сохранены для автозаполнения');
+                        } catch (e) {
+                            console.warn('login: Не удалось сохранить данные для автозаполнения:', e);
+                        }
+                    } else {
+                        // Очищаем сохраненные данные, если пользователь не отметил "Запомнить"
+                        try {
+                            localStorage.removeItem('rememberedUsername');
+                            localStorage.removeItem('rememberedPassword');
+                            console.log('login: Сохраненные данные очищены');
+                        } catch (e) {
+                            console.warn('login: Не удалось очистить сохраненные данные:', e);
+                        }
+                    }
+
                     // Переключаем на логаут
                     dropdownLoginSection.style.display = 'none';
                     dropdownLogoutSection.style.display = 'block';
                     // Кэш авторизации
-                    try { window.__authState = { isAuthenticated: true, profile: data.profile || { username } }; } catch (e) {}
+                    try {
+                        window.__authState = { isAuthenticated: true, profile: data.profile || { username } };
+                        // Сохраняем логин пользователя для использования в заказах
+                        localStorage.setItem('lastLoginUsername', username);
+                        console.log('login: Сохранен lastLoginUsername:', username);
+                    } catch (e) {}
 
                     // Загружаем актуальные бонусы пользователя
                     try {
@@ -3909,8 +4638,18 @@ function setupEventHandlers() {
                     document.getElementById('dropdownRegisterSection').style.display = 'none';
                     dropdownLoginSection.style.display = 'none';
                     dropdownLogoutSection.style.display = 'block';
+
                     // Кэш авторизации
                     try { window.__authState = { isAuthenticated: true, profile: data.profile || { username, email } }; } catch (e) {}
+
+                    // Начисляем 10 бонусов новому пользователю
+                    try {
+                        await addUserBonus(10);
+                        console.log('register: Начислено 10 бонусов новому пользователю');
+                    } catch (bonusError) {
+                        console.warn('register: Не удалось начислить бонусы:', bonusError);
+                    }
+
                     showAccountView();
                 } catch (err) {
                     registerMessage.textContent = 'Сервер недоступен';
@@ -3948,14 +4687,26 @@ function setupEventHandlers() {
             return;
         }
         
-        // Закрытие меню аватара
+        // Закрытие меню аватара (только если не открыта форма входа/регистрации)
         const avatarMenu = document.querySelector('.avatar-dropdown');
         const profilePic = document.querySelector('.profile-pic');
         
         if (avatarMenu && (avatarMenu.classList.contains('show') || avatarMenu.style.display === 'block')) {
-            if (!profilePic.contains(event.target) && !avatarMenu.contains(event.target)) {
+            // Проверяем, открыта ли форма входа или регистрации
+            const loginSection = document.getElementById('dropdownLoginSection');
+            const registerSection = document.getElementById('dropdownRegisterSection');
+            const smsSection = document.getElementById('dropdownSmsLoginSection');
+
+            const hasOpenForm = (loginSection && loginSection.style.display === 'block') ||
+                               (registerSection && registerSection.style.display === 'block') ||
+                               (smsSection && smsSection.style.display === 'block');
+
+            // Закрываем меню только если нет открытых форм входа
+            if (!hasOpenForm && !profilePic.contains(event.target) && !avatarMenu.contains(event.target)) {
                 closeAvatarMenu();
-                console.log('toggleAvatarMenu: Меню аватара закрыто (клик вне)');
+                console.log('toggleAvatarMenu: Меню аватара закрыто (клик вне, формы не открыты)');
+            } else if (hasOpenForm) {
+                console.log('toggleAvatarMenu: Меню аватара не закрыто (открыта форма входа)');
             }
         }
         
@@ -4244,6 +4995,24 @@ function setupEventHandlers() {
            deliveryMethodSelect.addEventListener('change', function() {
                console.log('setupEventHandlers: Изменен способ доставки на:', this.value);
 
+               // Показываем/скрываем красные звездочки для укрпочты
+               const ukrposhtaRedStars = document.querySelectorAll('.ukrposhta-red-star');
+               console.log('deliveryMethodSelect change: Найдено красных звездочек:', ukrposhtaRedStars.length, 'текущий выбор:', this.value);
+
+               if (this.value === 'ukrposhta') {
+                   console.log('deliveryMethodSelect change: Выбран укрпочта, показываем красные звездочки');
+                   ukrposhtaRedStars.forEach((star, index) => {
+                       star.style.display = 'inline';
+                       console.log('deliveryMethodSelect change: Показана звездочка', index);
+                   });
+               } else {
+                   console.log('deliveryMethodSelect change: Другой способ доставки, скрываем красные звездочки');
+                   ukrposhtaRedStars.forEach((star, index) => {
+                       star.style.display = 'none';
+                       console.log('deliveryMethodSelect change: Скрыта звездочка', index);
+                   });
+               }
+
                // Логика взаимосвязи оплаты и доставки
                const paymentMethodSelect = document.getElementById('paymentMethodSelect');
 
@@ -4269,6 +5038,10 @@ function setupEventHandlers() {
                updateDeliveryMethods(); // Обновляем доступные способы доставки
                updateCartCalculations(); // Дополнительно обновляем расчеты корзины
                updatePickupUi(this.value); // Обновляем UI для самовывоза
+
+               // Управляем видимостью поля индекса
+               updateIndexFieldVisibility(this.value);
+
                forcePayButtonStyles(); // Принудительно обновляем стили кнопки оплаты
            });
        }
@@ -4450,17 +5223,9 @@ function setupEventHandlers() {
                          if (typeof showProductsView === 'function') showProductsView();
                          try { localStorage.setItem('currentView', 'products'); } catch (e) {}
                      } else if (navText.includes('Кабинет') || navText.includes('Cabinet') || navText.includes('Кабінет')) {
-                         // Если не авторизован — показываем дропдаун логина вместо перехода в кабинет
-                         const authed = window.__authState && window.__authState.isAuthenticated === true;
-                         if (!authed) {
-                             try {
-                                 navItem.classList.remove('active');
-                                 toggleAvatarMenu();
+                         // Используем единую функцию для обработки клика по кабинету
+                         handleCabinetClick();
                                  return false;
-                             } catch (e) {}
-                         }
-                         if (typeof showAccountView === 'function') showAccountView();
-                         try { localStorage.setItem('currentView', 'account'); } catch (e) {}
                      } else if (navText.includes('Корзина') || navText.includes('Cart')) {
                          showCartPopup();
                      } else if (navText.includes('Контакты') || navText.includes('Contacts')) {
@@ -4584,6 +5349,9 @@ function filterProductsByCategory(category, force = false) {
         } else if (category === '9-string') {
             console.log(`filterProductsByCategory: 9-string - характеристика, используем фильтрацию`);
             search9StringProducts();
+        } else if (category === '12-string') {
+            console.log(`filterProductsByCategory: 12-string - характеристика, используем фильтрацию`);
+            search12StringProducts();
         } else if (category === '10-gauge') {
             console.log('filterProductsByCategory: 10-gauge - специальный список, используем поисковую функцию');
             searchGauge10ElectricProducts();
@@ -5108,80 +5876,54 @@ async function searchGauge11ElectricProducts() {
 // Функция поиска для Nickel Plated Electric Strings
 async function searchNickelPlatedElectricProducts() {
     console.log('searchNickelPlatedElectricProducts: Поиск товаров Nickel Plated Electric Strings');
+
     try {
+        // Загружаем все товары для поиска по пометкам
         const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
+
         const data = await response.json();
-        if (!(data && data.products && data.products.length > 0)) {
-            showNoSearchResults('Nickel Plated Electric Strings');
-            return;
-        }
+        console.log(`searchNickelPlatedElectricProducts: Загружено ${data.products.length} товаров для поиска по пометкам`);
 
-        // 1) Получаем эталонный список с сайта (через локальный прокси), 5 страниц
-        const pages = [
-            'https://guitarstrings.com.ua/electro/nickel-plated-electric',
-            'https://guitarstrings.com.ua/electro/nickel-plated-electric?start=60',
-            'https://guitarstrings.com.ua/electro/nickel-plated-electric?start=120',
-            'https://guitarstrings.com.ua/electro/nickel-plated-electric?start=180',
-            'https://guitarstrings.com.ua/electro/nickel-plated-electric?start=240'
-        ];
-        const enc = (u) => encodeURIComponent(u);
-        const fetchedHtml = await Promise.all(pages.map(u => fetch(`http://localhost:8000/proxy_fetch?url=${enc(u)}`, { cache: 'no-store' }).then(r => r.ok ? r.text() : '')));
-        const docParser = new DOMParser();
-        const liveNameSet = new Set();
-        fetchedHtml.forEach(html => {
-            if (!html) return;
-            const doc = docParser.parseFromString(html, 'text/html');
-            const items = Array.from(doc.querySelectorAll('div.spacer, div.product-item, div.item'));
-            items.forEach(item => {
-                const nameEl = item.querySelector('h3.product-title a, h3.title a, h3 a, h2 a, a.title') ||
-                                item.querySelector('h3.product-title, h3.title, h3, h2, a.title');
-                const name = nameEl ? nameEl.textContent.trim() : '';
-                if (name) liveNameSet.add(normalizeLooseName(name));
-            });
-        });
-
-        // 2) Отрисовываем все товары
+        if (data && data.products && data.products.length > 0) {
+            // Отображаем все товары в DOM
         displayProducts(data.products);
 
-        // 3) Добавляем недостающие бейджи Nickel Plated на карточки, если имя в liveNameSet
-        const cards = document.querySelectorAll('.product-card');
-        cards.forEach(card => {
-            const titleEl = card.querySelector('.product-title');
-            const subtitleEl = card.querySelector('.product-subtitle');
-            const hasBadge = !!card.querySelector('.product-nickelplated');
-            const name = titleEl ? titleEl.textContent.trim() : '';
-            if (!name) return;
-            const inLive = liveNameSet.has(normalizeLooseName(name));
-            if (inLive && !hasBadge && subtitleEl) {
-                const currentLang = localStorage.getItem('selectedLanguage') || 'uk';
-                const t = (translations[currentLang] || {});
-                const badge = (t.nickelPlatedInfo) || 'Nickel Plated';
-                const title = (t.nickelPlatedShowAll) || 'Показать все Nickel Plated';
-                const span = document.createElement('span');
-                span.className = 'product-nickelplated';
-                span.title = title;
-                span.textContent = badge;
-                span.style.cursor = 'pointer';
-                span.addEventListener('click', function(){ filterProductsByCategory('nickel-plated', true); });
-                subtitleEl.appendChild(span);
-            }
-        });
+            // Ищем по пометкам в карточках
+            const nickelPlatedCards = document.querySelectorAll('.product-nickelplated');
+            console.log(`searchNickelPlatedElectricProducts: Найдено ${nickelPlatedCards.length} карточек с пометкой Nickel Plated`);
 
-        // 4) Фильтруем отображение строго по бейджам (как вы просили)
-        const badges = document.querySelectorAll('.product-nickelplated');
-        if (badges.length > 0) {
+            if (nickelPlatedCards.length > 0) {
+                // Фильтруем только карточки с пометкой Nickel Plated
+                const nickelPlatedProductCards = [];
+                nickelPlatedCards.forEach(card => {
+                    const productCard = card.closest('.product-card');
+                    if (productCard) {
+                        nickelPlatedProductCards.push(productCard);
+                    }
+                });
+
+                if (nickelPlatedProductCards.length > 0) {
+                    // Скрываем все карточки
             const allProductCards = document.querySelectorAll('.product-card');
             allProductCards.forEach(card => { card.style.display = 'none'; });
-            badges.forEach(b => {
-                const productCard = b.closest('.product-card');
-                if (productCard) productCard.style.display = 'flex'; // сохраняем исходный макет карточки
-            });
+
+                    // Показываем только Nickel Plated
+                    nickelPlatedProductCards.forEach(card => { card.style.display = 'flex'; });
+
             isCategoryFilterActive = true;
-            console.log('searchNickelPlatedElectricProducts: Отображены только товары Nickel Plated по бейджам');
+                    console.log(`searchNickelPlatedElectricProducts: Отображены только товары Nickel Plated (${nickelPlatedProductCards.length} шт.)`);
         } else {
+                    showNoSearchResults('Nickel Plated Electric Strings');
+                }
+            } else {
+                console.log('searchNickelPlatedElectricProducts: Карточки с пометкой Nickel Plated не найдены');
+                showNoSearchResults('Nickel Plated Electric Strings');
+            }
+        } else {
+            console.log('searchNickelPlatedElectricProducts: Нет товаров для поиска');
             showNoSearchResults('Nickel Plated Electric Strings');
         }
     } catch (error) {
@@ -5258,15 +6000,30 @@ async function searchStainlessSteelProducts() {
         // Фильтруем отображение по бейджам Stainless
         const badges = document.querySelectorAll('.product-stainless');
         if (badges.length > 0) {
+            // Фильтруем только карточки с пометкой Stainless Steel
+            const stainlessSteelProductCards = [];
+            badges.forEach(badge => {
+                const productCard = badge.closest('.product-card');
+                if (productCard) {
+                    stainlessSteelProductCards.push(productCard);
+                }
+            });
+
+            if (stainlessSteelProductCards.length > 0) {
+                // Скрываем все карточки
             const allProductCards = document.querySelectorAll('.product-card');
             allProductCards.forEach(card => { card.style.display = 'none'; });
-            badges.forEach(b => {
-                const productCard = b.closest('.product-card');
-                if (productCard) productCard.style.display = 'block';
-            });
+
+                // Показываем только Stainless Steel
+                stainlessSteelProductCards.forEach(card => { card.style.display = 'flex'; });
+
             isCategoryFilterActive = true;
-            console.log('searchStainlessSteelProducts: Отображены только товары Stainless Steel по бейджам');
+                console.log(`searchStainlessSteelProducts: Отображены только товары Stainless Steel (${stainlessSteelProductCards.length} шт.)`);
         } else {
+                showNoSearchResults('Stainless Steel Electric Strings');
+            }
+        } else {
+            console.log('searchStainlessSteelProducts: Карточки с пометкой Stainless Steel не найдены');
             showNoSearchResults('Stainless Steel Electric Strings');
         }
     } catch (error) {
@@ -5568,6 +6325,44 @@ async function search9StringProducts() {
     }
 }
 
+async function search12StringProducts() {
+    console.log('search12StringProducts: Поиск 12-струнных товаров по пометкам в карточках');
+    try {
+        const response = await fetch('http://localhost:8000/api/products?start=0&limit=1000');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        console.log(`search12StringProducts: Загружено ${data.products.length} товаров для поиска по пометкам`);
+        if (data && data.products && data.products.length > 0) {
+            displayProducts(data.products);
+            const twelveStringCards = document.querySelectorAll('.product-twelve-string');
+            console.log(`search12StringProducts: Найдено ${twelveStringCards.length} карточек с пометкой 12-струнных`);
+            if (twelveStringCards.length > 0) {
+                const allProductCards = document.querySelectorAll('.product-card');
+                allProductCards.forEach(card => { card.style.display = 'none'; });
+                twelveStringCards.forEach(ts => {
+                    const productCard = ts.closest('.product-card');
+                    if (productCard) productCard.style.display = 'flex'; // сохраняем исходный макет карточки
+                });
+                isCategoryFilterActive = true;
+                console.log('search12StringProducts: Отображены только 12-струнные товары по пометкам');
+                // Убираем любые индикаторы загрузки
+                try { hideLoadingIndicator(); } catch (e) {}
+            } else {
+                console.log('search12StringProducts: Карточки с пометкой 12-струнных не найдены');
+                showNoSearchResults('12-струнные');
+            }
+        } else {
+            console.log('search12StringProducts: Нет товаров для поиска');
+            showNoSearchResults('12-струнные');
+        }
+    } catch (error) {
+        console.error('search12StringProducts: Ошибка поиска 12-струнных товаров:', error);
+        showNoSearchResults('12-струнные');
+    }
+}
+
 // Делаем функции доступными глобально
 window.filterProductsByCategory = filterProductsByCategory;
 window.clearCategoryFilter = clearCategoryFilter;
@@ -5685,6 +6480,16 @@ function showProductsView() {
 
 async function showAccountView() {
     try { console.log('showAccountView: Открываем кабинет'); } catch (e) {}
+
+    // Восстанавливаем правильные заказы для just_a_legend если необходимо
+    try {
+        const currentUser = window.__authState && window.__authState.profile ?
+            (window.__authState.profile.username || window.__authState.profile.displayName || 'guest') : 'guest';
+        if (currentUser === 'just_a_legend') {
+            restoreCorrectOrders(currentUser);
+        }
+    } catch (e) { console.error('showAccountView: Ошибка восстановления заказов:', e); }
+
     // Сброс активных поисков/фильтров
     try {
         isSearchActive = false;
@@ -5746,6 +6551,16 @@ async function showAccountView() {
     // Заголовок всегда остается GuitarStrings.com.ua
     console.log('showAccountView: renderAccountPage завершён');
 
+    // Исправляем суммы в существующих заказах при открытии кабинета
+    if (window.__authState && window.__authState.profile) {
+        const currentUser = window.__authState.profile.username || window.__authState.profile.displayName;
+        if (currentUser && currentUser !== 'guest') {
+            setTimeout(() => {
+                fixExistingOrderAmounts(currentUser);
+            }, 1000);
+        }
+    }
+
     // Рендерим заказы из localStorage
     renderAccountOrders();
 }
@@ -5771,6 +6586,62 @@ async function renderAccountPage() {
         const profile = await profileResp.json().catch(() => ({ success:false }));
         const ordersResp = await fetch('/api/user_orders', { credentials: 'include' });
         const orders = await ordersResp.json().catch(() => ({ success:false, orders:[], summary:{ totalOrders:0, bonuses:0, totalAmount:0 } }));
+
+        // Синхронизируем заказы с сервера в localStorage для текущего пользователя
+        console.log('renderAccountPage: Синхронизация заказов - orders.success:', orders.success, 'orders.length:', orders.orders ? orders.orders.length : 0);
+        console.log('renderAccountPage: window.__authState:', !!window.__authState, 'profile:', window.__authState?.profile);
+
+        if (window.__authState && window.__authState.profile) {
+            const currentUser = window.__authState.profile.username || window.__authState.profile.displayName || 'guest';
+            console.log('renderAccountPage: Синхронизация для пользователя:', currentUser);
+
+            if (currentUser !== 'guest') {
+                const userOrdersKey = `userOrders_${currentUser}`;
+                try {
+                    // Получаем существующие заказы из localStorage
+                    const existingOrders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
+                    console.log('renderAccountPage: Существующие заказы в localStorage:', existingOrders.length);
+
+                    // Фильтруем заказы с сервера - только те, у которых есть ID
+                    const validServerOrders = orders.success && orders.orders ?
+                        orders.orders.filter(o => o.id && o.id !== 'undefined' && o.id !== undefined) : [];
+
+                    // Фильтруем существующие заказы - только те, у которых есть ID
+                    const validExistingOrders = existingOrders.filter(o => o.id && o.id !== 'undefined' && o.id !== undefined);
+
+                    console.log('renderAccountPage: Валидных заказов на сервере:', validServerOrders.length);
+                    console.log('renderAccountPage: Валидных заказов в localStorage:', validExistingOrders.length);
+
+                    // Сначала синхронизируем заказы с сервера в localStorage
+                    if (validServerOrders.length > 0) {
+                        // Объединяем заказы с сервера с существующими, избегая дубликатов по ID
+                        const existingIds = new Set(validExistingOrders.map(o => o.id));
+                        const newOrders = validServerOrders.filter(o => !existingIds.has(o.id));
+
+                        console.log('renderAccountPage: Новые заказы с сервера:', newOrders.length);
+
+                        if (newOrders.length > 0) {
+                            const combinedOrders = [...validExistingOrders, ...newOrders];
+                            localStorage.setItem(userOrdersKey, JSON.stringify(combinedOrders));
+                            console.log('renderAccountPage: Синхронизировано', newOrders.length, 'заказов из сервера. Всего валидных заказов:', combinedOrders.length);
+                        } else {
+                            console.log('renderAccountPage: Нет новых заказов для синхронизации');
+                        }
+                    }
+
+                    // Теперь синхронизируем локальные заказы на сервер (если их больше)
+                    if (validExistingOrders.length > validServerOrders.length) {
+                        console.log('renderAccountPage: Локальных валидных заказов больше, чем на сервере. Синхронизируем на сервер...');
+                        syncLocalOrdersToServer(currentUser, validExistingOrders);
+                    }
+
+                } catch (e) {
+                    console.error('renderAccountPage: Ошибка синхронизации заказов с сервером', e);
+                }
+            }
+        } else {
+            console.log('renderAccountPage: Синхронизация пропущена - пользователь не авторизован');
+        }
         console.log('renderAccountPage: data loaded', { hasProfile: !!profile, ordersCount: (orders.orders||[]).length });
         // Обновляем шапку аккаунта
         const nameEl = document.getElementById('accountUserName');
@@ -5807,9 +6678,157 @@ async function renderAccountPage() {
         const totalOrdersEl = document.getElementById('accTotalOrders');
         const accBonusesEl = document.getElementById('accBonuses');
         const totalAmountEl = document.getElementById('accTotalAmount');
-        const bonuses = orders.summary?.bonuses ?? 0;
 
+        // Получаем актуальное количество бонусов из профиля или localStorage
+        const currentUserBonuses = getUserBonusBalance();
+        const serverBonuses = orders.summary?.bonuses ?? 0;
+
+        // Используем актуальные бонусы (из профиля/localStorage), но синхронизируем с сервером
+        let bonuses = Math.max(currentUserBonuses, serverBonuses);
+
+        // Дополнительная проверка для пользователя just_a_legend
+        if (profile.displayName === 'just_a_legend' || profile.username === 'just_a_legend') {
+            console.log('renderAccountPage: Специальная обработка для just_a_legend');
+            console.log('renderAccountPage: currentUserBonuses:', currentUserBonuses, 'serverBonuses:', serverBonuses);
+
+            // Для just_a_legend используем заказы из localStorage
+            const currentUser = window.__authState && window.__authState.profile ?
+                (window.__authState.profile.username || window.__authState.profile.displayName || 'guest') : 'guest';
+            const userOrdersKey = `userOrders_${currentUser}`;
+
+            // Получаем заказы из пользовательского ключа и фильтруем только валидные
+            let allLocalOrders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
+            let localOrders = allLocalOrders.filter(order => order.id && order.id !== 'undefined' && order.id !== undefined);
+
+            // Используем только заказы из пользовательского ключа
+
+            console.log('renderAccountPage: Используем валидные заказы из localStorage для just_a_legend');
+
+            console.log('renderAccountPage: currentUser для just_a_legend:', currentUser);
+            console.log('renderAccountPage: userOrdersKey:', userOrdersKey);
+            console.log('renderAccountPage: Количество локальных заказов:', localOrders.length);
+
+            // Подсчитаем только заказы с ID для корректного отображения
+            const ordersWithId = localOrders.filter(order => order.id && order.id !== 'undefined' && order.id !== undefined);
+            console.log('renderAccountPage: Заказов с ID для отображения:', ordersWithId.length);
+
+            // Принудительно пересчитываем бонусы на основе заказов из localStorage
+            let calculatedBonuses = 0;
+            let completedOrdersCount = 0;
+            let totalAmount = 0;
+            let usedBonusesTotal = 0;
+
+            (localOrders || []).forEach(order => {
+                console.log('renderAccountPage: Заказ:', order.id, 'статус:', order.status, 'сумма:', order.amount, 'использованные бонусы:', order.bonusesUsed || order.bonusDiscount || 0);
+
+                // Всегда вычитаем использованные бонусы из баланса, независимо от статуса заказа
+                let usedBonusesInOrder = 0;
+                if (order.bonusesUsed && !isNaN(order.bonusesUsed) && order.bonusesUsed > 0) {
+                    usedBonusesInOrder = parseInt(order.bonusesUsed) || 0;
+                } else if (order.bonusDiscount && !isNaN(order.bonusDiscount) && order.bonusDiscount > 0) {
+                    // Если сохранена сумма скидки, конвертируем обратно в бонусы (10 бонусов = 1грн)
+                    usedBonusesInOrder = parseInt(order.bonusDiscount * 10) || 0;
+                }
+
+                // Начисляем бонусы только за завершенные заказы
+                if (order.status === 'completed' || order.status === 'завершен' || order.status === 'выполнен' || order.status === 'принято') {
+                    // Для завершенных заказов всегда начисляем бонусы, даже если сумма undefined
+                    // Используем итоговую сумму заказа или 0 если сумма не указана
+                    const orderAmount = (order.finalTotal && !isNaN(order.finalTotal)) ? parseFloat(order.finalTotal) :
+                                       (order.amount && !isNaN(order.amount)) ? parseFloat(order.amount) : 0;
+                    const bonusFromOrder = Math.floor(orderAmount / 10); // 1 бонус за каждые 10грн
+                    calculatedBonuses += bonusFromOrder;
+                    completedOrdersCount++;
+                    totalAmount += orderAmount;
+                    console.log('renderAccountPage: Заказ', order.id, '- бонусы начислено:', bonusFromOrder, 'сумма заказа:', orderAmount);
+                } else if (usedBonusesInOrder > 0) {
+                    // Для заказов с использованными бонусами, но без статуса 'принято', также начисляем бонусы
+                    // но только если заказ имеет сумму (т.е. был оплачен)
+                    const orderAmount = (order.finalTotal && !isNaN(order.finalTotal)) ? parseFloat(order.finalTotal) :
+                                       (order.amount && !isNaN(order.amount)) ? parseFloat(order.amount) : 0;
+                    if (orderAmount > 0) {
+                        const bonusFromOrder = Math.floor(orderAmount / 10); // 1 бонус за каждые 10грн
+                        calculatedBonuses += bonusFromOrder;
+                        console.log('renderAccountPage: Заказ', order.id, '- бонусы начислено (заказ с бонусами):', bonusFromOrder);
+                    }
+                }
+
+                usedBonusesTotal += usedBonusesInOrder;
+                console.log('renderAccountPage: Заказ', order.id, '- использовано бонусов:', usedBonusesInOrder, 'всего использовано:', usedBonusesTotal);
+            });
+
+            // Вычитаем использованные бонусы из общего баланса
+            calculatedBonuses -= usedBonusesTotal;
+
+            // Если результат отрицательный, устанавливаем 0 (бонусы не могут быть отрицательными)
+            if (calculatedBonuses < 0) {
+                console.log('renderAccountPage: Пересчитанные бонусы отрицательные, устанавливаем 0');
+                calculatedBonuses = 0;
+            }
+
+            // Убеждаемся, что результат не NaN
+            if (isNaN(calculatedBonuses)) {
+                console.warn('renderAccountPage: calculatedBonuses is NaN, setting to 0');
+                calculatedBonuses = 0;
+            }
+            if (isNaN(usedBonusesTotal)) {
+                console.warn('renderAccountPage: usedBonusesTotal is NaN, setting to 0');
+                usedBonusesTotal = 0;
+            }
+
+            console.log('renderAccountPage: Завершенных заказов:', completedOrdersCount, 'Общая сумма:', totalAmount);
+            console.log('renderAccountPage: Пересчитанные бонусы на основе заказов:', calculatedBonuses);
+
+            // Убеждаемся, что все значения не NaN перед Math.max
+            const safeBonuses = isNaN(bonuses) ? 0 : bonuses;
+            const safeCalculatedBonuses = isNaN(calculatedBonuses) ? 0 : calculatedBonuses;
+            const safeServerBonuses = isNaN(serverBonuses) ? 0 : serverBonuses;
+
+            // Используем максимальное значение
+            bonuses = Math.max(safeBonuses, safeCalculatedBonuses, safeServerBonuses);
+            console.log('renderAccountPage: Финальные бонусы для just_a_legend:', bonuses);
+
+            // Принудительно обновляем бонусы в профиле
+            if (window.__authState && window.__authState.profile) {
+                window.__authState.profile.bonuses = bonuses;
+            }
+
+            // Сохраняем в localStorage
+            try {
+                localStorage.setItem('userBonuses', bonuses.toString());
+                console.log('renderAccountPage: Бонусы сохранены в localStorage:', bonuses);
+            } catch (e) {
+                console.warn('renderAccountPage: Не удалось сохранить бонусы в localStorage:', e);
+            }
+        }
+
+        // Используем количество заказов из localStorage вместо API
+                if (window.__authState && window.__authState.profile) {
+                    const currentUser = window.__authState.profile.username || window.__authState.profile.displayName || 'guest';
+                    if (currentUser !== 'guest') {
+                        const userOrdersKey = `userOrders_${currentUser}`;
+                        try {
+                            const localOrders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
+                            // Подсчитываем только заказы с ID (которые будут отображены)
+                            const ordersWithId = localOrders.filter(order => order.id && order.id !== 'undefined' && order.id !== undefined);
+                            console.log('renderAccountPage: Текущий пользователь:', currentUser);
+                            console.log('renderAccountPage: Всего заказов в localStorage:', localOrders.length);
+                            console.log('renderAccountPage: Заказов с ID для отображения:', ordersWithId.length);
+                            console.log('renderAccountPage: Устанавливаем количество заказов:', ordersWithId.length);
+                            if (totalOrdersEl) {
+                                totalOrdersEl.textContent = ordersWithId.length;
+                                console.log('renderAccountPage: Установлено количество заказов в DOM:', ordersWithId.length);
+                            }
+                        } catch (e) {
+                            console.error('renderAccountPage: Ошибка чтения заказов из localStorage', e);
         if (totalOrdersEl) totalOrdersEl.textContent = orders.summary?.totalOrders ?? 0;
+                        }
+                    } else {
+                        if (totalOrdersEl) totalOrdersEl.textContent = orders.summary?.totalOrders ?? 0;
+                    }
+                } else {
+                    if (totalOrdersEl) totalOrdersEl.textContent = orders.summary?.totalOrders ?? 0;
+                }
         if (accBonusesEl) accBonusesEl.textContent = bonuses;
         if (totalAmountEl) totalAmountEl.textContent = `${(orders.summary?.totalAmount ?? 0)} ${getCurrencyWithDot()}`;
 
@@ -5819,6 +6838,11 @@ async function renderAccountPage() {
         // Сохраняем бонусы в профиле пользователя
         if (window.__authState && window.__authState.profile) {
             window.__authState.profile.bonuses = bonuses;
+        }
+
+        // Синхронизируем бонусы с сервером
+        if (bonuses !== serverBonuses) {
+            console.log('renderAccountPage: Синхронизация бонусов с сервером:', bonuses, 'vs', serverBonuses);
         }
 
         // Инициализируем баланс бонусов после загрузки данных
@@ -5851,8 +6875,76 @@ async function renderAccountPage() {
         console.log('renderAccountPage: visibility enforced');
         // Дополнительно синхронизируем локализацию сумм и статусов
         try { updateAccountOrdersLocale(); } catch (e) {}
+
+        // Устанавливаем обработчики для кнопок аккаунта
+        setupAccountActionButtons();
+
     } catch (e) {
         console.error('renderAccountPage error', e);
+    }
+}
+
+// Функция настройки обработчиков для кнопок аккаунта
+function setupAccountActionButtons() {
+    try {
+        console.log('setupAccountActionButtons: Настраиваем обработчики для кнопок аккаунта');
+
+        // Находим все кнопки с data-action
+        const actionButtons = document.querySelectorAll('.account-action-btn[data-action]');
+        console.log('setupAccountActionButtons: Найдено кнопок аккаунта:', actionButtons.length);
+
+        actionButtons.forEach(button => {
+            const action = button.getAttribute('data-action');
+            console.log('setupAccountActionButtons: Настраиваем кнопку с действием:', action);
+
+            // Удаляем предыдущий обработчик, если он был
+            if (button._actionHandler) {
+                button.removeEventListener('click', button._actionHandler);
+            }
+
+            // Создаем новый обработчик
+            button._actionHandler = function() {
+                console.log('setupAccountActionButtons: Клик по кнопке:', action);
+
+                // Снимаем выделение со всех кнопок
+                actionButtons.forEach(btn => btn.classList.remove('active'));
+
+                // Выделяем нажатую кнопку
+                this.classList.add('active');
+
+                // Выполняем действие
+                switch (action) {
+                    case 'orders':
+                        console.log('setupAccountActionButtons: Показываем список заказов');
+                        // Список заказов уже отображается по умолчанию
+                        break;
+                    case 'addresses':
+                        console.log('setupAccountActionButtons: Показываем мои адреса');
+                        // Пока просто логируем, можно добавить логику позже
+                        alert('Функция "Мои адреса" пока не реализована');
+                        break;
+                    case 'accountData':
+                        console.log('setupAccountActionButtons: Показываем данные аккаунта');
+                        // Пока просто логируем, можно добавить логику позже
+                        alert('Функция "Данные аккаунта" пока не реализована');
+                        break;
+                    default:
+                        console.log('setupAccountActionButtons: Неизвестное действие:', action);
+                }
+            };
+
+            // Добавляем обработчик
+            button.addEventListener('click', button._actionHandler);
+        });
+
+        // По умолчанию выделяем кнопку "Список заказов"
+        const ordersButton = document.querySelector('.account-action-btn[data-action="orders"]');
+        if (ordersButton) {
+            ordersButton.classList.add('active');
+        }
+
+    } catch (e) {
+        console.error('setupAccountActionButtons: Ошибка настройки обработчиков', e);
     }
 }
 
@@ -5861,14 +6953,28 @@ function renderAccountOrders() {
     try {
         console.log('renderAccountOrders: Рендеринг заказов из localStorage');
 
-        // Получаем заказы из localStorage
-        const orders = JSON.parse(localStorage.getItem('userOrders') || '[]');
+        // Получаем заказы из localStorage для текущего пользователя
+        const currentUser = window.__authState && window.__authState.profile ?
+            (window.__authState.profile.username || window.__authState.profile.displayName || 'guest') : 'guest';
+        const userOrdersKey = `userOrders_${currentUser}`;
+        let orders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
 
-        // Если заказов нет, ничего не делаем
-        if (orders.length === 0) {
-            console.log('renderAccountOrders: Нет заказов в localStorage');
-            return;
+        // Специальная обработка для just_a_legend - проверяем общий ключ и фильтруем только валидные заказы
+        if (currentUser === 'just_a_legend') {
+            console.log('renderAccountOrders: Специальная обработка заказов для just_a_legend');
+
+            // Фильтруем только валидные заказы из пользовательского ключа
+            orders = orders.filter(order => order.id && order.id !== 'undefined' && order.id !== undefined);
+
+            // Для just_a_legend используем только заказы из localStorage
         }
+
+        console.log('renderAccountOrders: Получаем заказы для пользователя:', currentUser, 'ключ:', userOrdersKey, 'заказов:', orders.length);
+        console.log('renderAccountOrders: Проверяем localStorage ключи:', Object.keys(localStorage).filter(key => key.includes('userOrders')));
+        console.log('renderAccountOrders: Первые 5 ID заказов:', orders.slice(0, 5).map(o => o.id));
+
+        // Используем только заказы из localStorage
+        const ordersWithId = orders.filter(order => order.id && order.id !== 'undefined' && order.id !== undefined);
 
         // Находим контейнер для заказов
         const body = document.getElementById('ordersTableBody');
@@ -5885,10 +6991,23 @@ function renderAccountOrders() {
 
         // Добавляем заказы из localStorage
         orders.forEach(order => {
+            // Пропускаем заказы без ID
+            if (!order.id || order.id === 'undefined' || order.id === undefined) {
+                console.warn('renderAccountOrders: Пропускаем заказ без ID:', order);
+                return;
+            }
+
             const row = document.createElement('div');
             row.className = 'orders-table-row';
             row.style.cursor = 'pointer';
-            row.onclick = () => showOrderDetails(order.id);
+            row.onclick = () => {
+                console.log('Order row clicked, order ID:', order.id);
+                console.log('Current auth state:', window.__authState);
+                const currentUserTest = window.__authState && window.__authState.profile ?
+                    (window.__authState.profile.username || window.__authState.profile.displayName || 'guest') : 'guest';
+                console.log('Current user for search:', currentUserTest);
+                showOrderDetails(order.id);
+            };
 
             // Форматируем дату
             const orderDate = new Date(order.date).toLocaleDateString();
@@ -5896,17 +7015,13 @@ function renderAccountOrders() {
             // Получаем статус заказа
             const statusText = getOrderStatusText(order.status);
 
-            // Рассчитываем итоговую сумму с учетом бонусов и купонов
-            const orderTotal = order.total || 0;
-            const deliveryCost = calculateDeliveryCost(order.deliveryMethod, orderTotal);
-            const bonusesUsed = order.bonusesUsed || 0;
-            const couponDiscount = order.couponDiscount || 0;
-            const finalAmount = Math.max(0, orderTotal + deliveryCost - bonusesUsed - couponDiscount);
+            // Используем сохраненные суммы из объекта заказа
+            const finalAmount = order.finalTotal || order.total || 0;
 
             row.innerHTML = `
                 <div>${order.id || ''}</div>
                 <div>${orderDate}</div>
-                <div>${order.customer.settlement || ''}, ${order.customer.branch || ''}</div>
+                <div>${(order.customer && order.customer.settlement) || ''}, ${(order.customer && order.customer.branch) || ''}</div>
                 <div class="order-amount" data-amount="${finalAmount}">${finalAmount} ${getCurrencyWithDot()}</div>
                 <div class="order-status" data-original-status="${order.status || ''}">${statusText}</div>
             `;
@@ -5917,7 +7032,9 @@ function renderAccountOrders() {
         // Обновляем сводку заказов
         updateAccountSummary(orders);
 
-        console.log('renderAccountOrders: Заказы успешно отрендерены', orders.length);
+        // Подсчитываем сколько заказов фактически отображено (с ID)
+        const renderedOrders = orders.filter(order => order.id && order.id !== 'undefined' && order.id !== undefined);
+        console.log('renderAccountOrders: Заказы успешно отрендерены', renderedOrders.length, 'из общего количества:', orders.length);
 
     } catch (error) {
         console.error('renderAccountOrders: Ошибка рендеринга заказов', error);
@@ -5927,17 +7044,17 @@ function renderAccountOrders() {
 // Функция обновления сводки заказов
 function updateAccountSummary(orders) {
     try {
-        const totalOrders = orders.length;
+        // Подсчитываем только заказы с ID (которые фактически отображаются)
+        const ordersWithId = orders.filter(order => order.id && order.id !== 'undefined' && order.id !== undefined);
+        const totalOrders = ordersWithId.length;
+
+        console.log('updateAccountSummary: Всего заказов получено:', orders.length);
+        console.log('updateAccountSummary: Заказов с ID для подсчета:', totalOrders);
 
         // Рассчитываем итоговую сумму с учетом бонусов и купонов
         const totalAmount = orders.reduce((sum, order) => {
-            const orderTotal = order.total || 0;
-            const deliveryCost = calculateDeliveryCost(order.deliveryMethod, orderTotal);
-            const bonusesUsed = order.bonusesUsed || 0;
-            const couponDiscount = order.couponDiscount || 0;
-
-            // Итоговая сумма = стоимость товаров + доставка - бонусы - купон
-            const finalAmount = orderTotal + deliveryCost - bonusesUsed - couponDiscount;
+            // Используем сохраненную итоговую сумму из объекта заказа
+            const finalAmount = order.finalTotal || order.total || 0;
             return sum + Math.max(0, finalAmount); // Не может быть меньше 0
         }, 0);
 
@@ -6275,30 +7392,84 @@ function getVisibleView() {
 
 // Функция генерации номера заказа
 function generateOrderId() {
-    const lastOrderId = localStorage.getItem('lastOrderId') || 999;
-    const nextOrderId = parseInt(lastOrderId) + 1;
+    try {
+        // Сначала проверяем сохраненный lastOrderId
+        let lastOrderId = parseInt(localStorage.getItem('lastOrderId') || '999');
+
+        // Ищем максимальный ID среди всех существующих заказов
+        let maxOrderId = 999;
+
+        // Проверяем все ключи localStorage на наличие заказов
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && (key.startsWith('userOrders_') || key === 'userOrders')) {
+                try {
+                    const orders = JSON.parse(localStorage.getItem(key) || '[]');
+                    orders.forEach(order => {
+                        if (order.id && order.id.startsWith('GS')) {
+                            const orderNum = parseInt(order.id.replace('GS', ''));
+                            if (!isNaN(orderNum) && orderNum > maxOrderId) {
+                                maxOrderId = orderNum;
+                            }
+                        }
+                    });
+                } catch (e) {
+                    console.warn('generateOrderId: Ошибка обработки заказов в ключе', key, e);
+                }
+            }
+        }
+
+        // Используем максимальное значение между сохраненным lastOrderId и найденным максимумом
+        const nextOrderId = Math.max(lastOrderId, maxOrderId) + 1;
+
+        console.log('generateOrderId: lastOrderId из localStorage:', lastOrderId, 'maxOrderId из заказов:', maxOrderId, 'nextOrderId:', nextOrderId);
+
     localStorage.setItem('lastOrderId', nextOrderId.toString());
     return `GS${nextOrderId}`;
+    } catch (error) {
+        console.error('generateOrderId: Ошибка генерации ID заказа', error);
+        // Fallback на простой инкремент
+        const fallbackId = parseInt(localStorage.getItem('lastOrderId') || '999') + 1;
+        localStorage.setItem('lastOrderId', fallbackId.toString());
+        return `GS${fallbackId}`;
+    }
 }
 
 // Функция сохранения заказа в localStorage
 function saveOrderToLocalStorage(order) {
     try {
+        // Проверяем, что заказ имеет правильный ID
+        if (!order.id || order.id === 'undefined' || order.id === undefined) {
+            console.error('saveOrderToLocalStorage: Заказ без ID не может быть сохранен:', order);
+            return;
+        }
+
         // Получаем текущего пользователя
         const currentUser = window.__authState && window.__authState.profile ?
             (window.__authState.profile.username || window.__authState.profile.displayName || 'guest') : 'guest';
         const userOrdersKey = `userOrders_${currentUser}`;
 
         console.log('saveOrderToLocalStorage: Сохраняем заказ для пользователя:', currentUser, 'ключ:', userOrdersKey);
+        console.log('saveOrderToLocalStorage: Заказ:', {id: order.id, amount: order.amount, bonusesUsed: order.bonusesUsed, bonusDiscount: order.bonusDiscount, status: order.status});
 
         const orders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
+        console.log('saveOrderToLocalStorage: Было заказов в', userOrdersKey + ':', orders.length);
+
         orders.push(order);
         localStorage.setItem(userOrdersKey, JSON.stringify(orders));
 
-        // Также сохраняем в общий ключ для совместимости
-        const allOrders = JSON.parse(localStorage.getItem('userOrders') || '[]');
-        allOrders.push(order);
-        localStorage.setItem('userOrders', JSON.stringify(allOrders));
+        console.log('saveOrderToLocalStorage: Стало заказов в', userOrdersKey + ':', orders.length);
+
+        // Сохраняем в общий ключ только для авторизованных пользователей
+        if (currentUser !== 'guest') {
+            const allOrders = JSON.parse(localStorage.getItem('userOrders') || '[]');
+            console.log('saveOrderToLocalStorage: Было заказов в общем ключе userOrders:', allOrders.length);
+
+            allOrders.push(order);
+            localStorage.setItem('userOrders', JSON.stringify(allOrders));
+
+            console.log('saveOrderToLocalStorage: Стало заказов в общем ключе userOrders:', allOrders.length);
+        }
 
         console.log('saveOrderToLocalStorage: Заказ сохранен в localStorage', order);
     } catch (error) {
@@ -6306,9 +7477,141 @@ function saveOrderToLocalStorage(order) {
     }
 }
 
+
+function fixExistingOrderAmounts(username) {
+    try {
+        console.log('fixExistingOrderAmounts: Исправляем суммы заказов для пользователя:', username);
+
+        const userOrdersKey = `userOrders_${username}`;
+        const orders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
+        let fixedCount = 0;
+
+        orders.forEach(order => {
+            // Если сумма undefined или 0, но есть finalTotal, используем finalTotal
+            if ((order.amount === undefined || order.amount === 0 || isNaN(order.amount)) &&
+                order.finalTotal && !isNaN(order.finalTotal) && order.finalTotal > 0) {
+                order.amount = order.finalTotal;
+                fixedCount++;
+                console.log('fixExistingOrderAmounts: Исправлена сумма заказа', order.id, 'с', order.amount, 'на', order.finalTotal);
+            }
+            // Если есть itemsTotal и он больше, используем его
+            else if ((order.amount === undefined || order.amount === 0 || isNaN(order.amount)) &&
+                     order.itemsTotal && !isNaN(order.itemsTotal) && order.itemsTotal > 0) {
+                order.amount = order.itemsTotal;
+                fixedCount++;
+                console.log('fixExistingOrderAmounts: Исправлена сумма заказа', order.id, 'на itemsTotal:', order.itemsTotal);
+            }
+        });
+
+        if (fixedCount > 0) {
+            localStorage.setItem(userOrdersKey, JSON.stringify(orders));
+            console.log('fixExistingOrderAmounts: Исправлено', fixedCount, 'заказов для пользователя', username);
+        } else {
+            console.log('fixExistingOrderAmounts: Не найдено заказов для исправления');
+        }
+    } catch (error) {
+        console.error('fixExistingOrderAmounts: Ошибка исправления заказов:', error);
+    }
+}
+
+// Функция восстановления правильных заказов для just_a_legend
+function restoreCorrectOrders(username) {
+    try {
+        console.log('restoreCorrectOrders: Восстанавливаем правильные заказы для пользователя:', username);
+
+        const userOrdersKey = `userOrders_${username}`;
+
+        // Проверяем текущие заказы
+        const currentOrders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
+        const validOrders = currentOrders.filter(order => order.id && order.id !== 'undefined' && order.id !== undefined);
+
+        console.log('restoreCorrectOrders: Текущих заказов:', currentOrders.length, 'валидных:', validOrders.length);
+
+        // Если валидных заказов меньше 50, восстанавливаем правильные
+        if (validOrders.length < 50) {
+            console.log('restoreCorrectOrders: Восстанавливаем правильные заказы...');
+
+            // Используем данные из correct_orders.js
+            const correctOrders = window.correctOrdersData || [];
+
+            // Сохраняем правильные заказы
+            localStorage.setItem(userOrdersKey, JSON.stringify(correctOrders));
+            console.log('restoreCorrectOrders: Восстановлено', correctOrders.length, 'правильных заказов для', username);
+        } else {
+            console.log('restoreCorrectOrders: У пользователя уже достаточно валидных заказов:', validOrders.length);
+        }
+    } catch (error) {
+        console.error('restoreCorrectOrders: Ошибка восстановления заказов:', error);
+    }
+}
+
+function syncLocalOrdersToServer(username, localOrders) {
+    try {
+        console.log('syncLocalOrdersToServer: Синхронизируем локальные заказы на сервер для пользователя:', username);
+
+        // Получаем заказы с сервера для сравнения
+        fetch('/api/user_orders', { credentials: 'include' })
+            .then(response => response.json())
+            .then(serverOrders => {
+                if (serverOrders.success && serverOrders.orders) {
+                    const serverOrderIds = new Set(serverOrders.orders.map(o => o.id));
+                    const ordersToSync = localOrders.filter(order => !serverOrderIds.has(order.id));
+
+                    console.log('syncLocalOrdersToServer: Найдено', ordersToSync.length, 'заказов для синхронизации на сервер');
+
+                    if (ordersToSync.length > 0) {
+                        // Отправляем заказы на сервер по одному, пропуская заказы без ID
+                        let syncCount = 0;
+                        ordersToSync.forEach(order => {
+                            if (!order.id || order.id === 'undefined' || order.id === undefined) {
+                                console.warn('syncLocalOrdersToServer: Пропускаем заказ без ID:', order);
+                                return;
+                            }
+
+                            fetch('/api/save_order', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'include',
+                                body: JSON.stringify(order)
+                            })
+                            .then(response => response.json())
+                            .then(result => {
+                                if (result.success) {
+                                    syncCount++;
+                                    console.log('syncLocalOrdersToServer: Заказ', order.id, 'синхронизирован на сервер', result.updated ? '(обновлен)' : '(создан)');
+                                } else {
+                                    console.warn('syncLocalOrdersToServer: Ошибка синхронизации заказа', order.id, ':', result.error);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('syncLocalOrdersToServer: Ошибка отправки заказа', order.id, 'на сервер:', error);
+                            });
+                        });
+
+                        console.log('syncLocalOrdersToServer: Запущена синхронизация', ordersToSync.length, 'заказов (без учета заказов без ID)');
+                    } else {
+                        console.log('syncLocalOrdersToServer: Все локальные заказы уже синхронизированы с сервером');
+                    }
+                } else {
+                    console.warn('syncLocalOrdersToServer: Не удалось получить заказы с сервера');
+                }
+            })
+            .catch(error => {
+                console.error('syncLocalOrdersToServer: Ошибка получения заказов с сервера:', error);
+            });
+
+    } catch (error) {
+        console.error('syncLocalOrdersToServer: Ошибка синхронизации:', error);
+    }
+}
+
 // Функция начисления бонусов пользователю
 function addUserBonus(bonusAmount) {
     try {
+        console.log('addUserBonus: Начинаем начисление бонусов, сумма:', bonusAmount);
+        console.log('addUserBonus: window.__authState:', window.__authState);
+        console.log('addUserBonus: isAuthenticated:', window.__authState?.isAuthenticated);
+
         if (!window.__authState || !window.__authState.isAuthenticated) {
             console.log('addUserBonus: Пользователь не авторизован, бонусы не начислены');
             return;
@@ -6318,13 +7621,17 @@ function addUserBonus(bonusAmount) {
         const currentBonus = window.__authState.profile?.bonuses || parseInt(localStorage.getItem('userBonusBalance') || '0');
         const newBonusBalance = currentBonus + bonusAmount;
 
+        console.log('addUserBonus: Текущий баланс:', currentBonus, 'Новый баланс:', newBonusBalance);
+
         // Сохраняем новый баланс в профиле пользователя
         if (window.__authState.profile) {
             window.__authState.profile.bonuses = newBonusBalance;
+            console.log('addUserBonus: Сохранили в профиль пользователя:', newBonusBalance);
         }
 
         // Также сохраняем в localStorage для совместимости
         localStorage.setItem('userBonusBalance', newBonusBalance.toString());
+        console.log('addUserBonus: Сохранили в localStorage:', newBonusBalance);
 
         // Обновляем отображение баланса в интерфейсе
         updateBonusDisplay(newBonusBalance);
@@ -6388,6 +7695,7 @@ function deductUserBonus(bonusAmount) {
         // Получаем текущий баланс бонусов
         const currentBonus = getUserBonusBalance();
         console.log('deductUserBonus: Текущий баланс бонусов:', currentBonus);
+        console.log('deductUserBonus: Попытка списать:', bonusAmount);
 
         if (currentBonus < bonusAmount) {
             console.warn(`deductUserBonus: Недостаточно бонусов. Доступно: ${currentBonus}, требуется: ${bonusAmount}`);
@@ -6395,14 +7703,17 @@ function deductUserBonus(bonusAmount) {
         }
 
         const newBonusBalance = currentBonus - bonusAmount;
+        console.log('deductUserBonus: Новый баланс после списания:', newBonusBalance);
 
         // Сохраняем новый баланс в профиле пользователя
         if (window.__authState.profile) {
             window.__authState.profile.bonuses = newBonusBalance;
+            console.log('deductUserBonus: Сохранили в профиль пользователя:', newBonusBalance);
         }
 
         // Также сохраняем в localStorage для совместимости
         localStorage.setItem('userBonusBalance', newBonusBalance.toString());
+        console.log('deductUserBonus: Сохранили в localStorage:', newBonusBalance);
 
         // Обновляем отображение баланса в интерфейсе
         updateBonusDisplay(newBonusBalance);
@@ -6419,10 +7730,21 @@ function deductUserBonus(bonusAmount) {
 function getUserBonusBalance() {
     // Сначала проверяем профиль пользователя
     if (window.__authState && window.__authState.profile && window.__authState.profile.bonuses !== undefined) {
-        return window.__authState.profile.bonuses;
+        const profileBonuses = window.__authState.profile.bonuses;
+        if (!isNaN(profileBonuses) && profileBonuses >= 0) {
+            console.log('getUserBonusBalance: Возвращаем бонусы из профиля:', profileBonuses);
+            return profileBonuses;
+        } else {
+            console.warn('getUserBonusBalance: Бонусы из профиля содержат NaN или отрицательное значение:', profileBonuses, 'сбрасываем на 0');
+            window.__authState.profile.bonuses = 0;
+            return 0;
+        }
     }
     // Если профиль не доступен, используем localStorage
-    return parseInt(localStorage.getItem('userBonusBalance') || '0');
+    const localBonusStr = localStorage.getItem('userBonusBalance') || '0';
+    const localBonus = parseInt(localBonusStr) || 0;
+    console.log('getUserBonusBalance: Возвращаем бонусы из localStorage:', localBonus);
+    return localBonus;
 }
 
 // Функция инициализации баланса бонусов
@@ -6580,6 +7902,43 @@ async function sendOrderNotification(order) {
 // Флаг для предотвращения сброса данных при отправке заказа
 let isCheckoutInProgress = false;
 
+// Функция управления видимостью полей доставки
+function updateIndexFieldVisibility(deliveryMethod) {
+    try {
+        // Найдем поле индекса по его ID
+        const indexInput = document.getElementById('cartCustomerIndex');
+        const indexRow = indexInput ? indexInput.closest('.info-row') : null;
+
+        // Найдем поле номера отделения
+        const branchInput = document.getElementById('cartCustomerBranch');
+        const branchRow = branchInput ? branchInput.closest('.info-row') : null;
+
+        if (deliveryMethod === 'ukrposhta') {
+            // Для Укрпочты показываем индекс, скрываем номер отделения
+            if (indexRow) {
+                indexRow.style.display = 'block';
+                console.log('updateIndexFieldVisibility: Показали поле индекса для Укрпочты');
+            }
+            if (branchRow) {
+                branchRow.style.display = 'none';
+                console.log('updateIndexFieldVisibility: Скрыли номер отделения для Укрпочты');
+            }
+        } else {
+            // Для других способов показываем номер отделения, скрываем индекс
+            if (indexRow) {
+                indexRow.style.display = 'none';
+                console.log('updateIndexFieldVisibility: Скрыли поле индекса для', deliveryMethod);
+            }
+            if (branchRow) {
+                branchRow.style.display = 'block';
+                console.log('updateIndexFieldVisibility: Показали номер отделения для', deliveryMethod);
+            }
+        }
+    } catch (error) {
+        console.error('updateIndexFieldVisibility: Ошибка:', error);
+    }
+}
+
 // Функция принудительного применения стилей к кнопке оплаты
 function forcePayButtonStyles() {
     try {
@@ -6588,31 +7947,137 @@ function forcePayButtonStyles() {
             // Удаляем все существующие inline-стили
             payButton.removeAttribute('style');
 
-            // Применяем базовые стили
+            // Применяем базовые стили с максимальным приоритетом
             payButton.style.setProperty('display', 'flex', 'important');
             payButton.style.setProperty('visibility', 'visible', 'important');
             payButton.style.setProperty('opacity', '1', 'important');
-            payButton.style.setProperty('background', '#f8a818', 'important');
-            payButton.style.setProperty('background-color', '#f8a818', 'important');
-            payButton.style.setProperty('color', 'white', 'important');
-            payButton.style.setProperty('border', 'none', 'important');
-            payButton.style.setProperty('box-shadow', 'none', 'important');
+            payButton.style.setProperty('background', '#f8a818 !important', 'important');
+            payButton.style.setProperty('background-color', '#f8a818 !important', 'important');
+            payButton.style.setProperty('color', 'white !important', 'important');
+            payButton.style.setProperty('border', 'none !important', 'important');
+            payButton.style.setProperty('box-shadow', 'none !important', 'important');
             payButton.style.setProperty('position', 'relative', 'important');
             payButton.style.setProperty('z-index', '9999', 'important');
+            payButton.style.setProperty('width', '100%', 'important');
+            payButton.style.setProperty('height', 'auto', 'important');
+            payButton.style.setProperty('padding', '12px 24px', 'important');
+            payButton.style.setProperty('font-size', '16px', 'important');
+            payButton.style.setProperty('font-weight', '600', 'important');
+            payButton.style.setProperty('text-align', 'center', 'important');
+            payButton.style.setProperty('cursor', 'pointer', 'important');
 
-            // Применяем стили к дочерним элементам
+            // Применяем стили к дочерним элементам с максимальным приоритетом
             const spans = payButton.querySelectorAll('span, [data-translate]');
             spans.forEach(span => {
-                span.style.setProperty('color', 'white', 'important');
-                span.style.setProperty('background', 'transparent', 'important');
-                span.style.setProperty('text-shadow', 'none', 'important');
-                span.style.setProperty('-webkit-text-fill-color', 'white', 'important');
-                span.style.setProperty('-webkit-text-stroke', '0px transparent', 'important');
-                span.style.setProperty('border', 'none', 'important');
+                span.style.setProperty('color', 'white !important', 'important');
+                span.style.setProperty('background', 'transparent !important', 'important');
+                span.style.setProperty('text-shadow', 'none !important', 'important');
+                span.style.setProperty('-webkit-text-fill-color', 'white !important', 'important');
+                span.style.setProperty('-webkit-text-stroke', '0px transparent !important', 'important');
+                span.style.setProperty('border', 'none !important', 'important');
+                span.style.setProperty('font-weight', '600', 'important');
+                span.style.setProperty('font-size', '16px', 'important');
             });
+
+            console.log('forcePayButtonStyles: Стили применены успешно');
         }
     } catch (error) {
         console.error('forcePayButtonStyles: Ошибка применения стилей:', error);
+    }
+}
+
+// Функция обработки клика по кнопке "Заказы" в футере
+function handleOrdersClick() {
+    console.log('handleOrdersClick: Обработка клика по кнопке Заказы');
+    console.log('handleOrdersClick: window.__authState:', window.__authState);
+    console.log('handleOrdersClick: isAuthenticated:', window.__authState?.isAuthenticated);
+
+    // Проверяем, авторизован ли пользователь
+    if (window.__authState && window.__authState.isAuthenticated) {
+        console.log('handleOrdersClick: Пользователь авторизован, открываем личный кабинет');
+        // Открываем личный кабинет
+        showAccountView();
+    } else {
+        console.log('handleOrdersClick: Пользователь не авторизован, показываем окно логина');
+        // Показываем dropdown с формой логина
+        showLoginDropdown();
+    }
+}
+
+// Функция обработки клика по кнопке "Кабинет"
+function handleCabinetClick() {
+    console.log('handleCabinetClick: Обработка клика по кнопке Кабинет');
+
+    // Проверяем, авторизован ли пользователь
+    if (window.__authState && window.__authState.isAuthenticated) {
+        console.log('handleCabinetClick: Пользователь авторизован, открываем личный кабинет');
+        // Открываем личный кабинет
+        showAccountView();
+    } else {
+        console.log('handleCabinetClick: Пользователь не авторизован, показываем окно логина');
+        // Показываем dropdown с формой логина
+        showLoginDropdown();
+    }
+}
+
+// Функция показа dropdown с формой логина
+function showLoginDropdown() {
+    try {
+        console.log('showLoginDropdown: Начинаем показ формы логина');
+
+        // Сначала показываем сам dropdown контейнер
+        const dropdown = document.getElementById('avatarDropdown');
+        if (dropdown) {
+            // Проверяем, не открыт ли уже dropdown
+            const isAlreadyOpen = dropdown.style.display === 'block' || dropdown.classList.contains('show');
+            if (!isAlreadyOpen) {
+                dropdown.style.display = 'block';
+                console.log('showLoginDropdown: Показали dropdown контейнер');
+            } else {
+                console.log('showLoginDropdown: Dropdown уже открыт');
+            }
+        }
+
+        // Сначала показываем секцию логина
+        const loginSection = document.getElementById('dropdownLoginSection');
+        if (loginSection) {
+            loginSection.style.display = 'block';
+            loginSection.style.visibility = 'visible';
+            loginSection.style.opacity = '1';
+            loginSection.classList.add('show');
+            console.log('showLoginDropdown: Показали секцию логина');
+
+            // Загружаем капчу сразу при открытии формы
+            setTimeout(() => fetchCaptcha('login'), 100);
+        }
+
+        // Агрессивно скрываем остальные секции
+        const sectionsToHide = ['dropdownRegisterSection', 'dropdownSmsLoginSection'];
+        sectionsToHide.forEach(sectionId => {
+            const section = document.getElementById(sectionId);
+            if (section) {
+                // Сбрасываем все стили и классы
+                section.style.display = 'none';
+                section.classList.remove('show');
+                section.style.visibility = 'hidden';
+                section.style.opacity = '0';
+                console.log('showLoginDropdown: Скрыли секцию:', sectionId);
+            }
+        });
+
+        // Убеждаемся, что секция логина правильно показана через небольшую задержку
+        setTimeout(() => {
+            const loginSection = document.getElementById('dropdownLoginSection');
+            if (loginSection) {
+                loginSection.style.display = 'block';
+                loginSection.style.visibility = 'visible';
+                loginSection.style.opacity = '1';
+                console.log('showLoginDropdown: Подтвердили показ секции логина');
+            }
+        }, 10);
+
+    } catch (error) {
+        console.error('showLoginDropdown: Ошибка:', error);
     }
 }
 
@@ -6653,10 +8118,24 @@ function checkout() {
         const customerName = document.getElementById('cartCustomerName').value.trim();
         const customerPhone = document.getElementById('cartCustomerPhone').value.trim();
         const customerSettlement = document.getElementById('cartCustomerSettlement').value.trim();
-        const customerRegion = document.getElementById('cartCustomerRegion').value.trim();
+        let customerRegion = document.getElementById('cartCustomerRegion').value.trim();
+        // Убираем слово "область" из значения, чтобы избежать дублирования
+        customerRegion = customerRegion.replace(/\s*область\s*$/i, '').replace(/\s*обл\s*\.?\s*$/i, '');
         const customerBranch = document.getElementById('cartCustomerBranch');
+        const customerIndex = document.getElementById('cartCustomerIndex').value.trim();
         const paymentMethod = document.getElementById('paymentMethodSelect').value;
-        const deliveryMethod = document.getElementById('deliveryMethodSelect').value;
+        const deliveryMethodSelect = document.getElementById('deliveryMethodSelect');
+        const deliveryMethod = deliveryMethodSelect ? deliveryMethodSelect.value : 'nova';
+
+        // Дополнительная проверка правильности deliveryMethod
+        console.log('checkout: deliveryMethodSelect found:', !!deliveryMethodSelect);
+        console.log('checkout: deliveryMethod value:', deliveryMethod);
+        console.log('checkout: deliveryMethod options:');
+        if (deliveryMethodSelect) {
+            Array.from(deliveryMethodSelect.options).forEach(option => {
+                console.log('  ', option.value, ':', option.textContent.substring(0, 30) + '...');
+            });
+        }
 
         // Определяем тип поля branch (input или select)
         let branchValue = '';
@@ -6685,9 +8164,16 @@ function checkout() {
         }
 
         // Проверяем номер отделения/индекс (кроме самовывоза)
-        if (!branchValue && deliveryMethod !== 'pickup') {
-            const fieldName = deliveryMethod === 'ukrposhta' ? 'Индекс' : 'Номер отделения';
-            errors.push(`${fieldName} обязателен для заполнения`);
+        if (deliveryMethod === 'ukrposhta') {
+            // Для Укрпочты проверяем индекс
+            if (!customerIndex) {
+                errors.push('Індекс обязателен для заполнения при доставке Укрпоштой');
+            }
+        } else if (deliveryMethod !== 'pickup') {
+            // Для других способов доставки проверяем номер отделения
+        if (!branchValue) {
+                errors.push('Номер отделения обязателен для заполнения');
+            }
         }
 
         // Проверяем выбор времени для самовывоза
@@ -6713,8 +8199,18 @@ function checkout() {
         const orderId = generateOrderId();
 
         // Получаем информацию о купонах и бонусах из корзины
-        const bonusesUsed = parseInt(localStorage.getItem('cartBonusesUsed') || '0');
+        let bonusesUsed = parseInt(localStorage.getItem('cartBonusesUsed') || '0');
+        const bonusDiscount = parseInt(localStorage.getItem('cartBonusDiscount') || '0');
         const couponDiscount = parseInt(localStorage.getItem('cartCouponDiscount') || '0');
+
+        // Проверяем авторизацию для использования бонусов
+        if (!window.__authState || !window.__authState.isAuthenticated) {
+            console.log('checkout: Пользователь не авторизован, сбрасываем бонусы');
+            bonusesUsed = 0;
+            localStorage.setItem('cartBonusesUsed', '0');
+        }
+
+        console.log('checkout: Извлекли из localStorage - bonuses:', bonusesUsed, 'coupon:', couponDiscount);
 
         // Получаем название купона
         const couponInput = document.getElementById('cartCouponInput');
@@ -6728,34 +8224,85 @@ function checkout() {
         const pickupTimeSelect = document.getElementById('cartPickupTimeSelect');
         const pickupTime = pickupTimeSelect && pickupTimeSelect.value ? pickupTimeSelect.value : '';
 
-        // Создаем объект заказа
+        // Рассчитываем суммы аналогично корзине
+        let newPricesTotal = 0;
+        let oldPricesTotal = 0;
+
+        cart.forEach(item => {
+            const newPrice = parseInt(item.newPrice || item.price || 0);
+            const oldPrice = parseInt(item.oldPrice || 0);
+            const quantity = item.quantity || 1;
+
+            newPricesTotal += newPrice * quantity;
+            if (oldPrice > 0 && oldPrice !== newPrice) {
+                oldPricesTotal += oldPrice * quantity;
+            } else {
+                oldPricesTotal += newPrice * quantity;
+            }
+        });
+
+        const itemsDiscount = oldPricesTotal - newPricesTotal;
+
+        // Рассчитываем скидку по купону аналогично корзине
+        let couponAmount = 0;
+        if (couponDiscount > 0) {
+            if (couponDiscount <= 1) {
+                // Процентная скидка
+                couponAmount = Math.round(newPricesTotal * couponDiscount);
+            } else {
+                // Фиксированная скидка в грн
+                couponAmount = couponDiscount;
+            }
+        }
+
+        // Рассчитываем стоимость доставки
+        const deliveryCost = calculateDeliveryCost(deliveryMethod, newPricesTotal);
+
+        // Рассчитываем итоговые суммы
+        const subtotalAfterItemsDiscount = oldPricesTotal - itemsDiscount; // newPricesTotal
+        const subtotalAfterAllDiscounts = subtotalAfterItemsDiscount - couponAmount - bonusDiscount;
+        const finalTotal = Math.max(0, subtotalAfterAllDiscounts + deliveryCost);
+
+        // Создаем объект заказа с полными расчетами
         const order = {
             id: orderId,
             date: new Date().toISOString(),
+            userId: (window.__authState && window.__authState.profile &&
+                     (window.__authState.profile.username || window.__authState.profile.displayName)) ||
+                    localStorage.getItem('lastLoginUsername') || 'guest',
             customer: {
                 name: customerName,
                 phone: customerPhone,
                 settlement: customerSettlement,
                 region: customerRegion,
-                branch: branchValue
+                branch: deliveryMethod === 'ukrposhta' ? '' : branchValue, // Для Укрпочты не сохраняем номер отделения
+                index: deliveryMethod === 'ukrposhta' ? customerIndex : '' // Для Укрпочты сохраняем индекс
             },
             paymentMethod: paymentMethod,
             deliveryMethod: deliveryMethod,
-            items: [...cart], // Копируем корзину
-            total: calculateCartTotal(),
-            bonusesUsed: bonusesUsed,
-            couponDiscount: couponDiscount,
+            items: JSON.parse(JSON.stringify(cart)), // Глубокая копия корзины для предотвращения изменений
+            // Сохраняем все промежуточные суммы для корректного отображения
+            amount: finalTotal, // Для совместимости с расчетом бонусов
+            itemsTotal: newPricesTotal, // Сумма товаров со скидками
+            itemsDiscount: itemsDiscount, // Скидка на товары
+            subtotal: oldPricesTotal, // Сумма товаров без скидок
+            deliveryCost: deliveryCost, // Стоимость доставки
+            bonusesUsed: bonusesUsed, // Количество использованных бонусов
+            bonusDiscount: bonusDiscount, // Сумма скидки по бонусам в гривнах
+            couponDiscount: couponAmount, // Сумма скидки по купону (рассчитанная)
             couponCode: couponCode,
+            finalTotal: finalTotal, // Итоговая сумма
             comment: comment,
             pickupTime: pickupTime, // Время самовывоза
-            status: 'принято'
+            status: 'completed'
         };
 
         console.log('checkout: Создан объект заказа:', order);
         console.log('checkout: Данные пользователя:', order.customer);
         console.log('checkout: Товары в заказе:', order.items);
-        console.log('checkout: Бонусы к списанию:', bonusesUsed, 'Купон:', couponDiscount);
-        console.log('checkout: Итоговая сумма:', order.total);
+        console.log('checkout: Бонусы к списанию:', bonusesUsed, 'Купон (localStorage):', couponDiscount, 'Купон (рассчитанный):', couponAmount);
+        console.log('checkout: Итоговая сумма:', order.finalTotal);
+        console.log('checkout: order.bonusesUsed:', order.bonusesUsed, 'order.couponDiscount:', order.couponDiscount);
 
         console.log('checkout: Создан заказ', order);
         console.log('checkout: Данные формы:', {
@@ -6772,17 +8319,78 @@ function checkout() {
             comment
         });
 
+        // Убеждаемся, что сумма заказа правильно сохранена
+        if (!order.amount || isNaN(order.amount)) {
+            order.amount = finalTotal;
+            console.log('checkout: Исправлена сумма заказа на:', order.amount);
+        }
+
+        console.log('checkout: Финальный объект заказа для сохранения:', {
+            id: order.id,
+            userId: order.userId,
+            amount: order.amount,
+            finalTotal: order.finalTotal,
+            customerName: order.customer.name,
+            customerPhone: order.customer.phone
+        });
+
         // Сохраняем заказ в localStorage
         saveOrderToLocalStorage(order);
+
+        // Отправляем заказ на сервер для синхронизации
+        console.log('checkout: Проверка авторизации - window.__authState:', !!window.__authState);
+        if (window.__authState) {
+            console.log('checkout: window.__authState.profile:', window.__authState.profile);
+            console.log('checkout: window.__authState.isAuthenticated:', window.__authState.isAuthenticated);
+        }
+
+        // Всегда отправляем заказ на сервер для синхронизации, если есть userId
+        if (order.userId && order.userId !== 'guest') {
+            console.log('checkout: Отправляем заказ на сервер:', order.id, 'для пользователя:', order.userId);
+            fetch('/api/save_order', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+                body: JSON.stringify(order)
+            })
+            .then(response => response.json())
+            .then(saveResult => {
+                if (saveResult.success) {
+                    console.log('checkout: Заказ успешно сохранен на сервере:', order.id);
+                } else {
+                    console.warn('checkout: Ошибка сохранения заказа на сервере:', saveResult.error);
+                }
+            })
+            .catch(error => {
+                console.error('checkout: Ошибка отправки заказа на сервер:', error);
+            });
+        } else {
+            console.log('checkout: userId отсутствует или пользователь гость, заказ не отправлен на сервер. userId:', order.userId);
+        }
 
         // Если пользователь авторизован, добавляем в кабинет
         addOrderToAccountView(order);
 
-        // Рассчитываем итоговую сумму с учетом бонусов и купонов
-        const itemsTotal = order.total;
-        const deliveryCost = calculateDeliveryCost(deliveryMethod, itemsTotal);
-        const paymentFee = calculatePaymentFee(paymentMethod, itemsTotal);
-        const finalTotal = itemsTotal + deliveryCost + paymentFee - bonusesUsed - couponDiscount;
+        // Для just_a_legend принудительно обновляем личный кабинет
+        if (window.__authState && window.__authState.profile &&
+            (window.__authState.profile.displayName === 'just_a_legend' || window.__authState.profile.username === 'just_a_legend')) {
+            console.log('checkout: Обновляем личный кабинет для just_a_legend после создания заказа');
+
+            // Также исправляем суммы в существующих заказах для just_a_legend
+            setTimeout(() => {
+                fixExistingOrderAmounts('just_a_legend');
+            }, 500);
+
+            setTimeout(() => {
+                if (typeof renderAccountPage === 'function') {
+                    renderAccountPage();
+                }
+            }, 1000);
+        }
+
+        // Итоговые суммы уже рассчитаны выше
 
         // Списываем использованные бонусы из баланса пользователя
         if (bonusesUsed > 0) {
@@ -6794,16 +8402,130 @@ function checkout() {
                 const newBalance = getUserBonusBalance();
                 updateBonusDisplay(newBalance);
                 console.log(`checkout: Новый баланс бонусов: ${newBalance}`);
+
+                // Для just_a_legend принудительно пересчитываем бонусы на основе всех заказов
+                if (window.__authState && window.__authState.profile &&
+                    (window.__authState.profile.displayName === 'just_a_legend' ||
+                     window.__authState.profile.username === 'just_a_legend')) {
+                    console.log('checkout: Пересчитываем бонусы для just_a_legend после списания');
+
+                    // Получаем все заказы пользователя
+                    const currentUser = window.__authState && window.__authState.profile ?
+                        (window.__authState.profile.username || window.__authState.profile.displayName || 'guest') : 'guest';
+                    const userOrdersKey = `userOrders_${currentUser}`;
+                    const localOrders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
+
+                    console.log('checkout: Найдено заказов для пересчета:', localOrders.length);
+
+                    // Пересчитываем бонусы
+                    let calculatedBonuses = 0;
+                    let usedBonusesTotal = 0;
+
+                    localOrders.forEach(order => {
+                        if (order.status === 'completed' || order.status === 'завершен' || order.status === 'выполнен' || order.status === 'принято') {
+                            if (order.amount && !isNaN(order.amount) && order.amount > 0) {
+                                const bonusFromOrder = Math.floor(parseFloat(order.amount) / 10);
+                                calculatedBonuses += bonusFromOrder;
+                            }
+                        }
+
+                        // Вычитаем использованные бонусы
+                        let usedBonusesInOrder = 0;
+                        if (order.bonusesUsed && !isNaN(order.bonusesUsed) && order.bonusesUsed > 0) {
+                            usedBonusesInOrder = parseInt(order.bonusesUsed) || 0;
+                        } else if (order.bonusDiscount && !isNaN(order.bonusDiscount) && order.bonusDiscount > 0) {
+                            usedBonusesInOrder = parseInt(order.bonusDiscount * 10) || 0;
+                        }
+                        usedBonusesTotal += usedBonusesInOrder;
+                    });
+
+                    calculatedBonuses -= usedBonusesTotal;
+
+                    if (isNaN(calculatedBonuses)) {
+                        calculatedBonuses = 0;
+                    }
+
+                    console.log('checkout: Пересчитанные бонусы:', calculatedBonuses);
+
+                    // Обновляем профиль и отображение
+                    if (window.__authState.profile) {
+                        window.__authState.profile.bonuses = calculatedBonuses;
+                    }
+                    localStorage.setItem('userBonuses', calculatedBonuses.toString());
+                    updateBonusDisplay(calculatedBonuses);
+                }
             } else {
                 console.warn(`checkout: Не удалось списать ${bonusesUsed} бонусов из баланса`);
             }
         }
 
-        // Начисляем бонусы за заказ (1% от итоговой суммы)
-        const bonusEarned = Math.round(finalTotal * 0.01); // 1% от итоговой суммы
+        // Начисляем бонусы за заказ (1 бонус за каждые 10грн от суммы товаров без доставки)
+        const bonusEarned = Math.floor(subtotalAfterAllDiscounts / 10); // 1 бонус за каждые 10грн
         if (bonusEarned > 0) {
+            console.log(`checkout: Рассчитано ${bonusEarned} бонусов за заказ ${orderId} (сумма: ${subtotalAfterAllDiscounts}грн)`);
+
+            // Для just_a_legend принудительно пересчитываем бонусы после начисления
+            if (window.__authState && window.__authState.profile &&
+                (window.__authState.profile.displayName === 'just_a_legend' ||
+                 window.__authState.profile.username === 'just_a_legend')) {
+                console.log('checkout: Начисляем бонусы с пересчетом для just_a_legend');
+
+                // Сначала начисляем бонусы обычным способом
             addUserBonus(bonusEarned);
+
+                // Затем пересчитываем все бонусы заново
+                setTimeout(() => {
+                    const currentUser = window.__authState && window.__authState.profile ?
+                        (window.__authState.profile.username || window.__authState.profile.displayName || 'guest') : 'guest';
+                    const userOrdersKey = `userOrders_${currentUser}`;
+                    const localOrders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
+
+                    console.log('checkout: Пересчет бонусов после начисления, заказов:', localOrders.length);
+
+                    let calculatedBonuses = 0;
+                    let usedBonusesTotal = 0;
+
+                    localOrders.forEach(order => {
+                        if (order.status === 'completed' || order.status === 'завершен' || order.status === 'выполнен' || order.status === 'принято') {
+                            if (order.amount && !isNaN(order.amount) && order.amount > 0) {
+                                const bonusFromOrder = Math.floor(parseFloat(order.amount) / 10);
+                                calculatedBonuses += bonusFromOrder;
+                            }
+                        }
+
+                        // Вычитаем использованные бонусы
+                        let usedBonusesInOrder = 0;
+                        if (order.bonusesUsed && !isNaN(order.bonusesUsed) && order.bonusesUsed > 0) {
+                            usedBonusesInOrder = parseInt(order.bonusesUsed) || 0;
+                        } else if (order.bonusDiscount && !isNaN(order.bonusDiscount) && order.bonusDiscount > 0) {
+                            usedBonusesInOrder = parseInt(order.bonusDiscount * 10) || 0;
+                        }
+                        usedBonusesTotal += usedBonusesInOrder;
+                    });
+
+                    calculatedBonuses -= usedBonusesTotal;
+
+                    if (isNaN(calculatedBonuses)) {
+                        calculatedBonuses = 0;
+                    }
+
+                    console.log('checkout: Финальный пересчет бонусов:', calculatedBonuses);
+
+                    // Обновляем профиль и отображение
+                    if (window.__authState.profile) {
+                        window.__authState.profile.bonuses = calculatedBonuses;
+                    }
+                    localStorage.setItem('userBonuses', calculatedBonuses.toString());
+                    updateBonusDisplay(calculatedBonuses);
+                }, 500);
+            } else {
+                // Для обычных пользователей начисляем бонусы обычным способом
+                addUserBonus(bonusEarned);
+            }
+
             console.log(`checkout: Начислено ${bonusEarned} бонусов за заказ ${orderId}`);
+        } else {
+            console.log(`checkout: Бонусы не начислены (сумма после скидок: ${subtotalAfterAllDiscounts}грн)`);
         }
 
         // Отправляем уведомление в Telegram (если есть) - асинхронно, не блокирует
@@ -6929,7 +8651,10 @@ function showOrderDetails(orderId) {
 
         let orders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
         console.log('showOrderDetails: orders from user key:', orders.length, 'orders');
+        console.log('showOrderDetails: first few orders IDs:', orders.slice(0, 5).map(o => ({id: o.id, type: typeof o.id})));
+        console.log('showOrderDetails: searching for orderId:', orderId, 'type:', typeof orderId);
         let order = orders.find(o => o.id === orderId);
+        console.log('showOrderDetails: exact match check for first order:', orders[0] ? orders[0].id === orderId : 'no orders');
         console.log('showOrderDetails: order found in user key:', !!order);
 
         // Если не найден в ключе текущего пользователя, ищем во всех ключах userOrders
@@ -7024,17 +8749,18 @@ function fillOrderDetails(order) {
             itemsHeader.textContent = itemsTitle;
         }
 
-        // Переводим метки стоимости товаров
+        // Обновляем метки стоимости товаров с использованием переводов
         const itemsCostElement = document.querySelector('#orderItemsTotal');
         if (itemsCostElement) {
             const itemsCostLabel = itemsCostElement.previousElementSibling;
         if (itemsCostLabel) {
-            let costTitle = 'Вартість товарів:';
-            if (lang === 'ru') costTitle = 'Стоимость товаров:';
-            else if (lang === 'en') costTitle = 'Items cost:';
-            itemsCostLabel.textContent = costTitle;
+                itemsCostLabel.textContent = getTranslation('step1ItemsSubtotal', lang);
             }
         }
+
+        // Метка скидки будет обновлена ниже вместе с установкой значения
+
+        // Метка товаров после скидки будет обновлена ниже вместе с установкой значения
 
         // Переводим метки полей в блоке информации о заказе
         const paymentElement = document.querySelector('#orderDetailPayment');
@@ -7058,6 +8784,8 @@ function fillOrderDetails(order) {
             deliveryLabel.textContent = deliveryTitle;
             }
         }
+
+        // Метка промежуточного итога будет обновлена ниже вместе с установкой значения
 
         const nameElement = document.querySelector('#orderDetailName');
         if (nameElement) {
@@ -7109,7 +8837,7 @@ function fillOrderDetails(order) {
             const pickupTimeLabel = pickupTimeElement.previousElementSibling;
             if (pickupTimeLabel) {
                 let pickupTimeTitle = 'Время самовывоза:';
-                if (lang === 'uk') pickupTimeTitle = 'Час самовивозу:';
+                if (lang === 'uk') pickupTimeTitle = 'Точный час самовивозу:';
                 else if (lang === 'en') pickupTimeTitle = 'Pickup time:';
                 pickupTimeLabel.textContent = pickupTimeTitle;
             }
@@ -7144,8 +8872,11 @@ function fillOrderDetails(order) {
             console.log('fillOrderDetails: paymentEl.textContent set to:', paymentEl.textContent);
         }
         if (deliveryEl) {
-            deliveryEl.textContent = getDeliveryMethodText(order.deliveryMethod) || '-';
-            console.log('fillOrderDetails: deliveryEl.textContent set to:', deliveryEl.textContent);
+            const deliveryText = getDeliveryMethodText(order.deliveryMethod) || '-';
+            deliveryEl.textContent = deliveryText;
+            console.log('fillOrderDetails: deliveryEl.textContent set to:', deliveryText);
+            console.log('fillOrderDetails: deliveryMethod from order:', order.deliveryMethod);
+            console.log('fillOrderDetails: deliveryMethod type:', typeof order.deliveryMethod);
         }
 
         // Заполняем комментарий
@@ -7175,86 +8906,74 @@ function fillOrderDetails(order) {
             if (commentEl) commentEl.textContent = order.comment || '-';
         }
 
-        // Использованные бонусы и купон (скрыты в верхнем блоке по требованию)
-        const bonusesUsed = order.bonusesUsed || 0;
-        const couponDiscount = order.couponDiscount || 0;
+        // Используем сохраненные суммы из объекта заказа
+        const itemsTotal = order.itemsTotal || 0; // Сумма товаров со скидками
+        const itemsDiscount = order.itemsDiscount || 0; // Скидка на товары
+        const subtotal = order.subtotal || itemsTotal; // Сумма товаров без скидок
+        const deliveryCost = order.deliveryCost || 0; // Стоимость доставки из заказа
+        let bonusesUsed = order.bonusesUsed || 0; // Количество использованных бонусов
+        const bonusDiscount = order.bonusDiscount || 0; // Сумма скидки по бонусам
 
-        // Скрываем бонусы и купон из верхнего блока
-        const bonusesInfoRow = document.getElementById('bonusesInfoRow');
-        const couponInfoRow = document.getElementById('couponInfoRow');
-        if (bonusesInfoRow) bonusesInfoRow.style.display = 'none';
-        if (couponInfoRow) couponInfoRow.style.display = 'none';
-
-        // Расчет итоговой суммы
-        const itemsTotal = order.total || 0;
-        let deliveryCost = calculateDeliveryCost(order.deliveryMethod, itemsTotal);
-
-        // Дополнительная проверка для доставки - если купон используется, доставка должна быть бесплатной
-        if (couponDiscount > 0 && (order.deliveryMethod === 'nova' || order.deliveryMethod === 'meest')) {
-            deliveryCost = 0;
-            console.log('fillOrderDetails: Купон используется, доставка Nova/Meest установлена в 0');
+        // Для гостей бонусы не должны отображаться
+        if (!window.__authState || !window.__authState.isAuthenticated) {
+            bonusesUsed = 0;
         }
 
-        // Комиссия оплаты убрана по требованию
-        const paymentFee = 0;
+        const couponDiscount = order.couponDiscount || 0; // Сумма скидки по купону
+        const finalTotal = order.finalTotal || 0; // Итоговая сумма из заказа
 
-        let finalTotal = itemsTotal + deliveryCost;
-        if (bonusesUsed > 0) {
-            finalTotal -= bonusesUsed;
-        }
-        if (couponDiscount > 0) {
-            finalTotal -= couponDiscount;
-        }
+        console.log('fillOrderDetails: Используем сохраненные суммы из заказа');
+        console.log('fillOrderDetails: subtotal:', subtotal, 'itemsDiscount:', itemsDiscount, 'itemsTotal:', itemsTotal);
+        console.log('fillOrderDetails: deliveryCost:', deliveryCost, 'bonusesUsed:', bonusesUsed, 'couponDiscount:', couponDiscount);
+        console.log('fillOrderDetails: finalTotal:', finalTotal);
+        console.log('fillOrderDetails: order object:', order);
 
-        // Заполняем итоговый расчет
+        // Шаг 1: Сумма товаров без скидок (промежуточный итог товаров)
         const itemsTotalEl = document.getElementById('orderItemsTotal');
-        if (itemsTotalEl) itemsTotalEl.textContent = `${itemsTotal} ${getCurrencyWithDot()}`;
+        if (itemsTotalEl) itemsTotalEl.textContent = `${subtotal} ${getCurrencyWithDot()}`;
 
-        // Стоимость доставки показываем для всех способов доставки
-        const deliveryCostElement = document.getElementById('orderDeliveryCost');
-        const deliveryCostRow = document.getElementById('orderDeliveryCostRow');
-        const deliveryCostLabel = deliveryCostRow ? deliveryCostRow.querySelector('.order-total-label') : null;
-
-        if (deliveryCostLabel) {
-            let deliveryText = 'Вартість доставки:';
-            if (lang === 'ru') deliveryText = 'Стоимость доставки:';
-            else if (lang === 'en') deliveryText = 'Delivery cost:';
-            deliveryCostLabel.textContent = deliveryText;
-        }
-
-        if (deliveryCost > 0) {
-            if (deliveryCostElement) deliveryCostElement.textContent = `${deliveryCost} ${getCurrencyWithDot()}`;
-            if (deliveryCostRow) deliveryCostRow.style.display = 'flex';
+        // Шаг 2: Скидка на товары (если есть)
+        const discountRow = document.getElementById('orderDiscountRow');
+        const discountEl = document.getElementById('orderDiscount');
+        if (itemsDiscount > 0) {
+            if (discountRow) discountRow.style.display = 'flex';
+            if (discountEl) {
+                discountEl.textContent = `-${itemsDiscount} ${getCurrencyWithDot()}`;
+                // Обновляем метку перевода
+                const discountLabel = discountEl.previousElementSibling;
+                if (discountLabel) {
+                    discountLabel.textContent = getTranslation('step2ItemsDiscount', lang);
+                }
+            }
         } else {
-            if (deliveryCostElement) deliveryCostElement.textContent = `0 ${getCurrencyWithDot()}`;
-            if (deliveryCostRow) deliveryCostRow.style.display = 'flex';
+            if (discountRow) discountRow.style.display = 'none';
         }
 
-        // Показываем/скрываем строки с бонусами и купоном
-        const bonusesRow = document.getElementById('orderBonusesRow');
+        // Шаг 3: Стоимость товаров со скидками
+        const itemsAfterDiscountEl = document.getElementById('orderItemsAfterDiscount');
+        const itemsAfterDiscountRow = document.getElementById('orderItemsAfterDiscountRow');
+        if (itemsAfterDiscountEl) {
+            itemsAfterDiscountEl.textContent = `${itemsTotal} ${getCurrencyWithDot()}`;
+            // Обновляем метку перевода
+            const itemsAfterDiscountLabel = itemsAfterDiscountEl.previousElementSibling;
+            if (itemsAfterDiscountLabel) {
+                itemsAfterDiscountLabel.textContent = getTranslation('step3ItemsAfterDiscount', lang);
+            }
+        }
+        if (itemsAfterDiscountRow) itemsAfterDiscountRow.style.display = 'flex';
+
+        // Шаг 4: Купон
         const couponRow = document.getElementById('orderCouponRow');
-        const bonusesTotalEl = document.getElementById('orderBonusesTotal');
         const couponTotalEl = document.getElementById('orderCouponTotal');
 
-        console.log('fillOrderDetails: bonusesUsed:', bonusesUsed, 'couponDiscount:', couponDiscount);
-
-        if (bonusesUsed > 0 && bonusesRow && bonusesTotalEl) {
-            bonusesRow.style.display = 'flex';
-            bonusesTotalEl.textContent = `-${bonusesUsed} ${getCurrencyWithDot()}`;
-
-            // Перевод метки бонусов
-            const bonusesLabel = bonusesRow.querySelector('.order-total-label');
-            if (bonusesLabel) {
-                let bonusText = 'Використані бонуси:';
-                if (lang === 'ru') bonusText = 'Использованные бонусы:';
-                else if (lang === 'en') bonusText = 'Used bonuses:';
-                bonusesLabel.textContent = bonusText;
-            }
-
-            console.log('fillOrderDetails: Показываем строку с бонусами');
-        } else if (bonusesRow) {
-            bonusesRow.style.display = 'none';
-        }
+        console.log('fillOrderDetails: Шаг 4 - Купон');
+        console.log('fillOrderDetails: couponDiscount:', couponDiscount, 'type:', typeof couponDiscount);
+        console.log('fillOrderDetails: couponRow:', couponRow, 'exists:', !!couponRow);
+        console.log('fillOrderDetails: couponTotalEl:', couponTotalEl, 'exists:', !!couponTotalEl);
+        console.log('fillOrderDetails: order.couponCode:', order.couponCode);
+        console.log('fillOrderDetails: order.couponDiscount:', order.couponDiscount);
+        console.log('fillOrderDetails: condition check - couponDiscount > 0:', couponDiscount > 0);
+        console.log('fillOrderDetails: condition check - all:', couponDiscount > 0 && couponRow && couponTotalEl);
 
         if (couponDiscount > 0 && couponRow && couponTotalEl) {
             couponRow.style.display = 'flex';
@@ -7263,25 +8982,71 @@ function fillOrderDetails(order) {
             // Перевод метки купона
             const couponLabel = couponRow.querySelector('.order-total-label');
             if (couponLabel) {
-                let discountText = 'Знижка за купоном:';
-                if (lang === 'ru') discountText = 'Скидка по купону:';
-                else if (lang === 'en') discountText = 'Coupon discount:';
-                couponLabel.textContent = discountText;
+                const couponText = order.couponCode ? `4. Купон ${order.couponCode}:` : '4. Купон:';
+                couponLabel.textContent = couponText;
             }
 
             console.log('fillOrderDetails: Показываем строку с купоном');
-        } else if (couponRow) {
+        } else {
+            console.log('fillOrderDetails: НЕ показываем строку с купоном');
+            if (couponRow) {
             couponRow.style.display = 'none';
+            }
         }
 
+        // Шаг 5: Бонусы
+        const bonusesRow = document.getElementById('orderBonusesRow');
+        const bonusesTotalEl = document.getElementById('orderBonusesTotal');
+
+        if (bonusDiscount > 0 && bonusesRow && bonusesTotalEl) {
+            bonusesRow.style.display = 'flex';
+            bonusesTotalEl.textContent = `-${bonusDiscount} ${getCurrencyWithDot()}`;
+
+            // Перевод метки бонусов
+            const bonusesLabel = bonusesRow.querySelector('.order-total-label');
+            if (bonusesLabel) {
+                bonusesLabel.textContent = '5. Бонусы:';
+            }
+
+            console.log('fillOrderDetails: Показываем строку с бонусами, скидка:', bonusDiscount);
+        } else if (bonusesRow) {
+            bonusesRow.style.display = 'none';
+        }
+
+        // Шаг 6: Стоимость доставки (только если > 0)
+        const deliveryCostElement = document.getElementById('orderDeliveryCost');
+        const deliveryCostRow = document.getElementById('orderDeliveryCostRow');
+        console.log('fillOrderDetails: deliveryCost check:', deliveryCost, 'deliveryMethod:', order.deliveryMethod);
+        if (deliveryCostElement && deliveryCost > 0) {
+            deliveryCostElement.textContent = `${deliveryCost} ${getCurrencyWithDot()}`;
+            // Обновляем метку доставки
+            const deliveryCostLabel = deliveryCostElement.previousElementSibling;
+            if (deliveryCostLabel) {
+                deliveryCostLabel.textContent = '6. Вартість доставки:';
+            }
+            if (deliveryCostRow) deliveryCostRow.style.display = 'flex';
+            console.log('fillOrderDetails: Показали строку доставки с cost:', deliveryCost);
+        } else {
+            // Скрываем строку доставки, если стоимость = 0
+            if (deliveryCostRow) deliveryCostRow.style.display = 'none';
+            console.log('fillOrderDetails: Скрыли строку доставки, cost = 0 или элемент не найден');
+        }
+
+        // Определяем номер шага для итоговой суммы в зависимости от того, показывается ли доставка
+        const finalStepNumber = deliveryCost > 0 ? 7 : 6;
+
+        // Скрываем промежуточный итог
+        const subtotalRow = document.getElementById('orderSubtotalRow');
+        if (subtotalRow) {
+            subtotalRow.style.display = 'none';
+        }
+
+        // Шаг N: Итоговая сумма
         const finalTotalEl = document.getElementById('orderFinalTotal');
         const finalTotalLabel = finalTotalEl ? finalTotalEl.previousElementSibling : null;
 
         if (finalTotalLabel) {
-            let totalText = 'Всього:';
-            if (lang === 'ru') totalText = 'Итого:';
-            else if (lang === 'en') totalText = 'Total:';
-            finalTotalLabel.textContent = totalText;
+            finalTotalLabel.textContent = `${finalStepNumber}. Загальна сума:`;
         }
 
         if (finalTotalEl) finalTotalEl.textContent = `${finalTotal} ${getCurrencyWithDot()}`;
@@ -7301,9 +9066,7 @@ function fillOrderDetails(order) {
                 bonusEarnedRow.id = 'orderBonusEarnedRow';
                 bonusEarnedRow.className = 'order-total-row';
                 // Переводим текст "Бонусы за заказ" в зависимости от языка
-                let bonusEarnedText = 'Бонусы за заказ:';
-                if (lang === 'uk') bonusEarnedText = 'Бонуси за замовлення:';
-                else if (lang === 'en') bonusEarnedText = 'Bonus for order:';
+                let bonusEarnedText = getTranslation('step8EarnedBonuses', lang);
 
                 bonusEarnedRow.innerHTML = `
                     <span class="order-total-label">${bonusEarnedText}</span>
@@ -7421,10 +9184,20 @@ function fillOrderDetails(order) {
             if (order.deliveryMethod === 'pickup') {
                 // Для самовывоза показываем адрес
                 branchEl.textContent = 'Троїцька кут Канатної, місце зустрічі біля входу в "китайське кафе" по Троїцькій.';
+            } else if (order.deliveryMethod === 'ukrposhta') {
+                // Для Укрпочты показываем индекс в поле branch (так как поле переименовано)
+                branchEl.textContent = order.customer?.index || '-';
             } else {
-                // Для других способов доставки показываем номер отделения/индекс
+                // Для других способов доставки показываем номер отделения
                 branchEl.textContent = order.customer?.branch || '-';
             }
+        }
+
+        // Для Укрпочты индекс показывается в поле branch, поэтому скрываем отдельное поле индекса
+        const indexRow = document.getElementById('orderDetailIndexRow');
+        if (indexRow) {
+            indexRow.style.display = 'none';
+            console.log('fillOrderDetails: Скрыли отдельное поле индекса для всех способов доставки');
         }
 
 
@@ -7470,19 +9243,25 @@ function fillOrderItems(items) {
             const imageUrl = item.image || item.photo || '/static/images/no-image.png';
             const name = item.name || item.title || 'Без названия';
             const quantity = item.quantity || 1;
-            const price = parseInt(item.newPrice || item.price || 0);
-            const total = price * quantity;
+            const newPrice = parseInt(item.newPrice || item.price || 0);
+            const oldPrice = parseInt(item.oldPrice || 0);
+            const total = newPrice * quantity;
 
-            const unitPrice = parseInt(item.newPrice || item.price || 0);
+            console.log('fillOrderItems: Товар', index + 1, 'данные:', { name, quantity, newPrice, oldPrice, total });
 
-            console.log('fillOrderItems: Товар', index + 1, 'данные:', { name, quantity, price, total });
+            // Проверяем, есть ли скидка (старая цена отличается от новой)
+            const hasDiscount = oldPrice && oldPrice > 0 && oldPrice !== newPrice;
+
             itemEl.innerHTML = `
                 <img src="${imageUrl}" alt="${name}" class="order-item-image" onerror="this.src='/static/images/no-image.png'">
                 <div class="order-item-details">
                     <div class="order-item-name">${name}</div>
-                    <div class="order-item-meta">${quantity} шт. × ${unitPrice} ${getCurrencyWithDot()}</div>
+                    <div class="order-item-meta">${quantity} шт. × ${newPrice} ${getCurrencyWithDot()}</div>
                 </div>
-                <div class="order-item-price">${total} ${getCurrencyWithDot()}</div>
+                <div class="order-item-price">
+                    ${hasDiscount ? `<div class="order-item-old-price">${(oldPrice * quantity).toFixed(0)} ${getCurrencyWithDot()}</div>` : ''}
+                    <div class="order-item-current-price">${total} ${getCurrencyWithDot()}</div>
+                </div>
             `;
 
             container.appendChild(itemEl);
@@ -7502,8 +9281,8 @@ function getPaymentMethodText(method) {
     const lang = getCurrentLanguage ? getCurrentLanguage() : (localStorage.getItem('selectedLanguage') || 'uk');
 
     if (lang === 'uk') {
-        const translations = {
-            'wayforpay': 'WayForPay (Visa, Mastercard)',
+    const translations = {
+            'wayforpay': 'WayForPay (Visa, Mastercard) +2%',
             'privat24': 'Приват 24',
             'terminal': 'Термінал Приватбанку',
             'meeting': 'Під час зустрічі в Одесі'
@@ -7511,7 +9290,7 @@ function getPaymentMethodText(method) {
         return translations[method] || method || '-';
     } else if (lang === 'en') {
         const translations = {
-            'wayforpay': 'WayForPay (Visa, Mastercard)',
+            'wayforpay': 'WayForPay (Visa, Mastercard) +2%',
             'privat24': 'Privat 24',
             'terminal': 'PrivatBank Terminal',
             'meeting': 'Upon meeting in Odesa'
@@ -7519,7 +9298,7 @@ function getPaymentMethodText(method) {
         return translations[method] || method || '-';
     } else {
     const translations = {
-        'wayforpay': 'WayForPay (Visa, Mastercard)',
+        'wayforpay': 'WayForPay (Visa, Mastercard) +2%',
         'privat24': 'Приват 24',
         'terminal': 'Терминал Приватбанку',
         'meeting': 'При встрече в Одессе'
@@ -7533,8 +9312,8 @@ function getDeliveryMethodText(method) {
     const lang = getCurrentLanguage ? getCurrentLanguage() : (localStorage.getItem('selectedLanguage') || 'uk');
 
     if (lang === 'uk') {
-        const translations = {
-            'nova': 'Nova Посhta',
+    const translations = {
+            'nova': 'Nova Пошта',
             'meest': 'Meest Express',
             'ukrposhta': 'УКРПОШТА',
             'pickup': 'Самовивіз',
@@ -7554,7 +9333,7 @@ function getDeliveryMethodText(method) {
         return translations[method] || method || '-';
     } else {
     const translations = {
-        'nova': 'Nova Посhta',
+        'nova': 'Nova Пошта',
         'meest': 'Meest Express',
         'ukrposhta': 'УКРПОЧТА',
         'pickup': 'Самовывоз',
@@ -7572,11 +9351,12 @@ function calculateDeliveryCost(deliveryMethod, orderTotal) {
     if (deliveryMethod === 'free1001' && orderTotal >= 1001) return 0;
     if (deliveryMethod === 'free2000' && orderTotal >= 2000) return 0;
     if (deliveryMethod === 'ukrposhta') return 80;
-    if (deliveryMethod === 'nova') return 70;
-    if (deliveryMethod === 'meest') return 70;
+    // Для Nova и Meest доставка бесплатная
+    if (deliveryMethod === 'nova') return 0;
+    if (deliveryMethod === 'meest') return 0;
 
-    // Для неизвестных методов доставки или если купон используется - возвращаем 0
-    console.log('calculateDeliveryCost: Неизвестный метод доставки или используется купон:', deliveryMethod);
+    // Для неизвестных методов доставки - возвращаем 0
+    console.log('calculateDeliveryCost: Неизвестный метод доставки:', deliveryMethod);
     return 0;
 }
 
@@ -7721,11 +9501,10 @@ function printOrder() {
             total: lang === 'uk' ? 'Разом:' : lang === 'en' ? 'Total:' : 'Итого:'
         };
 
-        // Определяем метку для поля branch в зависимости от способа доставки
+        // Определяем метки для полей в зависимости от способа доставки
         let branchLabel = lang === 'uk' ? 'Номер відділення:' : lang === 'en' ? 'Branch number:' : 'Номер отделения:';
-        if (order.deliveryMethod === 'pickup') {
-            branchLabel = lang === 'uk' ? 'Точний час самовивозу:' : lang === 'en' ? 'Exact pickup time:' : 'Точное время самовывоза:';
-        }
+        let regionLabel = lang === 'uk' ? 'Область:' : lang === 'en' ? 'Region:' : 'Область:';
+        let indexLabel = lang === 'uk' ? 'Індекс:' : lang === 'en' ? 'Index:' : 'Индекс:';
 
         // Создаем HTML для печати
         const printHTML = `
@@ -7767,7 +9546,15 @@ function printOrder() {
                             <div>${translations.fullName} ${order.customer.name || '-'}</div>
                             <div>${translations.phone} ${order.customer.phone || '-'}</div>
                             <div>${translations.settlement} ${order.customer.settlement || '-'}</div>
+                            ${order.deliveryMethod === 'ukrposhta' ? `
+                                <div>${regionLabel} ${order.customer.region || '-'}</div>
+                                <div>${indexLabel} ${order.customer.index || '-'}</div>
+                            ` : order.deliveryMethod === 'pickup' ? `
+                                <div>${lang === 'uk' ? 'Адреса самовивозу:' : lang === 'en' ? 'Pickup address:' : 'Адрес самовывоза:'} Троїцька кут Канатної, місце зустрічі біля входу в "китайське кафе" по Троїцькій.</div>
+                                <div>${lang === 'uk' ? 'Точний час самовивозу:' : lang === 'en' ? 'Exact pickup time:' : 'Точное время самовывоза:'} ${order.pickupTime || order.customer.pickupTime || (lang === 'uk' ? 'Не вказано' : lang === 'en' ? 'Not specified' : 'Не указано')}</div>
+                            ` : `
                             <div>${branchLabel} ${order.customer.branch || '-'}</div>
+                            `}
                             ${order.comment ? `<div>${translations.comment} ${order.comment}</div>` : ''}
                         </div>
                     </div>
@@ -7775,42 +9562,91 @@ function printOrder() {
 
                 <div class="items">
                     <h3>${translations.items}</h3>
-                    ${order.items.map(item => `
+                    ${order.items.map(item => {
+                        const quantity = item.quantity || 1;
+                        const newPrice = parseInt(item.newPrice || item.price || 0);
+                        const oldPrice = parseInt(item.oldPrice || 0);
+                        const hasDiscount = oldPrice && oldPrice > 0 && oldPrice !== newPrice;
+                        const totalPrice = quantity * newPrice;
+                        const oldTotalPrice = quantity * oldPrice;
+
+                        return `
                         <div class="item">
                             <div style="display: flex; align-items: center; gap: 10px;">
                                 ${item.image || item.photo ? `<img src="${item.image || item.photo}" alt="${item.name || item.title || translations.noName}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">` : ''}
                                 <div>
                                     <div style="font-weight: bold;">${item.name || item.title || translations.noName}</div>
-                                    <div style="font-size: 0.9em; color: #666;">${item.quantity || 1} ${translations.itemTotal} ${parseInt(item.newPrice || item.price || 0)} ${getCurrencyWithDot()}</div>
+                                    <div style="font-size: 0.9em; color: #666;">${quantity} ${translations.itemTotal} ${newPrice} ${getCurrencyWithDot()}</div>
                                 </div>
                             </div>
-                            <div style="font-weight: bold;">${(item.quantity || 1) * parseInt(item.newPrice || item.price || 0)} ${getCurrencyWithDot()}</div>
+                            <div style="text-align: right;">
+                                ${hasDiscount ? `<div style="color: #666; text-decoration: line-through; font-size: 0.8em;">${oldTotalPrice} ${getCurrencyWithDot()}</div>` : ''}
+                                <div style="font-weight: bold; color: #f8a818;">${totalPrice} ${getCurrencyWithDot()}</div>
                         </div>
-                    `).join('')}
+                        </div>
+                        `;
+                    }).join('')}
                 </div>
 
                 <div style="display: flex; justify-content: flex-end; margin-top: 30px;">
                     <div style="width: 300px; border: 1px solid #ddd; padding: 15px; border-radius: 5px;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                            <span>${translations.itemsCost}</span>
-                            <span>${order.total} ${getCurrencyWithDot()}</span>
-                        </div>
-                        ${calculateDeliveryCost(order.deliveryMethod, order.total) > 0 && order.deliveryMethod === 'ukrposhta' ? `<div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                            <span>${translations.deliveryCost}</span>
-                            <span>${calculateDeliveryCost(order.deliveryMethod, order.total)} ${getCurrencyWithDot()}</span>
-                        </div>` : ''}
-                        ${order.bonusesUsed > 0 ? `<div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                            <span>${translations.usedBonuses}</span>
-                            <span>-${order.bonusesUsed}</span>
-                        </div>` : ''}
-                        ${order.couponDiscount > 0 ? `<div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                            <span>${lang === 'uk' ? 'Знижка за купоном' : lang === 'en' ? 'Coupon discount' : 'Знижка за купоном'} ${order.couponCode ? order.couponCode + ': ' : ''}</span>
+                        ${(() => {
+                            let stepNumber = 1;
+                            let calculationHTML = '';
+
+                            // Шаг 1: Сумма товаров без скидок
+                            calculationHTML += `<div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                <span>${stepNumber++}. Вартість товарів:</span>
+                                <span>${order.subtotal || order.total || 0} ${getCurrencyWithDot()}</span>
+                            </div>`;
+
+                            // Шаг 2: Скидка на товары (если есть)
+                            if ((order.itemsDiscount || 0) > 0) {
+                                calculationHTML += `<div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                    <span>${stepNumber++}. Знижка на товари:</span>
+                                    <span>-${order.itemsDiscount} ${getCurrencyWithDot()}</span>
+                                </div>`;
+                            }
+
+                            // Шаг 3: Стоимость товаров со скидками
+                            calculationHTML += `<div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                <span>${stepNumber++}. Товари зі знижками:</span>
+                                <span>${order.itemsTotal || order.total || 0} ${getCurrencyWithDot()}</span>
+                            </div>`;
+
+                            // Шаг 4: Купон
+                            if ((order.couponDiscount || 0) > 0) {
+                                calculationHTML += `<div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                    <span>${stepNumber++}. Купон ${order.couponCode || 'test10'}:</span>
                             <span>-${order.couponDiscount} ${getCurrencyWithDot()}</span>
-                        </div>` : ''}
-                        <div style="display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 2px solid #f8a818; font-weight: bold; font-size: 1.1em;">
-                            <span>${translations.total}</span>
-                            <span>${order.total + (order.deliveryMethod === 'ukrposhta' ? calculateDeliveryCost(order.deliveryMethod, order.total) : 0) - (order.bonusesUsed || 0) - (order.couponDiscount || 0)} ${getCurrencyWithDot()}</span>
-                        </div>
+                                </div>`;
+                            }
+
+                            // Шаг 5: Бонусы
+                            const bonusDiscount = order.bonusDiscount || order.bonusesUsed || 0;
+                            if (bonusDiscount > 0) {
+                                calculationHTML += `<div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                    <span>${stepNumber++}. Бонусы:</span>
+                                    <span>-${bonusDiscount} ${getCurrencyWithDot()}</span>
+                                </div>`;
+                            }
+
+                            // Шаг 6: Стоимость доставки (только для Укрпочты и если > 0)
+                            if (order.deliveryMethod === 'ukrposhta' && (order.deliveryCost || 0) > 0) {
+                                calculationHTML += `<div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                    <span>${stepNumber++}. Вартість доставки:</span>
+                                    <span>${order.deliveryCost || 0} ${getCurrencyWithDot()}</span>
+                                </div>`;
+                            }
+
+                            // Шаг N: Итоговая сумма
+                            calculationHTML += `<div style="display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 2px solid #f8a818; font-weight: bold; font-size: 1.1em;">
+                                <span>${stepNumber}. Загальна сума:</span>
+                                <span>${order.finalTotal || order.total || 0} ${getCurrencyWithDot()}</span>
+                            </div>`;
+
+                            return calculationHTML;
+                        })()}
                     </div>
                 </div>
             </body>
@@ -7866,3 +9702,4 @@ function continueShopping() {
         console.error('continueShopping: Ошибка перехода', error);
     }
 }
+

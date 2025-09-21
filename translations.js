@@ -59,6 +59,7 @@ const translations = {
         sevenString: "7 струн для електрогітари",
         eightString: "8 струн для електрогітари",
         nineString: "9 струн для електрогітари",
+        twelveString: "12 струн для електрогітари",
         flatwound: "Струни електро з плоскою обмоткою",
         nickelPlated: "Nickel Plated Electric Strings",
         nickelPlatedInfo: "Nickel Plated",
@@ -139,6 +140,8 @@ const translations = {
         eightStringInfo: "8 струн для електрогітари",
         // 9-струнная информация
         nineStringInfo: "9 струн для електрогітари",
+        // 12-струнная информация
+        twelveStringInfo: "12 струн для електрогітари",
         // Плоская обмотка электро
         flatwoundInfo: "Плоска обмотка електро",
         nickelPlatedInfo: "Nickel Plated",
@@ -260,20 +263,25 @@ const translations = {
         ukrposhta: "УКРПОШТА",
         free1001: "Безкоштовна доставка від 1001грн",
         free2000: "Безкоштовна доставка від 2000грн",
-        fullName: "Прізвище та ім'я:",
-        phone: "Телефон:",
-        settlement: "Населений пункт:",
+        fullName: "Прізвище та ім'я*:",
+        phone: "Телефон*:",
+        settlement: "Населений пункт:*",
         pickupAddress: "Адреса самовивозу:",
         pickupTime: "Час самовивозу:",
         branchNumber: "Номер відділення:",
+        indexCode: "Індекс:*",
         pay: "ОПЛАТИТИ",
         confirmOrder: "ПІДТВЕРДИТИ ЗАМОВЛЕННЯ",
         sendOrder: "ВІДПРАВИТИ ЗАМОВЛЕННЯ",
             fullNamePlaceholder: "Введіть прізвище та ім'я",
         settlementPlaceholder: "Введіть населений пункт",
         regionPlaceholder: "Введіть область",
+        regionLabel: "Область:",
         branchNumberPlaceholder: "Введіть номер відділення",
         indexPlaceholder: "Введіть індекс",
+        captchaAnswer: "Відповідь",
+        captchaCheck: "Перевірка",
+        repeatPassword: "Повторіть пароль",
         loadingGoods: "Завантажуємо товари...",
         orderAcceptedTitle: "Замовлення прийнято",
         orderAcceptedText: "Ваше замовлення прийнято, номер заказа {orderId}. Очікуйте повідомлення від менеджера з реквізитами для оплати або уточненням, якщо раптом якогось товару менше, ніж у замовленні.",
@@ -394,7 +402,18 @@ const translations = {
         // Сообщения валидации
         validationValueMissing: "Заповніть це поле",
         validationEmail: "Введіть дійсну адресу електронної пошти",
-        emptyCartMessage: "Додайте товари в кошик спочатку"
+        emptyCartMessage: "Додайте товари в кошик спочатку",
+
+        // Схема подсчетов в информации о заказе
+        step1ItemsSubtotal: "1. Вартість товарів:",
+        step2ItemsDiscount: "2. Знижка на товари:",
+        step3ItemsAfterDiscount: "3. Вартість товарів зі знижками:",
+        step4Coupon: "4. Купон test10:",
+        step5Bonuses: "5. Бонусы:",
+        step6DeliveryCost: "6. Вартість доставки:",
+        step7Subtotal: "7. Проміжний підсумок:",
+        step8Total: "8. Загальна сума:",
+        step9EarnedBonuses: "9. Бонуси за замовлення:"
     },
     
     ru: {
@@ -454,6 +473,7 @@ const translations = {
         sevenString: "7 струн для электрогитары",
         eightString: "8 струн для электрогитары",
         nineString: "9 струн для электрогитары",
+        twelveString: "12 струн для электрогитары",
         flatwound: "Струны электро с плоской обмоткой",
         nickelPlated: "Nickel Plated Electric Strings",
         nickelPlatedInfo: "Nickel Plated",
@@ -534,6 +554,8 @@ const translations = {
         eightStringInfo: "8 струн для электрогитары",
         // 9-струнная информация
         nineStringInfo: "9 струн для электрогитары",
+        // 12-струнная информация
+        twelveStringInfo: "12 струн для электрогитары",
         // Плоская обмотка электро
         flatwoundInfo: "Плоская обмотка электро",
         nickelPlatedInfo: "Nickel Plated",
@@ -655,20 +677,25 @@ const translations = {
         ukrposhta: "УКРПОЧТА",
         free1001: "Бесплатная доставка от 1001грн",
         free2000: "Бесплатная доставка от 2000грн",
-                    fullName: "Фамилия и имя:",
-        phone: "Телефон:",
-        settlement: "Населённый пункт:",
+                    fullName: "Фамилия и имя*:",
+        phone: "Телефон*:",
+        settlement: "Населённый пункт:*",
         pickupAddress: "Адрес самовывоза:",
         pickupTime: "Время самовывоза:",
         branchNumber: "Номер отделения:",
+        indexCode: "Индекс:*",
         pay: "ОПЛАТИТЬ",
         confirmOrder: "ПОДТВЕРДИТЬ ЗАКАЗ",
         sendOrder: "ОТПРАВИТЬ ЗАКАЗ",
         fullNamePlaceholder: "Введите фамилию и имя",
         settlementPlaceholder: "Введите населённый пункт",
         regionPlaceholder: "Введите область",
+        regionLabel: "Область:",
         branchNumberPlaceholder: "Введите номер отделения",
         indexPlaceholder: "Введите индекс",
+        captchaAnswer: "Ответ",
+        captchaCheck: "Проверка",
+        repeatPassword: "Повторите пароль",
         loadingGoods: "Загружаем товары...",
         orderAcceptedTitle: "Заказ принят",
         orderAcceptedText: "Ваш заказ принят, номер заказа {orderId}. Ожидайте сообщение от менеджера с реквизитами для оплаты или уточнением, если вдруг какого-то товара меньше, чем в заказе.",
@@ -818,7 +845,18 @@ const translations = {
         // Сообщения валидации
         validationValueMissing: "Заполните это поле",
         validationEmail: "Введите корректный email",
-        emptyCartMessage: "Добавьте товары в корзину сначала"
+        emptyCartMessage: "Добавьте товары в корзину сначала",
+
+        // Схема подсчетов в информации о заказе
+        step1ItemsSubtotal: "1. Стоимость товаров:",
+        step2ItemsDiscount: "2. Скидка на товары:",
+        step3ItemsAfterDiscount: "3. Стоимость товаров со скидками:",
+        step4Coupon: "4. Купон test10:",
+        step5Bonuses: "5. Бонусы:",
+        step6DeliveryCost: "6. Стоимость доставки:",
+        step7Subtotal: "7. Промежуточный итог:",
+        step8Total: "8. Итого:",
+        step9EarnedBonuses: "9. Бонусы за заказ:"
     },
     
     en: {
@@ -878,6 +916,7 @@ const translations = {
         sevenString: "7-string electric guitar",
         eightString: "8-string electric guitar",
         nineString: "9-string electric guitar",
+        twelveString: "12-string electric guitar",
         flatwound: "Electric strings with flat winding",
         nickelPlated: "Nickel Plated Electric Strings",
         nickelPlatedInfo: "Nickel Plated",
@@ -958,6 +997,8 @@ const translations = {
         eightStringInfo: "8 strings for electric guitar",
         // 9-string information
         nineStringInfo: "9 strings for electric guitar",
+        // 12-string information
+        twelveStringInfo: "12 strings for electric guitar",
         // Electric flatwound
         flatwoundInfo: "Electric flatwound",
         nickelPlatedInfo: "Nickel Plated",
@@ -1079,20 +1120,25 @@ const translations = {
         ukrposhta: "UKRPOSHTA",
         free1001: "Free delivery from 1001 UAH",
         free2000: "Free delivery from 2000 UAH",
-                    fullName: "Last and First name:",
-        phone: "Phone:",
-        settlement: "Settlement:",
+                    fullName: "Last and First name*:",
+        phone: "Phone*:",
+        settlement: "Settlement:*",
         pickupAddress: "Pickup address:",
         pickupTime: "Pickup time:",
         branchNumber: "Branch number:",
+        indexCode: "Index:*",
         pay: "PAY",
         confirmOrder: "CONFIRM ORDER",
         sendOrder: "SEND ORDER",
         fullNamePlaceholder: "Enter last name and first name",
         settlementPlaceholder: "Enter settlement",
         regionPlaceholder: "Enter region",
+        regionLabel: "Region:",
         branchNumberPlaceholder: "Enter branch number",
         indexPlaceholder: "Enter index",
+        captchaAnswer: "Answer",
+        captchaCheck: "Check",
+        repeatPassword: "Repeat password",
         loadingGoods: "Loading goods...",
         orderAcceptedTitle: "Order accepted",
         orderAcceptedText: "Your order has been accepted, order number {orderId}. Please wait for a message from the manager with payment details or clarification if some items are in a smaller quantity than in the order.",
@@ -1178,7 +1224,18 @@ const translations = {
         // Validation messages
         validationValueMissing: "Please fill in this field",
         validationEmail: "Please enter a valid email address",
-        emptyCartMessage: "Add items to cart first"
+        emptyCartMessage: "Add items to cart first",
+
+        // Order calculation schema
+        step1ItemsSubtotal: "1. Items subtotal:",
+        step2ItemsDiscount: "2. Items discount:",
+        step3ItemsAfterDiscount: "3. Items after discount:",
+        step4Coupon: "4. Coupon test10:",
+        step5Bonuses: "5. Bonuses:",
+        step6DeliveryCost: "6. Delivery cost:",
+        step7Subtotal: "7. Subtotal:",
+        step8Total: "8. Total:",
+        step9EarnedBonuses: "9. Bonus for order:"
     }
 };
 

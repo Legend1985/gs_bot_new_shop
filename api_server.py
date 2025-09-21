@@ -234,7 +234,7 @@ def scrape_all_pages():
     for i, url in enumerate(page_urls, 1):
         try:
             print(f"Scraping page {i}/7...")
-            response = requests.get(url, headers=headers, timeout=15)
+            response = requests.get(url, headers=headers, timeout=30)
             response.raise_for_status()
             
             soup = BeautifulSoup(response.content, 'html.parser')
@@ -259,7 +259,12 @@ def scrape_all_pages():
             continue
     
     print(f"Total products scraped from all pages: {len(all_product_items)}")
-    
+
+    # If scraping failed or returned too few products, use static fallback data
+    if len(all_product_items) < 50:
+        print("Warning: Too few products scraped, using static fallback data")
+        all_product_items = get_static_products_fallback()
+
     # Cache the results
     ALL_PRODUCTS_CACHE = all_product_items
     CACHE_TIMESTAMP = current_time
@@ -268,8 +273,68 @@ def scrape_all_pages():
         build_processed_products()
     except Exception as e:
         print(f"Warning: could not build processed products cache: {e}")
-    
+
     return all_product_items
+
+def get_static_products_fallback():
+    """Return static fallback product data when scraping fails"""
+    from bs4 import BeautifulSoup
+
+    static_html = """
+    <div class="spacer">
+        <h3 class="product-title">Ernie Ball 2221 Regular Slinky 10-46</h3>
+        <img src="Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46_150.jpg" alt="Ernie Ball 2221">
+        <div class="vm3pr-2">
+            <span class="PricesalesPrice">350.00 ₴</span>
+        </div>
+        <div class="availability">
+            <span class="instock">В наличии</span>
+        </div>
+    </div>
+    <div class="spacer">
+        <h3 class="product-title">D'Addario EXL120 Nickel Wound Super Light 9-42</h3>
+        <img src="Goods/Electric_guitar_strings/EXL120/DAddario_EXL120_9-42.jpg" alt="D'Addario EXL120">
+        <div class="vm3pr-2">
+            <span class="PricesalesPrice">320.00 ₴</span>
+        </div>
+        <div class="availability">
+            <span class="instock">В наличии</span>
+        </div>
+    </div>
+    <div class="spacer">
+        <h3 class="product-title">Elixir 12002 Nanoweb Light 10-47</h3>
+        <img src="Goods/Electric_guitar_strings/12002/Elixir_12002_10-47.jpg" alt="Elixir 12002">
+        <div class="vm3pr-2">
+            <span class="PricesalesPrice">450.00 ₴</span>
+        </div>
+        <div class="availability">
+            <span class="instock">В наличии</span>
+        </div>
+    </div>
+    <div class="spacer">
+        <h3 class="product-title">Ernie Ball 2620 7-String Power Slinky 11-58</h3>
+        <img src="Goods/Electric_guitar_strings/2620/Ernie_Ball_2620_7-string.jpg" alt="Ernie Ball 2620">
+        <div class="vm3pr-2">
+            <span class="PricesalesPrice">380.00 ₴</span>
+        </div>
+        <div class="availability">
+            <span class="instock">В наличии</span>
+        </div>
+    </div>
+    <div class="spacer">
+        <h3 class="product-title">Ernie Ball 3121 Titanium Regular Slinky 10-46</h3>
+        <img src="Goods/Electric_guitar_strings/3121/Ernie_Ball_3121_Titanium.jpg" alt="Ernie Ball 3121">
+        <div class="vm3pr-2">
+            <span class="PricesalesPrice">550.00 ₴</span>
+        </div>
+        <div class="availability">
+            <span class="instock">В наличии</span>
+        </div>
+    </div>
+    """
+
+    soup = BeautifulSoup(static_html, 'html.parser')
+    return soup.find_all('div', class_='spacer')
 
 # Build a lightweight list of product dicts from cached BeautifulSoup items
 def build_processed_products():
@@ -739,16 +804,64 @@ def api_user_orders():
 
         # Получаем заказы пользователя
         user_orders = []
+        user_identifier = None
+
+        # Определяем идентификатор пользователя
+        if user:
+            user_identifier = user.get('username') or user.get('displayName') or user.get('email')
+        elif tg_id:
+            user_identifier = tg_id
+
+        print(f"API user_orders: Получаем заказы для пользователя: {user_identifier}")
+        print(f"API user_orders: Всего заказов в базе: {len(ORDERS_DB)}")
+
         for order in ORDERS_DB:
-            # Проверяем, принадлежит ли заказ текущему пользователю
-            # Если tg_id передан, ищем по номеру телефона или другим идентификаторам
-            # Если пользователь из сессии, можем добавить логику фильтрации по userId
-            if tg_id:
-                # Фильтруем по tg_id если есть, или берем все заказы для демо
-                user_orders.append(order)
+            # Фильтруем заказы по пользователю
+            order_belongs_to_user = False
+
+            if user_identifier:
+                # Проверяем различные поля, которые могут содержать идентификатор пользователя
+                # Ищем в customer данных или в самом заказе
+                print(f"API user_orders: Проверяем заказ {order.get('id', 'unknown')}: userId={order.get('userId')}, customer.name={order.get('customer', {}).get('name')}, customer.phone={order.get('customer', {}).get('phone')}")
+
+                if order.get('customer', {}).get('phone') and user_identifier in str(order['customer']['phone']):
+                    order_belongs_to_user = True
+                    print(f"API user_orders: Заказ принадлежит пользователю по телефону")
+                elif order.get('customer', {}).get('name') and user_identifier in str(order['customer']['name']):
+                    order_belongs_to_user = True
+                    print(f"API user_orders: Заказ принадлежит пользователю по имени")
+                elif order.get('userId') and str(order['userId']) == str(user_identifier):
+                    order_belongs_to_user = True
+                    print(f"API user_orders: Заказ принадлежит пользователю по userId")
+                elif order.get('username') and order['username'] == user_identifier:
+                    order_belongs_to_user = True
+                    print(f"API user_orders: Заказ принадлежит пользователю по username")
+                # Для демо - если пользователь just_a_legend, показываем все заказы (как было раньше)
+                elif user_identifier == 'just_a_legend':
+                    order_belongs_to_user = True
+                    print(f"API user_orders: Заказ принадлежит just_a_legend (демо режим)")
             else:
-                # Для пользователей из сессии берем все заказы (демо режим)
+                # Если нет идентификатора пользователя, показываем все заказы (демо режим)
+                order_belongs_to_user = True
+                print(f"API user_orders: Нет идентификатора пользователя, показываем все заказы")
+
+            if order_belongs_to_user:
                 user_orders.append(order)
+                print(f"API user_orders: Заказ {order.get('id', 'unknown')} добавлен в результат")
+
+        print(f"API user_orders: Найдено {len(user_orders)} заказов для пользователя {user_identifier}")
+        print(f"API user_orders: Возвращаемые заказы: {[order.get('id', 'unknown') for order in user_orders[:5]]}...")  # Показать первые 5 ID
+
+        # Подсчитаем статистику по заказам
+        total_amount = 0
+        completed_orders = 0
+        for order in user_orders:
+            amount = order.get('finalTotal') or order.get('total') or order.get('amount', 0)
+            total_amount += float(amount) if amount else 0
+            if order.get('status') in ['completed', 'принято', 'завершен', 'выполнен']:
+                completed_orders += 1
+
+        print(f"API user_orders: Статистика - всего заказов: {len(user_orders)}, завершенных: {completed_orders}, общая сумма: {total_amount}")
 
         # Если заказов нет, возвращаем пустой результат
         if not user_orders:
@@ -1139,21 +1252,39 @@ def save_order():
             return jsonify({'success': False, 'error': 'No order data provided'}), 400
 
         # Validate required fields
-        required_fields = ['id', 'date', 'customer', 'items', 'total']
+        required_fields = ['id', 'date', 'customer', 'items']
         for field in required_fields:
             if field not in order_data:
                 return jsonify({'success': False, 'error': f'Missing required field: {field}'}), 400
 
+        # Ensure we have either 'total' or 'finalTotal'
+        if 'total' not in order_data and 'finalTotal' not in order_data:
+            return jsonify({'success': False, 'error': 'Missing required field: total or finalTotal'}), 400
+
         # Check if order with this ID already exists
         existing_order = next((order for order in ORDERS_DB if order['id'] == order_data['id']), None)
         if existing_order:
-            return jsonify({'success': False, 'error': f'Order with ID {order_data["id"]} already exists'}), 409
+            # Update existing order instead of returning error
+            print(f"Order update: Обновляем существующий заказ {order_data['id']}")
+            existing_order.update(order_data)
+            save_orders_to_disk()
+            return jsonify({
+                'success': True,
+                'message': f'Order {order_data["id"]} updated successfully',
+                'order_id': order_data['id'],
+                'updated': True
+            }), 200
 
         # Add order to database
         ORDERS_DB.append(order_data)
         save_orders_to_disk()
 
-        print(f"Order saved: {order_data['id']} - Total: {order_data['total']} UAH")
+        total_amount = order_data.get('total') or order_data.get('finalTotal') or order_data.get('amount', 0)
+        user_id = order_data.get('userId', 'unknown')
+        customer_name = order_data.get('customer', {}).get('name', 'unknown')
+
+        print(f"Order saved: {order_data['id']} - User: {user_id} - Customer: {customer_name} - Total: {total_amount} UAH")
+        print(f"Order saved details: userId={user_id}, customer.phone={order_data.get('customer', {}).get('phone')}")
 
         return jsonify({
             'success': True,

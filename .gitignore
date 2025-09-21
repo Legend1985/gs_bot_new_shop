@@ -1,3 +1,5 @@
+# Backups
+*.backup
 # Environment variables and secrets
 .env
 .env.local
@@ -77,4 +79,5 @@ Thumbs.db
 
 # Temporary files
 *.tmp
-*.temp 
+*.temp
+drafts/ 

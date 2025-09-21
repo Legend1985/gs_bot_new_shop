@@ -20,10 +20,11 @@
     <meta name="theme-color" content="#ffffff">
     <link rel="manifest" href="images/favicon_v016/site.webmanifest">
     
-            <link rel="stylesheet" href="style.css?v=11.49">
+            <link rel="stylesheet" href="style.css?v=11.55">
         <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-        <script src="translations.js?v=10.68"></script>
-        <script src="app.js?v=25.21"></script>
+        <script src="translations.js?v=10.73"></script>
+        <script src="correct_orders.js"></script>
+        <script src="app.js?v=25.30"></script>
         <!-- Предварительная загрузка фоновых изображений -->
     <link rel="preload" href="images/Contacts_image/background.jpg" as="image" type="image/jpeg">
 </head>
@@ -71,9 +72,9 @@
                             <input type="password" id="loginPassword" autocomplete="current-password" required>
                         </div>
                         <div class="form-row" id="loginCaptchaRow" style="display:none;">
-                            <label id="loginCaptchaQuestion">Проверка: —</label>
-                            <div style="display:flex; gap:8px; align-items:center;">
-                                <input type="text" id="loginCaptchaAnswer" placeholder="Ответ" inputmode="numeric" style="flex:1;">
+                            <label id="loginCaptchaQuestion" data-translate="captchaCheck">Перевірка</label>
+                            <div style="position:relative;">
+                                <input type="text" id="loginCaptchaAnswer" data-translate-placeholder="captchaAnswer" placeholder="Ответ" inputmode="numeric">
                                 <button type="button" id="loginCaptchaRefresh" class="btn btn-secondary">↻</button>
                             </div>
                         </div>
@@ -103,13 +104,13 @@
                             <input type="password" id="registerPassword" autocomplete="new-password" required>
                         </div>
                         <div class="form-row">
-                            <label for="registerPassword2">Повторите пароль</label>
+                            <label for="registerPassword2" data-translate="repeatPassword">Повторите пароль</label>
                             <input type="password" id="registerPassword2" autocomplete="new-password" required>
                         </div>
                         <div class="form-row" id="registerCaptchaRow" style="display:none;">
-                            <label id="registerCaptchaQuestion">Проверка: —</label>
-                            <div style="display:flex; gap:8px; align-items:center;">
-                                <input type="text" id="registerCaptchaAnswer" placeholder="Ответ" inputmode="numeric" style="flex:1;">
+                            <label id="registerCaptchaQuestion" data-translate="captchaCheck">Перевірка</label>
+                            <div style="position:relative;">
+                                <input type="text" id="registerCaptchaAnswer" data-translate-placeholder="captchaAnswer" placeholder="Ответ" inputmode="numeric">
                                 <button type="button" id="registerCaptchaRefresh" class="btn btn-secondary">↻</button>
                             </div>
                         </div>
@@ -423,6 +424,7 @@
                     <div class="brand-logo" data-category="7-string" data-translate="sevenString">7 струн для электрогитары</div>
                     <div class="brand-logo" data-category="8-string" data-translate="eightString">8 струн для электрогитары</div>
                     <div class="brand-logo" data-category="9-string" data-translate="nineString">9 струн для электрогитары</div>
+                    <div class="brand-logo" data-category="12-string" data-translate="twelveString">12 струн для электрогитары</div>
                     <div class="brand-logo" data-category="flatwound" data-translate="flatwound">Струны электро с плоской обмоткой</div>
                     <div class="brand-logo" data-category="09-gauge" data-translate="gauge09">09 для электрогитары</div>
                     <div class="brand-logo" data-category="10-gauge" data-translate="gauge10">10 для электрогитары</div>
@@ -501,7 +503,7 @@
             <i class="fas fa-home"></i>
             <span data-translate="products">Товары</span>
         </div>
-        <div class="nav-item">
+        <div class="nav-item" onclick="handleCabinetClick()" style="cursor: pointer;">
             <i class="fas fa-user"></i>
             <span data-translate="cabinet">Кабинет</span>
         </div>
@@ -509,7 +511,7 @@
             <i class="far fa-heart"></i>
             <span data-translate="favorites">Избранное</span>
         </div>
-        <div class="nav-item">
+        <div class="nav-item" onclick="handleOrdersClick()" style="cursor: pointer;">
             <i class="fas fa-list"></i>
             <span data-translate="orders">Заказы</span>
         </div>
@@ -725,35 +727,40 @@
                                 <option value="meest" data-translate="deliveryMeest">Meest пошта</option>
                                 <option value="ukrposhta" data-translate="deliveryUkrposhta">УКРПОШТА (передоплата 80грн.)</option>
                                 <option value="pickup" data-translate="deliveryPickup">Самовивіз</option>
-                                <option value="free1001" data-translate="deliveryFree1001" style="display: none;">Моє замовлення від 1001грн. доставка безкоштовно Новою поштою по Одесі</option>
-                                <option value="free2000" data-translate="deliveryFree2000" style="display: none;">Моє замовлення від 2000грн. доставка безкоштовно Новою Поштою, Укрпоштою</option>
+                                <option value="free1001" data-translate="deliveryFree1001" style="display: none;" disabled>Моє замовлення від 1001грн. доставка безкоштовно Новою поштою по Одесі</option>
+                                <option value="free2000" data-translate="deliveryFree2000" style="display: none;" disabled>Моє замовлення від 2000грн. доставка безкоштовно Новою Поштою, Укрпоштою</option>
                             </select>
                         </div>
                     </div>
                     <div class="info-row">
                         <i class="fas fa-user"></i>
-                        <span data-translate="fullName">Фамилия и имя:<span class="required-star">*</span></span>
-                        <input type="text" id="cartCustomerName" class="cart-input-field" placeholder="Введите фамилию и имя" data-translate-placeholder="fullNamePlaceholder" value="">
-                    </div>
-                    <div class="info-row">
-                        <i class="fas fa-map-marker-alt"></i>
-                        <span data-translate="settlement">Населённый пункт:<span class="required-star">*</span></span>
-                        <input type="text" id="cartCustomerSettlement" class="cart-input-field" placeholder="Введите населённый пункт" data-translate-placeholder="settlementPlaceholder" value="">
+                        <span data-translate="fullName">Прізвище та ім'я:<span class="required-star">*</span><span class="ukrposhta-red-star" style="display:none; color:#ff0000; font-weight:bold; font-size:16px;">*</span></span>
+                        <input type="text" id="cartCustomerName" class="cart-input-field" placeholder="Введіть прізвище та ім'я" data-translate-placeholder="fullNamePlaceholder" value="">
                     </div>
                     <div class="info-row">
                         <i class="fas fa-phone"></i>
-                        <span data-translate="phone">Телефон:<span class="required-star">*</span></span>
+                        <span data-translate="phone">Телефон:<span class="required-star">*</span><span class="ukrposhta-red-star" style="display:none; color:#ff0000; font-weight:bold; font-size:16px;">*</span></span>
                         <input type="tel" id="cartCustomerPhone" class="cart-input-field" placeholder="+380" value="+380" onfocus="this.setSelectionRange(4, 4)">
+                    </div>
+                    <div class="info-row">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <span data-translate="settlement">Населений пункт:<span class="required-star">*</span><span class="ukrposhta-red-star" style="display:none; color:#ff0000; font-weight:bold; font-size:16px;">*</span></span>
+                        <input type="text" id="cartCustomerSettlement" class="cart-input-field" placeholder="Введіть населений пункт" data-translate-placeholder="settlementPlaceholder" value="">
                     </div>
                     <div class="info-row" id="regionRow" style="display:none;">
                         <i class="fas fa-map"></i>
-                        <span>Область:<span class="required-star">*</span></span>
-                        <input type="text" id="cartCustomerRegion" class="cart-input-field" placeholder="Введите область" data-translate-placeholder="regionPlaceholder" value="">
+                        <span data-translate="regionLabel">Область:<span class="required-star">*</span><span class="ukrposhta-red-star" style="display:none; color:#ff0000; font-weight:bold; font-size:16px;">*</span></span>
+                        <input type="text" id="cartCustomerRegion" class="cart-input-field" placeholder="Введіть область" data-translate-placeholder="regionPlaceholder" value="">
+                    </div>
+                    <div class="info-row">
+                        <i class="fas fa-envelope"></i>
+                        <span data-translate="indexCode">Індекс:<span class="required-star">*</span><span class="ukrposhta-red-star" style="display:none; color:#ff0000; font-weight:bold; font-size:16px;">*</span></span>
+                        <input type="text" id="cartCustomerIndex" class="cart-input-field" placeholder="Введіть індекс" data-translate-placeholder="indexPlaceholder" value="" inputmode="numeric" maxlength="5" pattern="[0-9]*">
                     </div>
                     <div class="info-row">
                         <i class="fas fa-building"></i>
-                        <span data-translate="branchNumber">Номер отделения:<span class="required-star">*</span></span>
-                        <input type="text" id="cartCustomerBranch" class="cart-input-field" placeholder="Введите номер отделения" data-translate-placeholder="branchNumberPlaceholder" value="">
+                        <span data-translate="branchNumber">Номер відділення:<span class="required-star">*</span></span>
+                        <input type="text" id="cartCustomerBranch" class="cart-input-field" placeholder="Введіть номер відділення" data-translate-placeholder="branchNumberPlaceholder" value="">
                     </div>
 
                     <!-- Элементы для самовывоза в корзине -->
@@ -854,12 +861,16 @@
                             <span class="info-value" id="orderDetailSettlement">-</span>
                         </div>
                         <div class="info-compact-item" id="orderDetailRegionRow" style="display:none;">
-                            <span class="info-label">Область:</span>
+                            <span class="info-label" data-translate="regionLabel">Область:</span>
                             <span class="info-value" id="orderDetailRegion">-</span>
                         </div>
                         <div class="info-compact-item">
                             <span class="info-label">Адрес доставки:</span>
                             <span class="info-value" id="orderDetailBranch">-</span>
+                        </div>
+                        <div class="info-compact-item" id="orderDetailIndexRow" style="display:none;">
+                            <span class="info-label" data-translate="indexCode">Індекс:</span>
+                            <span class="info-value" id="orderDetailIndex">-</span>
                         </div>
                         <div class="info-compact-item" id="orderDetailPickupAddressRow" style="display:none;">
                             <span class="info-label">Адрес самовывоза:</span>
@@ -886,25 +897,60 @@
 
                 <!-- Итоговый расчет -->
                 <div class="order-total-section">
-                    <div class="order-total-row">
-                        <span class="order-total-label">Вартість товарів:</span>
+                    <h4>Підсумки замовлення</h4>
+
+                    <!-- Шаг 1: Сумма товаров без скидок -->
+                    <div class="order-total-row order-calculation-step">
+                        <span class="order-total-label" data-translate="step1ItemsSubtotal">1. Вартість товарів:</span>
                         <span class="order-total-value" id="orderItemsTotal">-</span>
                     </div>
-                    <div class="order-total-row" id="orderDeliveryCostRow">
-                        <span class="order-total-label">Вартість доставки:</span>
-                        <span class="order-total-value" id="orderDeliveryCost">-</span>
+
+                    <!-- Шаг 2: Скидка на товары -->
+                    <div class="order-total-row order-discount" id="orderDiscountRow" style="display: none;">
+                        <span class="order-total-label" data-translate="step2ItemsDiscount">2. Знижка на товари:</span>
+                        <span class="order-total-value" id="orderDiscount">-</span>
                     </div>
-                    <div class="order-total-row" id="orderBonusesRow" style="display: none;">
-                        <span class="order-total-label">Використані бонуси:</span>
-                        <span class="order-total-value" id="orderBonusesTotal">-</span>
+
+                    <!-- Шаг 3: Стоимость товаров со скидками -->
+                    <div class="order-total-row order-calculation-step" id="orderItemsAfterDiscountRow">
+                        <span class="order-total-label" data-translate="step3ItemsAfterDiscount">3. Вартість товарів зі знижками:</span>
+                        <span class="order-total-value" id="orderItemsAfterDiscount">-</span>
                     </div>
-                    <div class="order-total-row" id="orderCouponRow" style="display: none;">
-                        <span class="order-total-label">Знижка за купоном:</span>
+
+                    <!-- Шаг 4: Купон -->
+                    <div class="order-total-row order-discount" id="orderCouponRow" style="display: none;">
+                        <span class="order-total-label" data-translate="step4Coupon">4. Купон test10:</span>
                         <span class="order-total-value" id="orderCouponTotal">-</span>
                     </div>
+
+                    <!-- Шаг 5: Бонусы -->
+                    <div class="order-total-row order-discount" id="orderBonusesRow" style="display: none;">
+                        <span class="order-total-label" data-translate="step5Bonuses">5. Бонусы:</span>
+                        <span class="order-total-value" id="orderBonusesTotal">-</span>
+                    </div>
+
+                    <!-- Шаг 6: Стоимость доставки -->
+                    <div class="order-total-row order-calculation-step" id="orderDeliveryCostRow">
+                        <span class="order-total-label" data-translate="step6DeliveryCost">6. Вартість доставки:</span>
+                        <span class="order-total-value" id="orderDeliveryCost">-</span>
+                    </div>
+
+                    <!-- Шаг 7: Промежуточный итог -->
+                    <div class="order-total-row order-subtotal" id="orderSubtotalRow">
+                        <span class="order-total-label" data-translate="step7Subtotal">7. Проміжний підсумок:</span>
+                        <span class="order-total-value" id="orderSubtotal">-</span>
+                    </div>
+
+                    <!-- Шаг 8: Итоговая сумма -->
                     <div class="order-total-row order-total-final">
-                        <span class="order-total-label">Всього:</span>
+                        <span class="order-total-label" data-translate="step8Total">8. Загальна сума:</span>
                         <span class="order-total-value" id="orderFinalTotal">-</span>
+                    </div>
+
+                    <!-- Шаг 9: Начисленные бонусы -->
+                    <div class="order-total-row order-bonus-earned" id="orderBonusEarnedRow" style="display: none;">
+                        <span class="order-total-label" data-translate="step9EarnedBonuses">9. Бонуси за замовлення:</span>
+                        <span class="order-total-value" id="orderBonusEarnedTotal">-</span>
                     </div>
                 </div>
             </div>

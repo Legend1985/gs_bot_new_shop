@@ -5,5 +5,12 @@
     "displayName": "just_a_legend",
     "createdAt": 1756665461.7871604,
     "photoUrl": null
+  },
+  "usa_strings": {
+    "email": "usa_strings@gmail.com",
+    "passwordHash": "c775e7b757ede630cd0aa1113bd102661ab38829ca52a6422ab782862f268646",
+    "displayName": "usa_strings",
+    "createdAt": 1758467345.8706217,
+    "photoUrl": null
   }
 }
