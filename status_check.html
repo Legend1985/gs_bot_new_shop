@@ -71,13 +71,16 @@
     <div class="status-section">
         <h3>ℹ️ Информация о системе</h3>
         <ul>
-            <li><strong>Локальный сервер:</strong> <a href="http://localhost:8000" target="_blank">http://localhost:8000</a></li>
+            <li><strong>Сервер:</strong> <a href="" id="server-link" target="_blank">-</a></li>
             <li><strong>Время проверки:</strong> <span id="check-time">-</span></li>
             <li><strong>Версия сайта:</strong> v25.21 (после исправлений)</li>
             <li><strong>Бекап создан:</strong> 2025-09-12_19-27</li>
         </ul>
     </div>
 
+    <!-- Подключаем конфигурацию сервера -->
+    <script src="config.js"></script>
+    
     <script>
         let serverRunning = false;
         let apiWorking = false;
@@ -89,19 +92,20 @@
 
             try {
                 // Проверка сервера
-                const serverResponse = await fetch('http://localhost:8000/', { timeout: 5000 });
+                const baseUrl = getBaseUrl();
+                const serverResponse = await fetch(baseUrl + '/', { timeout: 5000 });
                 serverRunning = serverResponse.ok;
 
                 // Проверка API
-                const apiResponse = await fetch('http://localhost:8000/api/products?start=0&limit=1', { timeout: 5000 });
+                const apiResponse = await fetch(getApiUrl('products?start=0&limit=1'), { timeout: 5000 });
                 const apiData = await apiResponse.json();
                 apiWorking = apiResponse.ok && apiData.success && apiData.products.length > 0;
 
                 // Проверка файлов
                 const filesPromises = [
-                    fetch('http://localhost:8000/app.js').then(r => r.ok),
-                    fetch('http://localhost:8000/style.css').then(r => r.ok),
-                    fetch('http://localhost:8000/translations.js').then(r => r.ok)
+                    fetch(baseUrl + '/app.js').then(r => r.ok),
+                    fetch(baseUrl + '/style.css').then(r => r.ok),
+                    fetch(baseUrl + '/translations.js').then(r => r.ok)
                 ];
                 const filesResults = await Promise.all(filesPromises);
                 filesAvailable = filesResults.every(result => result);
@@ -131,13 +135,14 @@
             const detailedTestsEl = document.getElementById('detailed-tests');
             detailedTestsEl.innerHTML = '<div class="loading">Выполняется детальная проверка...</div>';
 
+            const baseUrl = getBaseUrl();
             const tests = [
-                { name: 'Основной сервер', url: 'http://localhost:8000/', type: 'server' },
-                { name: 'API товаров', url: 'http://localhost:8000/api/products?start=0&limit=1', type: 'api' },
-                { name: 'Файл app.js', url: 'http://localhost:8000/app.js', type: 'file' },
-                { name: 'Файл style.css', url: 'http://localhost:8000/style.css', type: 'file' },
-                { name: 'Файл translations.js', url: 'http://localhost:8000/translations.js', type: 'file' },
-                { name: 'Главная страница', url: 'http://localhost:8000/index.html', type: 'file' }
+                { name: 'Основной сервер', url: baseUrl + '/', type: 'server' },
+                { name: 'API товаров', url: getApiUrl('products?start=0&limit=1'), type: 'api' },
+                { name: 'Файл app.js', url: baseUrl + '/app.js', type: 'file' },
+                { name: 'Файл style.css', url: baseUrl + '/style.css', type: 'file' },
+                { name: 'Файл translations.js', url: baseUrl + '/translations.js', type: 'file' },
+                { name: 'Главная страница', url: baseUrl + '/index.html', type: 'file' }
             ];
 
             let results = [];
@@ -178,11 +183,11 @@
 
         // Функции для открытия страниц
         function openMainSite() {
-            window.open('http://localhost:8000', '_blank');
+            window.open(getBaseUrl(), '_blank');
         }
 
         function openTestConnection() {
-            window.open('http://localhost:8000/test_connection.html', '_blank');
+            window.open(getBaseUrl() + '/test_connection.html', '_blank');
         }
 
         function refreshPage() {
@@ -197,6 +202,16 @@
 
         // Инициализация
         document.addEventListener('DOMContentLoaded', function() {
+            // Устанавливаем ссылку на сервер
+            const serverLink = document.getElementById('server-link');
+            const baseUrl = getBaseUrl();
+            serverLink.href = baseUrl;
+            serverLink.textContent = baseUrl;
+            
+            // Показываем информацию о конфигурации
+            const envInfo = getEnvironmentInfo();
+            console.log('🔧 Конфигурация:', envInfo);
+            
             checkStatus();
 
             // Автоматическая проверка каждые 30 секунд

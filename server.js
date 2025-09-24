@@ -2,8 +2,15 @@ const express = require('express');
 const path = require('path');
 const axios = require('axios');
 
+// Подключаем конфигурацию сервера
+const serverConfig = require('./config.js');
+
 const app = express();
-const PORT = 8000;
+const PORT = process.env.PORT || 8000;
+
+// Получаем информацию о текущем окружении
+const envInfo = serverConfig.getEnvironmentInfo();
+console.log('🔧 Сервер запускается с конфигурацией:', envInfo);
 
 // Middleware
 app.use(express.json());
@@ -28,7 +35,8 @@ async function autoScrapeOnStartup() {
             console.log(`📊 Скрапинг категории: ${category}`);
 
             // Вызываем PHP API для скрапинга
-            const response = await axios.get(`http://localhost:${PORT}/api.php?category=${category}&limit=100`);
+            const apiUrl = `http://localhost:${PORT}/api.php?category=${category}&limit=100`;
+            const response = await axios.get(apiUrl);
 
             if (response.data && response.data.products) {
                 console.log(`✅ Загружено ${response.data.products.length} товаров для категории ${category}`);
@@ -53,12 +61,15 @@ app.get('/test', (req, res) => {
 
 // Запуск сервера
 app.listen(PORT, async () => {
-    console.log(`🌐 Сервер запущен на http://localhost:${PORT}`);
+    const serverUrl = `http://localhost:${PORT}`;
+    console.log(`🌐 Сервер запущен на ${serverUrl}`);
+    console.log(`🔧 Окружение: ${envInfo.environment} (${envInfo.name})`);
+    console.log(`📡 API Base URL: ${envInfo.apiUrl}`);
 
     // Автоматический скрапинг при запуске
     await autoScrapeOnStartup();
 
-    console.log(`🎯 Откройте браузер и перейдите на http://localhost:${PORT}/index.html`);
+    console.log(`🎯 Откройте браузер и перейдите на ${serverUrl}/index.html`);
 });
 
 // Graceful shutdown

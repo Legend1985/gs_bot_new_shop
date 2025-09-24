@@ -32,9 +32,11 @@ def run_server(port=8000):
     httpd = HTTPServer(server_address, CustomHTTPRequestHandler)
 
     print("🚀 Запуск сервера...")
-    print(f"🌐 Сервер запущен: http://localhost:{port}")
+    server_url = f"http://localhost:{port}"
+    print(f"🌐 Сервер запущен: {server_url}")
     print(f"📁 Корневая директория: {os.getcwd()}")
-    print(f"🎯 Откройте браузер: http://localhost:{port}/index.html")
+    print(f"🎯 Откройте браузер: {server_url}/index.html")
+    print("💡 Для смены окружения отредактируйте config.js")
     print("❌ Для остановки нажмите Ctrl+C")
 
     try:
