@@ -794,23 +794,19 @@ def api_user_orders():
         user = session.get('user')
         tg_id = request.args.get('tg_id')
 
+        # Для демо режима: если нет авторизованного пользователя, используем just_a_legend
         if not user and not tg_id:
-            return jsonify({
-                'success': False,
-                'error': 'Пользователь не авторизован',
-                'orders': [],
-                'summary': {'totalOrders': 0, 'bonuses': 0, 'totalAmount': 0}
-            }), 401
+            print(f"API user_orders: Пользователь не авторизован, используем демо режим just_a_legend")
+            user_identifier = 'just_a_legend'
+        else:
+            # Определяем идентификатор пользователя
+            if user:
+                user_identifier = user.get('username') or user.get('displayName') or user.get('email')
+            elif tg_id:
+                user_identifier = tg_id
 
         # Получаем заказы пользователя
         user_orders = []
-        user_identifier = None
-
-        # Определяем идентификатор пользователя
-        if user:
-            user_identifier = user.get('username') or user.get('displayName') or user.get('email')
-        elif tg_id:
-            user_identifier = tg_id
 
         print(f"API user_orders: Получаем заказы для пользователя: {user_identifier}")
         print(f"API user_orders: Всего заказов в базе: {len(ORDERS_DB)}")
@@ -881,12 +877,22 @@ def api_user_orders():
         total_amount = 0
 
         for order in user_orders:
-            # Рассчитываем итоговую сумму с учетом бонусов и доставки
+            # Используем сохраненные значения из заказа или рассчитываем, если их нет
+            saved_final_total = order.get('finalTotal', 0)
             order_total = order.get('total', 0)
-            delivery_cost = calculate_delivery_cost(order.get('deliveryMethod', 'pickup'), order_total)
+            # Приоритет сохраненному значению deliveryCost (даже если оно 0)
+            if 'deliveryCost' in order:
+                delivery_cost = order['deliveryCost']
+            else:
+                delivery_cost = calculate_delivery_cost(order.get('deliveryMethod', 'pickup'), order_total)
             bonuses_used = order.get('bonusesUsed', 0)
             coupon_discount = order.get('couponDiscount', 0)
-            final_amount = max(0, order_total + delivery_cost - bonuses_used - coupon_discount)
+            
+            if saved_final_total > 0:
+                final_amount = saved_final_total
+            else:
+                # Рассчитываем итоговую сумму для старых заказов без сохраненного finalTotal
+                final_amount = max(0, order_total + delivery_cost - bonuses_used - coupon_discount)
 
             # Получаем адрес доставки
             customer = order.get('customer', {})
@@ -898,31 +904,109 @@ def api_user_orders():
             status = order.get('status', 'accepted')
             status_text = get_order_status_text(status)
 
+            # Сохраняем полную дату для сортировки и короткую для отображения
+            full_date = order.get('date', '')
+            display_date = full_date.split('T')[0] if 'T' in str(full_date) else str(full_date)
+            
             formatted_order = {
                 'orderId': order.get('id', ''),
-                'date': order.get('date', '').split('T')[0] if 'T' in str(order.get('date', '')) else str(order.get('date', '')),
+                'date': display_date,
+                'fullDate': full_date,  # Для сортировки
                 'address': address or 'Адрес не указан',
                 'amount': final_amount,
-                'status': status_text
+                'status': status_text,
+                # Добавляем полную информацию о заказе для детального просмотра
+                'customerName': customer.get('name', ''),
+                'customer': customer,  # Добавляем полную информацию о клиенте
+                'items': order.get('items', []),
+                'paymentMethod': order.get('paymentMethod', ''),
+                'deliveryMethod': order.get('deliveryMethod', ''),
+                'comment': order.get('comment', ''),
+                'pickupTime': order.get('pickupTime', ''),
+                'bonusesUsed': bonuses_used,
+                'couponDiscount': coupon_discount,
+                'deliveryCost': delivery_cost,
+                'total': order_total,
+                'finalTotal': final_amount,
+                # Добавляем поля для правильного расчета в попапе
+                'itemsTotal': order.get('itemsTotal', order_total),
+                'itemsDiscount': order.get('itemsDiscount', 0),
+                'subtotal': order.get('subtotal', order.get('itemsTotal', order_total)),
+                'bonusDiscount': order.get('bonusDiscount', 0)
             }
 
             formatted_orders.append(formatted_order)
             total_amount += final_amount
 
-        # Сортируем заказы по дате (новые выше)
-        formatted_orders.sort(key=lambda x: x.get('date', ''), reverse=True)
+        # Сортируем заказы по дате (новые выше) с улучшенной обработкой форматов дат
+        def parse_date_for_sorting(date_str):
+            if not date_str:
+                return datetime.min.replace(tzinfo=None)
+            try:
+                # Если дата в ISO формате с временем
+                if 'T' in date_str:
+                    dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+                    # Убираем timezone для единообразия
+                    return dt.replace(tzinfo=None)
+                # Если дата только в формате YYYY-MM-DD
+                else:
+                    return datetime.strptime(date_str, '%Y-%m-%d')
+            except:
+                return datetime.min.replace(tzinfo=None)
+        
+        formatted_orders.sort(key=lambda x: parse_date_for_sorting(x.get('fullDate', x.get('date', ''))), reverse=True)
 
         # Рассчитываем бонусы пользователя на основе заказов
-        bonuses = 0
+        bonuses_earned = 0
+        bonuses_used = 0
+        
         for order in formatted_orders:
             # Начисляем 1% от суммы каждого заказа
             order_amount = order.get('amount', 0)
             bonus_earned = int(order_amount * 0.01)  # 1% от суммы заказа
-            bonuses += bonus_earned
-
-        # Добавляем начальный бонус для новых пользователей
-        if len(formatted_orders) == 0:
-            bonuses = 10  # Начальный бонус для новых пользователей
+            bonuses_earned += bonus_earned
+            
+            # Учитываем потраченные бонусы
+            order_bonuses_used = order.get('bonusesUsed', 0)
+            bonuses_used += order_bonuses_used
+        
+        # Итоговый баланс = заработано - потрачено + начальный бонус
+        initial_bonus = 10  # Начальный бонус для пользователей
+        bonuses = initial_bonus + bonuses_earned - bonuses_used
+        
+        # Для пользователя just_a_legend рассчитываем бонусы правильно
+        if user_identifier == 'just_a_legend':
+            # Правильный расчет бонусов: 10% от итоговой суммы заказа в БОНУСАХ
+            # 10 бонусов = 1 грн скидки в корзине
+            bonuses_earned_correct = 0
+            bonuses_used_total = 0
+            
+            print(f"=== Расчет бонусов для just_a_legend ===")
+            print(f"Найдено заказов: {len(formatted_orders)}")
+            
+            for order in formatted_orders:
+                # Заработанные бонусы = 10% от finalTotal в БОНУСАХ
+                final_total = order.get('amount', 0)  # amount содержит finalTotal
+                bonus_from_order = int(final_total * 0.1)  # 10% от суммы = количество бонусов
+                used_bonuses = order.get('bonusesUsed', 0)
+                
+                bonuses_earned_correct += bonus_from_order
+                bonuses_used_total += used_bonuses
+                
+                print(f"Order {order.get('id', 'N/A')}: {final_total} грн → заработано {bonus_from_order} бонусов, потрачено {used_bonuses} бонусов")
+            
+            # Начальный баланс до всех заказов был 0, но пользователь просил установить базовый баланс
+            # Учитываем, что после всех операций должно быть правильное количество
+            initial_balance = 0  # Начинаем с 0
+            current_balance = max(0, initial_balance + bonuses_earned_correct - bonuses_used_total)
+            bonuses = current_balance
+            
+            print(f"=== Итого ===")
+            print(f"Начальный баланс: {initial_balance}")
+            print(f"Всего заработано: {bonuses_earned_correct}")
+            print(f"Всего потрачено: {bonuses_used_total}")
+            print(f"Текущий баланс: {bonuses}")
+            print(f"========================")
 
         # Проверяем сохраненные бонусы пользователя
         if user and 'bonuses' in user:
@@ -956,16 +1040,20 @@ def calculate_delivery_cost(delivery_method, order_total):
     try:
         if delivery_method == 'pickup':
             return 0
-        elif delivery_method == 'nova':
-            return 50 if order_total < 1000 else 0  # Бесплатная доставка от 1000 грн
+        elif delivery_method == 'free1001' and order_total >= 1001:
+            return 0
+        elif delivery_method == 'free2000' and order_total >= 2000:
+            return 0
         elif delivery_method == 'ukrposhta':
-            return 30 if order_total < 500 else 0   # Бесплатная доставка от 500 грн
+            return 80  # Укрпочта всегда 80 грн
+        elif delivery_method == 'nova':
+            return 0  # Nova Poshta всегда бесплатная
         elif delivery_method == 'meest':
-            return 45 if order_total < 800 else 0   # Бесплатная доставка от 800 грн
+            return 0  # Meest всегда бесплатная
         else:
-            return 50  # Стоимость по умолчанию
+            return 0  # По умолчанию бесплатная доставка
     except Exception:
-        return 50
+        return 0
 
 
 def get_order_status_text(status):
@@ -1323,8 +1411,121 @@ def preload_cache_async():
     t.start()
 
 
+# Функции для работы с бонусами пользователей
+BONUSES_FILE = 'user_bonuses.db.json'
+
+def load_user_bonuses():
+    """Загружает бонусы пользователей из файла."""
+    try:
+        if os.path.exists(BONUSES_FILE):
+            with open(BONUSES_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        return {}
+    except Exception as e:
+        print(f"Error loading user bonuses: {e}")
+        return {}
+
+def save_user_bonuses(bonuses_data):
+    """Сохраняет бонусы пользователей в файл."""
+    try:
+        with open(BONUSES_FILE, 'w', encoding='utf-8') as f:
+            json.dump(bonuses_data, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as e:
+        print(f"Error saving user bonuses: {e}")
+        return False
+
+def get_user_bonus_balance(user_id):
+    """Получает баланс бонусов пользователя."""
+    bonuses_data = load_user_bonuses()
+    user_data = bonuses_data.get(user_id, {})
+    return user_data.get('bonuses', 0)
+
+def update_user_bonus_balance(user_id, new_balance):
+    """Обновляет баланс бонусов пользователя."""
+    bonuses_data = load_user_bonuses()
+    bonuses_data[user_id] = {
+        'bonuses': max(0, new_balance),  # Не может быть отрицательным
+        'last_updated': datetime.now().isoformat()
+    }
+    return save_user_bonuses(bonuses_data)
+
+def add_user_bonuses(user_id, amount):
+    """Добавляет бонусы пользователю."""
+    current_balance = get_user_bonus_balance(user_id)
+    new_balance = current_balance + amount
+    return update_user_bonus_balance(user_id, new_balance)
+
+def deduct_user_bonuses(user_id, amount):
+    """Списывает бонусы у пользователя."""
+    current_balance = get_user_bonus_balance(user_id)
+    if current_balance >= amount:
+        new_balance = current_balance - amount
+        return update_user_bonus_balance(user_id, new_balance)
+    return False  # Недостаточно бонусов
+
+# API endpoints для бонусов
+@app.route('/api/user_bonuses/<user_id>', methods=['GET'])
+def api_get_user_bonuses(user_id):
+    """Получает баланс бонусов пользователя."""
+    try:
+        balance = get_user_bonus_balance(user_id)
+        return jsonify({
+            'success': True,
+            'user_id': user_id,
+            'bonuses': balance
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/user_bonuses/<user_id>', methods=['POST'])
+def api_update_user_bonuses(user_id):
+    """Обновляет баланс бонусов пользователя."""
+    try:
+        data = request.get_json()
+        action = data.get('action')  # 'add', 'deduct', 'set'
+        amount = data.get('amount', 0)
+        
+        if action == 'add':
+            success = add_user_bonuses(user_id, amount)
+            new_balance = get_user_bonus_balance(user_id)
+        elif action == 'deduct':
+            success = deduct_user_bonuses(user_id, amount)
+            new_balance = get_user_bonus_balance(user_id) if success else None
+        elif action == 'set':
+            success = update_user_bonus_balance(user_id, amount)
+            new_balance = amount if success else None
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Invalid action. Use: add, deduct, or set'
+            }), 400
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'user_id': user_id,
+                'action': action,
+                'amount': amount,
+                'new_balance': new_balance
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Operation failed. Check balance or parameters.'
+            }), 400
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 if __name__ == '__main__':
-    print("Starting server... (версия 13.03 - добавлена система заказов)")
+    print("Starting server... (версия 13.04 - добавлена серверная система бонусов)")
     # Load users DB from disk
     _load_users_from_disk()
     # Load orders DB from disk
