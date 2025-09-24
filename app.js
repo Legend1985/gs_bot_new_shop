@@ -6486,7 +6486,12 @@ async function showAccountView() {
         const currentUser = window.__authState && window.__authState.profile ?
             (window.__authState.profile.username || window.__authState.profile.displayName || 'guest') : 'guest';
         if (currentUser === 'just_a_legend') {
-            restoreCorrectOrders(currentUser);
+            // Делаем функцию доступной глобально для отладки
+            window.forceFullOrderSync = forceFullOrderSync;
+            window.restoreCorrectOrders = restoreCorrectOrders;
+            
+            // Отключаем автоматическое восстановление заказов для предотвращения мелькания
+            // await restoreCorrectOrders(currentUser);
         }
     } catch (e) { console.error('showAccountView: Ошибка восстановления заказов:', e); }
 
@@ -6553,16 +6558,10 @@ async function showAccountView() {
 
     // Исправляем суммы в существующих заказах при открытии кабинета
     if (window.__authState && window.__authState.profile) {
-        const currentUser = window.__authState.profile.username || window.__authState.profile.displayName;
-        if (currentUser && currentUser !== 'guest') {
-            setTimeout(() => {
-                fixExistingOrderAmounts(currentUser);
-            }, 1000);
-        }
     }
 
     // Рендерим заказы из localStorage
-    renderAccountOrders();
+    await renderAccountOrders();
 }
 
 function setupCabinetNav() {
@@ -6620,7 +6619,12 @@ async function renderAccountPage() {
 
                         console.log('renderAccountPage: Новые заказы с сервера:', newOrders.length);
 
-                        if (newOrders.length > 0) {
+                        // Для just_a_legend принудительно перезаписываем все заказы с сервера
+                        if (currentUser === 'just_a_legend') {
+                            console.log('renderAccountPage: Принудительная полная синхронизация для just_a_legend');
+                            localStorage.setItem(userOrdersKey, JSON.stringify(validServerOrders));
+                            console.log('renderAccountPage: Все заказы just_a_legend синхронизированы:', validServerOrders.length);
+                        } else if (newOrders.length > 0) {
                             const combinedOrders = [...validExistingOrders, ...newOrders];
                             localStorage.setItem(userOrdersKey, JSON.stringify(combinedOrders));
                             console.log('renderAccountPage: Синхронизировано', newOrders.length, 'заказов из сервера. Всего валидных заказов:', combinedOrders.length);
@@ -6629,11 +6633,11 @@ async function renderAccountPage() {
                         }
                     }
 
-                    // Теперь синхронизируем локальные заказы на сервер (если их больше)
-                    if (validExistingOrders.length > validServerOrders.length) {
-                        console.log('renderAccountPage: Локальных валидных заказов больше, чем на сервере. Синхронизируем на сервер...');
-                        syncLocalOrdersToServer(currentUser, validExistingOrders);
-                    }
+                    // Синхронизация отключена для предотвращения бесконечных обновлений
+                    // if (validExistingOrders.length > validServerOrders.length) {
+                    //     console.log('renderAccountPage: Локальных валидных заказов больше, чем на сервере. Синхронизируем на сервер...');
+                    //     syncLocalOrdersToServer(currentUser, validExistingOrders);
+                    // }
 
                 } catch (e) {
                     console.error('renderAccountPage: Ошибка синхронизации заказов с сервером', e);
@@ -6784,9 +6788,23 @@ async function renderAccountPage() {
             const safeCalculatedBonuses = isNaN(calculatedBonuses) ? 0 : calculatedBonuses;
             const safeServerBonuses = isNaN(serverBonuses) ? 0 : serverBonuses;
 
-            // Используем максимальное значение
-            bonuses = Math.max(safeBonuses, safeCalculatedBonuses, safeServerBonuses);
-            console.log('renderAccountPage: Финальные бонусы для just_a_legend:', bonuses);
+            // Для пользователя just_a_legend используем правильный расчет
+            if (currentUser === 'just_a_legend') {
+                // Начинаем с серверных бонусов как базы
+                let finalBonuses = safeServerBonuses;
+                
+                // Если серверные бонусы недоступны, используем сохраненные
+                if (finalBonuses === 0 && safeBonuses > 0) {
+                    finalBonuses = safeBonuses;
+                }
+                
+                bonuses = finalBonuses;
+                console.log('renderAccountPage: Финальные бонусы для just_a_legend (используем серверные):', bonuses);
+            } else {
+                // Для других пользователей используем максимальное значение
+                bonuses = Math.max(safeBonuses, safeCalculatedBonuses, safeServerBonuses);
+                console.log('renderAccountPage: Финальные бонусы (максимальное значение):', bonuses);
+            }
 
             // Принудительно обновляем бонусы в профиле
             if (window.__authState && window.__authState.profile) {
@@ -6948,30 +6966,100 @@ function setupAccountActionButtons() {
     }
 }
 
-// Функция рендеринга заказов из localStorage в кабинет пользователя
-function renderAccountOrders() {
-    try {
-        console.log('renderAccountOrders: Рендеринг заказов из localStorage');
+// Глобальные переменные для пагинации заказов
+window.ordersDisplayConfig = {
+    pageSize: 100,  // Изначально загружаем 100 заказов
+    loadMoreSize: 20,  // При бесконечной прокрутке загружаем по 20
+    currentPage: 0,
+    isLoading: false,
+    hasMoreOrders: true,
+    allOrders: [],
+    initialLoadComplete: false  // Флаг завершения первоначальной загрузки
+};
 
-        // Получаем заказы из localStorage для текущего пользователя
+// Функция рендеринга заказов из localStorage в кабинет пользователя с пагинацией
+async function renderAccountOrders(loadMore = false) {
+    try {
+        console.log('renderAccountOrders: Рендеринг заказов', loadMore ? '(загрузка дополнительных)' : '(начальная загрузка)');
+
         const currentUser = window.__authState && window.__authState.profile ?
             (window.__authState.profile.username || window.__authState.profile.displayName || 'guest') : 'guest';
         const userOrdersKey = `userOrders_${currentUser}`;
-        let orders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
+        
+        let orders = [];
 
-        // Специальная обработка для just_a_legend - проверяем общий ключ и фильтруем только валидные заказы
-        if (currentUser === 'just_a_legend') {
-            console.log('renderAccountOrders: Специальная обработка заказов для just_a_legend');
-
-            // Фильтруем только валидные заказы из пользовательского ключа
-            orders = orders.filter(order => order.id && order.id !== 'undefined' && order.id !== undefined);
-
-            // Для just_a_legend используем только заказы из localStorage
+        // Для just_a_legend всегда загружаем заказы с сервера для обеспечения синхронизации
+        if (currentUser === 'just_a_legend' && !loadMore) {
+            console.log('renderAccountOrders: Загружаем заказы just_a_legend с сервера для синхронизации');
+            try {
+                const ordersResp = await fetch('/api/user_orders', { credentials: 'include' });
+                const serverOrders = await ordersResp.json();
+                
+                console.log('renderAccountOrders: Ответ сервера:', serverOrders);
+                
+                if (serverOrders.success && serverOrders.orders) {
+                    console.log('renderAccountOrders: Сервер вернул', serverOrders.orders.length, 'заказов');
+                    
+                    // Используем поле orderId из API ответа как id для фильтрации
+                    orders = serverOrders.orders.filter(order => {
+                        const orderId = order.orderId || order.id;
+                        return orderId && orderId !== 'undefined' && orderId !== undefined;
+                    }).map(order => {
+                        // Преобразуем формат API в формат приложения
+                        return {
+                            id: order.orderId || order.id,
+                            date: order.date,
+                            customer: {
+                                name: order.customerName || order.customer?.name || 'just_a_legend',
+                                phone: order.customer?.phone || '',
+                                settlement: order.customer?.settlement || (order.address ? order.address.split(',')[0] || '' : ''),
+                                region: order.customer?.region || '',
+                                branch: order.customer?.branch || (order.address ? order.address.split(',')[1] || '' : ''),
+                                index: order.customer?.index || ''
+                            },
+                            total: order.total || order.amount || 0,
+                            finalTotal: order.finalTotal || order.amount || 0,
+                            status: order.status || 'unknown',
+                            items: order.items || [],
+                            paymentMethod: order.paymentMethod || '',
+                            deliveryMethod: order.deliveryMethod || '',
+                            comment: order.comment || '',
+                            pickupTime: order.pickupTime || '',
+                            bonusesUsed: order.bonusesUsed || 0,
+                            couponDiscount: order.couponDiscount || 0,
+                            deliveryCost: order.deliveryCost || 0,
+                            itemsTotal: order.itemsTotal || order.total || 0, // Используем itemsTotal из API
+                            itemsDiscount: order.itemsDiscount || 0, // Добавляем itemsDiscount
+                            subtotal: order.subtotal || order.itemsTotal || order.total || 0, // Используем subtotal из API
+                            bonusDiscount: Math.floor((order.bonusesUsed || 0) * 0.1) // 10% от использованных бонусов
+                        };
+                    });
+                    
+                    // Сохраняем в localStorage для быстрого доступа
+                    localStorage.setItem(userOrdersKey, JSON.stringify(orders));
+                    console.log('renderAccountOrders: Загружено и преобразовано', orders.length, 'заказов для just_a_legend');
+                } else {
+                    console.warn('renderAccountOrders: Не удалось загрузить заказы с сервера:', serverOrders);
+                    orders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
+                }
+            } catch (error) {
+                console.error('renderAccountOrders: Ошибка загрузки заказов с сервера:', error);
+                orders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
+            }
+        } else {
+            // Для других пользователей или при loadMore используем localStorage
+            orders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
+            
+            // Фильтруем только валидные заказы
+            if (currentUser === 'just_a_legend') {
+                orders = orders.filter(order => order.id && order.id !== 'undefined' && order.id !== undefined);
+            }
         }
 
         console.log('renderAccountOrders: Получаем заказы для пользователя:', currentUser, 'ключ:', userOrdersKey, 'заказов:', orders.length);
         console.log('renderAccountOrders: Проверяем localStorage ключи:', Object.keys(localStorage).filter(key => key.includes('userOrders')));
         console.log('renderAccountOrders: Первые 5 ID заказов:', orders.slice(0, 5).map(o => o.id));
+        console.log('renderAccountOrders: Конфигурация пагинации:', window.ordersDisplayConfig);
 
         // Используем только заказы из localStorage
         const ordersWithId = orders.filter(order => order.id && order.id !== 'undefined' && order.id !== undefined);
@@ -6983,29 +7071,48 @@ function renderAccountOrders() {
             return;
         }
 
-        // Очищаем текущие заказы
-        body.innerHTML = '';
-
         // Сортируем заказы по дате (новые выше)
-        orders.sort((a, b) => new Date(b.date) - new Date(a.date));
+        ordersWithId.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-        // Добавляем заказы из localStorage
-        orders.forEach(order => {
-            // Пропускаем заказы без ID
-            if (!order.id || order.id === 'undefined' || order.id === undefined) {
-                console.warn('renderAccountOrders: Пропускаем заказ без ID:', order);
-                return;
-            }
+        // Сохраняем все заказы в глобальную переменную
+        if (!loadMore) {
+            window.ordersDisplayConfig.allOrders = ordersWithId;
+            window.ordersDisplayConfig.currentPage = 0;
+            window.ordersDisplayConfig.initialLoadComplete = false;
+            // Очищаем контейнер только при начальной загрузке
+        body.innerHTML = '';
+        }
 
+        // Вычисляем диапазон заказов для отображения
+        let startIndex, endIndex, currentPageSize;
+        
+        if (!window.ordersDisplayConfig.initialLoadComplete && !loadMore) {
+            // Первоначальная загрузка - показываем до 100 заказов
+            startIndex = 0;
+            endIndex = Math.min(window.ordersDisplayConfig.pageSize, window.ordersDisplayConfig.allOrders.length);
+            currentPageSize = window.ordersDisplayConfig.pageSize;
+            window.ordersDisplayConfig.initialLoadComplete = true;
+        } else {
+            // Дополнительная загрузка - показываем по 20 заказов
+            const alreadyShown = window.ordersDisplayConfig.initialLoadComplete ? 
+                window.ordersDisplayConfig.pageSize + (window.ordersDisplayConfig.currentPage * window.ordersDisplayConfig.loadMoreSize) :
+                window.ordersDisplayConfig.currentPage * window.ordersDisplayConfig.pageSize;
+            startIndex = alreadyShown;
+            endIndex = startIndex + window.ordersDisplayConfig.loadMoreSize;
+            currentPageSize = window.ordersDisplayConfig.loadMoreSize;
+        }
+        
+        const ordersToShow = window.ordersDisplayConfig.allOrders.slice(startIndex, endIndex);
+
+        console.log(`renderAccountOrders: Отображаем заказы ${startIndex + 1}-${Math.min(endIndex, window.ordersDisplayConfig.allOrders.length)} из ${window.ordersDisplayConfig.allOrders.length}`);
+
+        // Добавляем заказы
+        ordersToShow.forEach(order => {
             const row = document.createElement('div');
             row.className = 'orders-table-row';
             row.style.cursor = 'pointer';
             row.onclick = () => {
                 console.log('Order row clicked, order ID:', order.id);
-                console.log('Current auth state:', window.__authState);
-                const currentUserTest = window.__authState && window.__authState.profile ?
-                    (window.__authState.profile.username || window.__authState.profile.displayName || 'guest') : 'guest';
-                console.log('Current user for search:', currentUserTest);
                 showOrderDetails(order.id);
             };
 
@@ -7029,16 +7136,203 @@ function renderAccountOrders() {
             body.appendChild(row);
         });
 
-        // Обновляем сводку заказов
-        updateAccountSummary(orders);
+        // Обновляем номер текущей страницы только для дополнительных загрузок
+        if (loadMore) {
+            window.ordersDisplayConfig.currentPage++;
+        }
+        
+        // Проверяем, есть ли еще заказы для загрузки
+        const totalShown = window.ordersDisplayConfig.initialLoadComplete ? 
+            window.ordersDisplayConfig.pageSize + (window.ordersDisplayConfig.currentPage * window.ordersDisplayConfig.loadMoreSize) :
+            window.ordersDisplayConfig.pageSize;
+        
+        window.ordersDisplayConfig.hasMoreOrders = totalShown < window.ordersDisplayConfig.allOrders.length;
 
-        // Подсчитываем сколько заказов фактически отображено (с ID)
-        const renderedOrders = orders.filter(order => order.id && order.id !== 'undefined' && order.id !== undefined);
-        console.log('renderAccountOrders: Заказы успешно отрендерены', renderedOrders.length, 'из общего количества:', orders.length);
+        // НЕ добавляем кнопку "Загрузить еще" - используем только бесконечную прокрутку
+        removeLoadMoreButton();
+
+        // Обновляем сводку заказов (используем все заказы, а не только отображенные)
+        // Всегда обновляем сводку, чтобы показать правильное общее количество заказов
+        updateAccountSummary(window.ordersDisplayConfig.allOrders);
+
+        const totalShownForLog = window.ordersDisplayConfig.initialLoadComplete ? 
+            window.ordersDisplayConfig.pageSize + (window.ordersDisplayConfig.currentPage * window.ordersDisplayConfig.loadMoreSize) :
+            Math.min(window.ordersDisplayConfig.pageSize, window.ordersDisplayConfig.allOrders.length);
+        
+        console.log('renderAccountOrders: Заказы успешно отрендерены', ordersToShow.length, 'новых заказов. Всего отображено:', totalShownForLog, 'из', window.ordersDisplayConfig.allOrders.length);
+
+        // Настраиваем бесконечную прокрутку
+        if (!loadMore) {
+            setupInfiniteScroll();
+        }
 
     } catch (error) {
         console.error('renderAccountOrders: Ошибка рендеринга заказов', error);
     }
+}
+
+// Функция добавления кнопки "Загрузить еще"
+function addLoadMoreButton(container) {
+    // Удаляем существующую кнопку если есть
+    removeLoadMoreButton();
+    
+    const loadMoreBtn = document.createElement('div');
+    loadMoreBtn.id = 'loadMoreOrdersBtn';
+    loadMoreBtn.className = 'load-more-orders-btn';
+    loadMoreBtn.style.cssText = `
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 15px;
+        margin: 20px 0;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        user-select: none;
+    `;
+    
+    loadMoreBtn.innerHTML = `
+        <span>Загрузить еще заказы</span>
+        <div style="margin-left: 10px; font-size: 12px; opacity: 0.8;">
+            (${window.ordersDisplayConfig.allOrders.length - window.ordersDisplayConfig.currentPage * window.ordersDisplayConfig.pageSize} осталось)
+        </div>
+    `;
+    
+    loadMoreBtn.addEventListener('mouseenter', () => {
+        loadMoreBtn.style.transform = 'translateY(-2px)';
+        loadMoreBtn.style.boxShadow = '0 8px 25px rgba(102, 126, 234, 0.4)';
+    });
+    
+    loadMoreBtn.addEventListener('mouseleave', () => {
+        loadMoreBtn.style.transform = 'translateY(0)';
+        loadMoreBtn.style.boxShadow = 'none';
+    });
+    
+    loadMoreBtn.addEventListener('click', loadMoreOrders);
+    
+    container.appendChild(loadMoreBtn);
+}
+
+// Функция удаления кнопки "Загрузить еще"
+function removeLoadMoreButton() {
+    const existingBtn = document.getElementById('loadMoreOrdersBtn');
+    if (existingBtn) {
+        existingBtn.remove();
+    }
+}
+
+// Функция загрузки дополнительных заказов
+function loadMoreOrders() {
+    if (window.ordersDisplayConfig.isLoading || !window.ordersDisplayConfig.hasMoreOrders) {
+        console.log('loadMoreOrders: Загрузка заблокирована', {
+            isLoading: window.ordersDisplayConfig.isLoading,
+            hasMoreOrders: window.ordersDisplayConfig.hasMoreOrders
+        });
+        return;
+    }
+    
+    window.ordersDisplayConfig.isLoading = true;
+    console.log('loadMoreOrders: Начинаем загрузку дополнительных заказов');
+    
+    // Показываем индикатор загрузки в конце списка
+    const container = document.getElementById('ordersTableBody');
+    if (container) {
+        const loadingIndicator = document.createElement('div');
+        loadingIndicator.id = 'ordersLoadingIndicator';
+        loadingIndicator.style.cssText = `
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            color: #666;
+        `;
+        loadingIndicator.innerHTML = `
+            <div style="display: flex; align-items: center;">
+                <div style="width: 20px; height: 20px; border: 2px solid rgba(102, 126, 234, 0.3); border-top: 2px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 10px;"></div>
+                Загружаем еще заказы...
+            </div>
+        `;
+        container.appendChild(loadingIndicator);
+    }
+    
+    // Имитируем небольшую задержку для UX
+    setTimeout(() => {
+        // Удаляем индикатор загрузки
+        const loadingIndicator = document.getElementById('ordersLoadingIndicator');
+        if (loadingIndicator) {
+            loadingIndicator.remove();
+        }
+        
+        renderAccountOrders(true);
+        window.ordersDisplayConfig.isLoading = false;
+        
+        // Если больше нет заказов, добавляем сообщение
+        if (!window.ordersDisplayConfig.hasMoreOrders) {
+            const container = document.getElementById('ordersTableBody');
+            if (container) {
+                const allLoadedMsg = document.createElement('div');
+                allLoadedMsg.id = 'allOrdersLoadedMessage';
+                allLoadedMsg.style.cssText = `
+                    text-align: center;
+                    padding: 20px;
+                    color: #666;
+                    font-style: italic;
+                    border-top: 1px solid #eee;
+                    margin-top: 10px;
+                `;
+                allLoadedMsg.textContent = `Все заказы загружены (${window.ordersDisplayConfig.allOrders.length})`;
+                container.appendChild(allLoadedMsg);
+            }
+        }
+        
+        console.log('loadMoreOrders: Загрузка завершена');
+    }, 300);
+}
+
+// Функция настройки бесконечной прокрутки
+function setupInfiniteScroll() {
+    // Удаляем предыдущий обработчик если есть
+    if (window.ordersScrollHandler) {
+        window.removeEventListener('scroll', window.ordersScrollHandler);
+    }
+    
+    window.ordersScrollHandler = () => {
+        // Проверяем, находимся ли мы на странице личного кабинета
+        const accountContent = document.getElementById('account-content');
+        if (!accountContent || accountContent.style.display === 'none') {
+            return;
+        }
+        
+        // Проверяем, есть ли еще заказы и не идет ли загрузка
+        if (!window.ordersDisplayConfig.hasMoreOrders || window.ordersDisplayConfig.isLoading) {
+            return;
+        }
+        
+        // Проверяем, достигли ли мы конца страницы (за 500px до конца)
+        const scrollPosition = window.innerHeight + window.scrollY;
+        const documentHeight = document.documentElement.scrollHeight;
+        
+        if (scrollPosition >= documentHeight - 500) {
+            console.log('setupInfiniteScroll: Достигнут конец страницы, загружаем еще заказы');
+            loadMoreOrders();
+        }
+    };
+    
+    // Добавляем обработчик с throttling для производительности
+    let scrollTimeout;
+    const throttledScrollHandler = () => {
+        if (scrollTimeout) return;
+        scrollTimeout = setTimeout(() => {
+            window.ordersScrollHandler();
+            scrollTimeout = null;
+        }, 100);
+    };
+    
+    window.addEventListener('scroll', throttledScrollHandler);
+    console.log('setupInfiniteScroll: Бесконечная прокрутка настроена');
 }
 
 // Функция обновления сводки заказов
@@ -7342,12 +7636,11 @@ function getOrderStatusText(originalStatus) {
 	const lang = getCurrentLanguage();
 	const s = (originalStatus || '').toString().trim().toLowerCase();
 	// Базовые маппинги
-	let code = 'paid';
-	if (s.includes('оплач')) code = 'paid';
-	else if (s.includes('paid')) code = 'paid';
+	let code = 'paid'; // По умолчанию
+	if (s.includes('принят') || s.includes('accepted')) code = 'accepted';
 	else if (s.includes('processing') || s.includes('обработ')) code = 'processing';
-	else if (s.includes('принят') || s.includes('accepted')) code = 'accepted';
 	else if (s.includes('отмен') || s.includes('cancel')) code = 'cancelled';
+	else if (s.includes('оплач') || s.includes('paid')) code = 'paid';
 	// Локализация
 	if (lang === 'uk') {
 		if (code === 'paid') return 'Сплачено';
@@ -7478,44 +7771,9 @@ function saveOrderToLocalStorage(order) {
 }
 
 
-function fixExistingOrderAmounts(username) {
-    try {
-        console.log('fixExistingOrderAmounts: Исправляем суммы заказов для пользователя:', username);
-
-        const userOrdersKey = `userOrders_${username}`;
-        const orders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
-        let fixedCount = 0;
-
-        orders.forEach(order => {
-            // Если сумма undefined или 0, но есть finalTotal, используем finalTotal
-            if ((order.amount === undefined || order.amount === 0 || isNaN(order.amount)) &&
-                order.finalTotal && !isNaN(order.finalTotal) && order.finalTotal > 0) {
-                order.amount = order.finalTotal;
-                fixedCount++;
-                console.log('fixExistingOrderAmounts: Исправлена сумма заказа', order.id, 'с', order.amount, 'на', order.finalTotal);
-            }
-            // Если есть itemsTotal и он больше, используем его
-            else if ((order.amount === undefined || order.amount === 0 || isNaN(order.amount)) &&
-                     order.itemsTotal && !isNaN(order.itemsTotal) && order.itemsTotal > 0) {
-                order.amount = order.itemsTotal;
-                fixedCount++;
-                console.log('fixExistingOrderAmounts: Исправлена сумма заказа', order.id, 'на itemsTotal:', order.itemsTotal);
-            }
-        });
-
-        if (fixedCount > 0) {
-            localStorage.setItem(userOrdersKey, JSON.stringify(orders));
-            console.log('fixExistingOrderAmounts: Исправлено', fixedCount, 'заказов для пользователя', username);
-        } else {
-            console.log('fixExistingOrderAmounts: Не найдено заказов для исправления');
-        }
-    } catch (error) {
-        console.error('fixExistingOrderAmounts: Ошибка исправления заказов:', error);
-    }
-}
 
 // Функция восстановления правильных заказов для just_a_legend
-function restoreCorrectOrders(username) {
+async function restoreCorrectOrders(username) {
     try {
         console.log('restoreCorrectOrders: Восстанавливаем правильные заказы для пользователя:', username);
 
@@ -7527,16 +7785,46 @@ function restoreCorrectOrders(username) {
 
         console.log('restoreCorrectOrders: Текущих заказов:', currentOrders.length, 'валидных:', validOrders.length);
 
-        // Если валидных заказов меньше 50, восстанавливаем правильные
-        if (validOrders.length < 50) {
-            console.log('restoreCorrectOrders: Восстанавливаем правильные заказы...');
-
-            // Используем данные из correct_orders.js
-            const correctOrders = window.correctOrdersData || [];
-
-            // Сохраняем правильные заказы
-            localStorage.setItem(userOrdersKey, JSON.stringify(correctOrders));
-            console.log('restoreCorrectOrders: Восстановлено', correctOrders.length, 'правильных заказов для', username);
+        // Если валидных заказов меньше 80 для just_a_legend, принудительно загружаем с сервера
+        if (validOrders.length < 80) {
+            console.log('restoreCorrectOrders: Заказов меньше ожидаемого, загружаем с сервера');
+            
+            try {
+                const response = await fetch('/api/user_orders', { credentials: 'include' });
+                const serverOrders = await response.json();
+                
+                if (serverOrders.success && serverOrders.orders) {
+                    const serverValidOrders = serverOrders.orders.filter(o => o.id && o.id !== 'undefined' && o.id !== undefined);
+                    localStorage.setItem(userOrdersKey, JSON.stringify(serverValidOrders));
+                    console.log('restoreCorrectOrders: Восстановлено', serverValidOrders.length, 'заказов с сервера');
+                    
+                    // Сбрасываем конфигурацию пагинации для перерендера
+                    if (window.ordersDisplayConfig) {
+                        window.ordersDisplayConfig.currentPage = 0;
+                        window.ordersDisplayConfig.hasMoreOrders = true;
+                        window.ordersDisplayConfig.allOrders = [];
+                        window.ordersDisplayConfig.initialLoadComplete = false;
+                        window.ordersDisplayConfig.isLoading = false;
+                    }
+                    
+                    // Перерендериваем заказы если находимся в личном кабинете
+                    const accountContent = document.getElementById('account-content');
+                    if (accountContent && accountContent.style.display !== 'none') {
+                        if (typeof renderAccountOrders === 'function') {
+                            await renderAccountOrders();
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('restoreCorrectOrders: Ошибка загрузки заказов с сервера:', error);
+                
+                // Fallback - используем данные из correct_orders.js если есть
+                const correctOrders = window.correctOrdersData || [];
+                if (correctOrders.length > 0) {
+                    localStorage.setItem(userOrdersKey, JSON.stringify(correctOrders));
+                    console.log('restoreCorrectOrders: Восстановлено', correctOrders.length, 'правильных заказов из fallback данных');
+                }
+            }
         } else {
             console.log('restoreCorrectOrders: У пользователя уже достаточно валидных заказов:', validOrders.length);
         }
@@ -7545,9 +7833,63 @@ function restoreCorrectOrders(username) {
     }
 }
 
+// Функция принудительной полной синхронизации заказов для just_a_legend
+async function forceFullOrderSync(username = 'just_a_legend') {
+    try {
+        console.log('forceFullOrderSync: Принудительная полная синхронизация заказов для:', username);
+
+        const response = await fetch('/api/user_orders', { credentials: 'include' });
+        const serverOrders = await response.json();
+        
+        if (serverOrders.success && serverOrders.orders) {
+            const validOrders = serverOrders.orders.filter(o => o.id && o.id !== 'undefined' && o.id !== undefined);
+        const userOrdersKey = `userOrders_${username}`;
+
+            // Принудительно перезаписываем все заказы
+            localStorage.setItem(userOrdersKey, JSON.stringify(validOrders));
+            console.log('forceFullOrderSync: Синхронизировано', validOrders.length, 'заказов для', username);
+            
+            // Сбрасываем конфигурацию пагинации
+            if (window.ordersDisplayConfig) {
+                window.ordersDisplayConfig.currentPage = 0;
+                window.ordersDisplayConfig.hasMoreOrders = true;
+                window.ordersDisplayConfig.allOrders = [];
+                window.ordersDisplayConfig.initialLoadComplete = false;
+                window.ordersDisplayConfig.isLoading = false;
+            }
+            
+            // Перерендериваем заказы если находимся в личном кабинете
+            const accountContent = document.getElementById('account-content');
+            if (accountContent && accountContent.style.display !== 'none') {
+                if (typeof renderAccountOrders === 'function') {
+                    await renderAccountOrders();
+                }
+            }
+            
+            return validOrders;
+        } else {
+            console.warn('forceFullOrderSync: Не удалось получить заказы с сервера');
+            return [];
+        }
+    } catch (error) {
+        console.error('forceFullOrderSync: Ошибка:', error);
+        return [];
+    }
+}
+
+// Ограничиваем частоту синхронизации
+let lastSyncTime = 0;
+const SYNC_COOLDOWN = 30000; // 30 секунд
+
 function syncLocalOrdersToServer(username, localOrders) {
     try {
-        console.log('syncLocalOrdersToServer: Синхронизируем локальные заказы на сервер для пользователя:', username);
+        // Проверяем, не было ли синхронизации недавно
+        const now = Date.now();
+        if (now - lastSyncTime < SYNC_COOLDOWN) {
+            return; // Тихо пропускаем синхронизацию
+        }
+        
+        lastSyncTime = now;
 
         // Получаем заказы с сервера для сравнения
         fetch('/api/user_orders', { credentials: 'include' })
@@ -7557,15 +7899,11 @@ function syncLocalOrdersToServer(username, localOrders) {
                     const serverOrderIds = new Set(serverOrders.orders.map(o => o.id));
                     const ordersToSync = localOrders.filter(order => !serverOrderIds.has(order.id));
 
-                    console.log('syncLocalOrdersToServer: Найдено', ordersToSync.length, 'заказов для синхронизации на сервер');
-
                     if (ordersToSync.length > 0) {
                         // Отправляем заказы на сервер по одному, пропуская заказы без ID
-                        let syncCount = 0;
                         ordersToSync.forEach(order => {
                             if (!order.id || order.id === 'undefined' || order.id === undefined) {
-                                console.warn('syncLocalOrdersToServer: Пропускаем заказ без ID:', order);
-                                return;
+                                return; // Тихо пропускаем заказы без ID
                             }
 
                             fetch('/api/save_order', {
@@ -7576,32 +7914,21 @@ function syncLocalOrdersToServer(username, localOrders) {
                             })
                             .then(response => response.json())
                             .then(result => {
-                                if (result.success) {
-                                    syncCount++;
-                                    console.log('syncLocalOrdersToServer: Заказ', order.id, 'синхронизирован на сервер', result.updated ? '(обновлен)' : '(создан)');
-                                } else {
-                                    console.warn('syncLocalOrdersToServer: Ошибка синхронизации заказа', order.id, ':', result.error);
-                                }
+                                // Убираем все логи синхронизации - они засоряют консоль
                             })
                             .catch(error => {
-                                console.error('syncLocalOrdersToServer: Ошибка отправки заказа', order.id, 'на сервер:', error);
+                                // Тихо обрабатываем ошибки
                             });
                         });
-
-                        console.log('syncLocalOrdersToServer: Запущена синхронизация', ordersToSync.length, 'заказов (без учета заказов без ID)');
-                    } else {
-                        console.log('syncLocalOrdersToServer: Все локальные заказы уже синхронизированы с сервером');
                     }
-                } else {
-                    console.warn('syncLocalOrdersToServer: Не удалось получить заказы с сервера');
                 }
             })
             .catch(error => {
-                console.error('syncLocalOrdersToServer: Ошибка получения заказов с сервера:', error);
+                // Тихо обрабатываем ошибки
             });
 
     } catch (error) {
-        console.error('syncLocalOrdersToServer: Ошибка синхронизации:', error);
+        // Тихо обрабатываем ошибки
     }
 }
 
@@ -7747,12 +8074,50 @@ function getUserBonusBalance() {
     return localBonus;
 }
 
+// Функция для загрузки бонусов с сервера
+async function loadUserBonusesFromServer(userId) {
+    try {
+        console.log(`loadUserBonusesFromServer: Загружаем бонусы для ${userId}`);
+        const response = await fetch(`/api/user_bonuses/${userId}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            const serverBonuses = data.bonuses;
+            console.log(`loadUserBonusesFromServer: Получены серверные бонусы: ${serverBonuses}`);
+            
+            // Обновляем профиль и localStorage
+            if (window.__authState && window.__authState.profile) {
+                window.__authState.profile.bonuses = serverBonuses;
+            }
+            localStorage.setItem('userBonuses', serverBonuses.toString());
+            updateBonusDisplay(serverBonuses);
+            
+            return serverBonuses;
+        } else {
+            console.warn('loadUserBonusesFromServer: Не удалось загрузить серверные бонусы');
+            return null;
+        }
+    } catch (error) {
+        console.error('loadUserBonusesFromServer: Ошибка загрузки серверных бонусов:', error);
+        return null;
+    }
+}
+
 // Функция инициализации баланса бонусов
 function initializeUserBonus() {
     try {
-        const bonusBalance = getUserBonusBalance();
-        updateBonusDisplay(bonusBalance);
-        console.log('initializeUserBonus: Баланс бонусов инициализирован:', bonusBalance);
+        // Для just_a_legend загружаем бонусы с сервера
+        if (window.__authState && window.__authState.profile &&
+            (window.__authState.profile.displayName === 'just_a_legend' ||
+             window.__authState.profile.username === 'just_a_legend')) {
+            console.log('initializeUserBonus: Загружаем серверные бонусы для just_a_legend');
+            loadUserBonusesFromServer('just_a_legend');
+        } else {
+            // Для остальных пользователей используем локальные данные
+            const bonusBalance = getUserBonusBalance();
+            updateBonusDisplay(bonusBalance);
+            console.log('initializeUserBonus: Баланс бонусов инициализирован:', bonusBalance);
+        }
     } catch (error) {
         console.error('initializeUserBonus: Ошибка инициализации баланса бонусов', error);
     }
@@ -7773,7 +8138,7 @@ function restoreAppTitle() {
 }
 
 // Функция добавления заказа в кабинет пользователя
-function addOrderToAccountView(order) {
+async function addOrderToAccountView(order) {
     try {
         if (!window.__authState || !window.__authState.isAuthenticated) {
             console.log('addOrderToAccountView: Пользователь не авторизован, пропускаем добавление в кабинет');
@@ -7786,7 +8151,7 @@ function addOrderToAccountView(order) {
 
         // Если кабинет открыт, обновляем отображение заказов
         if (getVisibleView() === 'account') {
-            renderAccountOrders();
+            await renderAccountOrders();
         }
 
         console.log('addOrderToAccountView: Заказ добавлен в кабинет пользователя', order);
@@ -8082,7 +8447,7 @@ function showLoginDropdown() {
 }
 
 // Основная функция оформления заказа
-function checkout() {
+async function checkout() {
     try {
         console.log('checkout: Начало оформления заказа');
 
@@ -8283,7 +8648,7 @@ function checkout() {
             items: JSON.parse(JSON.stringify(cart)), // Глубокая копия корзины для предотвращения изменений
             // Сохраняем все промежуточные суммы для корректного отображения
             amount: finalTotal, // Для совместимости с расчетом бонусов
-            itemsTotal: newPricesTotal, // Сумма товаров со скидками
+            itemsTotal: oldPricesTotal, // Сумма товаров БЕЗ скидок (старые цены)
             itemsDiscount: itemsDiscount, // Скидка на товары
             subtotal: oldPricesTotal, // Сумма товаров без скидок
             deliveryCost: deliveryCost, // Стоимость доставки
@@ -8294,7 +8659,7 @@ function checkout() {
             finalTotal: finalTotal, // Итоговая сумма
             comment: comment,
             pickupTime: pickupTime, // Время самовывоза
-            status: 'completed'
+            status: 'принят'
         };
 
         console.log('checkout: Создан объект заказа:', order);
@@ -8371,17 +8736,13 @@ function checkout() {
         }
 
         // Если пользователь авторизован, добавляем в кабинет
-        addOrderToAccountView(order);
+        await addOrderToAccountView(order);
 
         // Для just_a_legend принудительно обновляем личный кабинет
         if (window.__authState && window.__authState.profile &&
             (window.__authState.profile.displayName === 'just_a_legend' || window.__authState.profile.username === 'just_a_legend')) {
             console.log('checkout: Обновляем личный кабинет для just_a_legend после создания заказа');
 
-            // Также исправляем суммы в существующих заказах для just_a_legend
-            setTimeout(() => {
-                fixExistingOrderAmounts('just_a_legend');
-            }, 500);
 
             setTimeout(() => {
                 if (typeof renderAccountPage === 'function') {
@@ -8395,133 +8756,120 @@ function checkout() {
         // Списываем использованные бонусы из баланса пользователя
         if (bonusesUsed > 0) {
             console.log(`checkout: Начинаем списание ${bonusesUsed} бонусов`);
-            const deductSuccess = deductUserBonus(bonusesUsed);
-            if (deductSuccess) {
-                console.log(`checkout: Списано ${bonusesUsed} бонусов из баланса пользователя`);
-                // Принудительно обновляем отображение баланса
-                const newBalance = getUserBonusBalance();
-                updateBonusDisplay(newBalance);
-                console.log(`checkout: Новый баланс бонусов: ${newBalance}`);
-
-                // Для just_a_legend принудительно пересчитываем бонусы на основе всех заказов
-                if (window.__authState && window.__authState.profile &&
-                    (window.__authState.profile.displayName === 'just_a_legend' ||
-                     window.__authState.profile.username === 'just_a_legend')) {
-                    console.log('checkout: Пересчитываем бонусы для just_a_legend после списания');
-
-                    // Получаем все заказы пользователя
-                    const currentUser = window.__authState && window.__authState.profile ?
-                        (window.__authState.profile.username || window.__authState.profile.displayName || 'guest') : 'guest';
-                    const userOrdersKey = `userOrders_${currentUser}`;
-                    const localOrders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
-
-                    console.log('checkout: Найдено заказов для пересчета:', localOrders.length);
-
-                    // Пересчитываем бонусы
-                    let calculatedBonuses = 0;
-                    let usedBonusesTotal = 0;
-
-                    localOrders.forEach(order => {
-                        if (order.status === 'completed' || order.status === 'завершен' || order.status === 'выполнен' || order.status === 'принято') {
-                            if (order.amount && !isNaN(order.amount) && order.amount > 0) {
-                                const bonusFromOrder = Math.floor(parseFloat(order.amount) / 10);
-                                calculatedBonuses += bonusFromOrder;
-                            }
-                        }
-
-                        // Вычитаем использованные бонусы
-                        let usedBonusesInOrder = 0;
-                        if (order.bonusesUsed && !isNaN(order.bonusesUsed) && order.bonusesUsed > 0) {
-                            usedBonusesInOrder = parseInt(order.bonusesUsed) || 0;
-                        } else if (order.bonusDiscount && !isNaN(order.bonusDiscount) && order.bonusDiscount > 0) {
-                            usedBonusesInOrder = parseInt(order.bonusDiscount * 10) || 0;
-                        }
-                        usedBonusesTotal += usedBonusesInOrder;
-                    });
-
-                    calculatedBonuses -= usedBonusesTotal;
-
-                    if (isNaN(calculatedBonuses)) {
-                        calculatedBonuses = 0;
-                    }
-
-                    console.log('checkout: Пересчитанные бонусы:', calculatedBonuses);
-
-                    // Обновляем профиль и отображение
-                    if (window.__authState.profile) {
-                        window.__authState.profile.bonuses = calculatedBonuses;
-                    }
-                    localStorage.setItem('userBonuses', calculatedBonuses.toString());
-                    updateBonusDisplay(calculatedBonuses);
-                }
-            } else {
-                console.warn(`checkout: Не удалось списать ${bonusesUsed} бонусов из баланса`);
-            }
-        }
-
-        // Начисляем бонусы за заказ (1 бонус за каждые 10грн от суммы товаров без доставки)
-        const bonusEarned = Math.floor(subtotalAfterAllDiscounts / 10); // 1 бонус за каждые 10грн
-        if (bonusEarned > 0) {
-            console.log(`checkout: Рассчитано ${bonusEarned} бонусов за заказ ${orderId} (сумма: ${subtotalAfterAllDiscounts}грн)`);
-
-            // Для just_a_legend принудительно пересчитываем бонусы после начисления
+            
+            // Для just_a_legend используем серверные бонусы
             if (window.__authState && window.__authState.profile &&
                 (window.__authState.profile.displayName === 'just_a_legend' ||
                  window.__authState.profile.username === 'just_a_legend')) {
-                console.log('checkout: Начисляем бонусы с пересчетом для just_a_legend');
+                console.log(`checkout: Списываем ${bonusesUsed} бонусов через сервер для just_a_legend`);
 
-                // Сначала начисляем бонусы обычным способом
-            addUserBonus(bonusEarned);
-
-                // Затем пересчитываем все бонусы заново
-                setTimeout(() => {
-                    const currentUser = window.__authState && window.__authState.profile ?
-                        (window.__authState.profile.username || window.__authState.profile.displayName || 'guest') : 'guest';
-                    const userOrdersKey = `userOrders_${currentUser}`;
-                    const localOrders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
-
-                    console.log('checkout: Пересчет бонусов после начисления, заказов:', localOrders.length);
-
-                    let calculatedBonuses = 0;
-                    let usedBonusesTotal = 0;
-
-                    localOrders.forEach(order => {
-                        if (order.status === 'completed' || order.status === 'завершен' || order.status === 'выполнен' || order.status === 'принято') {
-                            if (order.amount && !isNaN(order.amount) && order.amount > 0) {
-                                const bonusFromOrder = Math.floor(parseFloat(order.amount) / 10);
-                                calculatedBonuses += bonusFromOrder;
-                            }
+                // Списываем бонусы через серверный API
+                fetch('/api/user_bonuses/just_a_legend', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'deduct',
+                        amount: bonusesUsed
+                    })
+                }).then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const newBalance = data.new_balance;
+                        console.log(`checkout: Списано ${bonusesUsed} бонусов через сервер. Новый баланс: ${newBalance}`);
+                        
+                        // Обновляем профиль и отображение
+                        if (window.__authState.profile) {
+                            window.__authState.profile.bonuses = newBalance;
                         }
-
-                        // Вычитаем использованные бонусы
-                        let usedBonusesInOrder = 0;
-                        if (order.bonusesUsed && !isNaN(order.bonusesUsed) && order.bonusesUsed > 0) {
-                            usedBonusesInOrder = parseInt(order.bonusesUsed) || 0;
-                        } else if (order.bonusDiscount && !isNaN(order.bonusDiscount) && order.bonusDiscount > 0) {
-                            usedBonusesInOrder = parseInt(order.bonusDiscount * 10) || 0;
+                        localStorage.setItem('userBonuses', newBalance.toString());
+                        updateBonusDisplay(newBalance);
+                    } else {
+                        console.warn('checkout: Не удалось списать серверные бонусы, используем локальные');
+                        // Fallback: списываем локально
+                        const deductSuccess = deductUserBonus(bonusesUsed);
+                        if (deductSuccess) {
+                            const newBalance = getUserBonusBalance();
+                            updateBonusDisplay(newBalance);
                         }
-                        usedBonusesTotal += usedBonusesInOrder;
-                    });
-
-                    calculatedBonuses -= usedBonusesTotal;
-
-                    if (isNaN(calculatedBonuses)) {
-                        calculatedBonuses = 0;
                     }
-
-                    console.log('checkout: Финальный пересчет бонусов:', calculatedBonuses);
-
-                    // Обновляем профиль и отображение
-                    if (window.__authState.profile) {
-                        window.__authState.profile.bonuses = calculatedBonuses;
+                }).catch(error => {
+                    console.error('checkout: Ошибка списания серверных бонусов:', error);
+                    // Fallback: списываем локально
+                    const deductSuccess = deductUserBonus(bonusesUsed);
+                    if (deductSuccess) {
+                        const newBalance = getUserBonusBalance();
+                        updateBonusDisplay(newBalance);
                     }
-                    localStorage.setItem('userBonuses', calculatedBonuses.toString());
-                    updateBonusDisplay(calculatedBonuses);
-                }, 500);
+                });
             } else {
-                // Для обычных пользователей начисляем бонусы обычным способом
-                addUserBonus(bonusEarned);
+                // Для обычных пользователей списываем бонусы локально
+                const deductSuccess = deductUserBonus(bonusesUsed);
+                if (deductSuccess) {
+                    console.log(`checkout: Списано ${bonusesUsed} бонусов из баланса пользователя`);
+                    // Принудительно обновляем отображение баланса
+                    const newBalance = getUserBonusBalance();
+                    updateBonusDisplay(newBalance);
+                    console.log(`checkout: Новый баланс бонусов: ${newBalance}`);
+                } else {
+                    console.warn(`checkout: Не удалось списать ${bonusesUsed} бонусов из баланса`);
+                }
             }
+        }
+
+        // Начисляем бонусы за заказ (10% от итоговой суммы заказа)
+        const bonusEarned = Math.floor(finalTotal * 0.1); // 10% от итоговой суммы заказа
+        if (bonusEarned > 0) {
+            console.log(`checkout: Рассчитано ${bonusEarned} бонусов за заказ ${orderId} (итоговая сумма: ${finalTotal}грн)`);
+
+                // Для just_a_legend используем серверные бонусы
+                if (window.__authState && window.__authState.profile &&
+                    (window.__authState.profile.displayName === 'just_a_legend' ||
+                     window.__authState.profile.username === 'just_a_legend')) {
+                    console.log('checkout: Начисляем бонусы через сервер для just_a_legend');
+
+                    // Начисляем бонусы через серверный API
+                    setTimeout(async () => {
+                        try {
+                            const response = await fetch('/api/user_bonuses/just_a_legend', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    action: 'add',
+                                    amount: bonusEarned
+                                })
+                            });
+                            
+                            const data = await response.json();
+                            
+                            if (data.success) {
+                                const newBalance = data.new_balance;
+                                console.log(`checkout: Начислено ${bonusEarned} бонусов через сервер. Новый баланс: ${newBalance}`);
+                                
+                                // Обновляем профиль и отображение
+                                if (window.__authState.profile) {
+                                    window.__authState.profile.bonuses = newBalance;
+                                }
+                                localStorage.setItem('userBonuses', newBalance.toString());
+                                updateBonusDisplay(newBalance);
+                            } else {
+                                console.log('checkout: Не удалось начислить серверные бонусы, используем локальные');
+                                // Fallback: начисляем бонусы локально
+                                addUserBonus(bonusEarned);
+                            }
+                        } catch (error) {
+                            console.error('checkout: Ошибка начисления серверных бонусов:', error);
+                            // Fallback: начисляем бонусы локально
+                            addUserBonus(bonusEarned);
+                        }
+                    }, 500);
+                } else {
+                    // Для обычных пользователей начисляем бонусы обычным способом
+                    addUserBonus(bonusEarned);
+                }
 
             console.log(`checkout: Начислено ${bonusEarned} бонусов за заказ ${orderId}`);
         } else {
@@ -8684,6 +9032,8 @@ function showOrderDetails(orderId) {
         }
 
         // Заполняем детали заказа
+        console.log('showOrderDetails: Найден заказ для отображения:', order);
+        console.log('showOrderDetails: Товары в заказе:', order.items);
         fillOrderDetails(order);
 
         // Показываем окно деталей заказа
@@ -8703,7 +9053,6 @@ function showOrderDetails(orderId) {
 function fillOrderDetails(order) {
     try {
         console.log('fillOrderDetails: Заполнение деталей заказа', order.id);
-        console.log('fillOrderDetails: полный объект заказа:', order);
 
         // Переводим заголовки в зависимости от языка
         const lang = getCurrentLanguage ? getCurrentLanguage() : (localStorage.getItem('selectedLanguage') || 'uk');
@@ -8907,9 +9256,9 @@ function fillOrderDetails(order) {
         }
 
         // Используем сохраненные суммы из объекта заказа
-        const itemsTotal = order.itemsTotal || 0; // Сумма товаров со скидками
-        const itemsDiscount = order.itemsDiscount || 0; // Скидка на товары
-        const subtotal = order.subtotal || itemsTotal; // Сумма товаров без скидок
+        const subtotal = order.itemsTotal || order.subtotal || 0; // Сумма товаров БЕЗ скидок (старые цены)
+        const itemsDiscount = order.itemsDiscount || 0; // Размер скидки на товары
+        const itemsAfterDiscount = subtotal - itemsDiscount; // Сумма товаров СО скидками (новые цены)
         const deliveryCost = order.deliveryCost || 0; // Стоимость доставки из заказа
         let bonusesUsed = order.bonusesUsed || 0; // Количество использованных бонусов
         const bonusDiscount = order.bonusDiscount || 0; // Сумма скидки по бонусам
@@ -8922,15 +9271,41 @@ function fillOrderDetails(order) {
         const couponDiscount = order.couponDiscount || 0; // Сумма скидки по купону
         const finalTotal = order.finalTotal || 0; // Итоговая сумма из заказа
 
-        console.log('fillOrderDetails: Используем сохраненные суммы из заказа');
-        console.log('fillOrderDetails: subtotal:', subtotal, 'itemsDiscount:', itemsDiscount, 'itemsTotal:', itemsTotal);
-        console.log('fillOrderDetails: deliveryCost:', deliveryCost, 'bonusesUsed:', bonusesUsed, 'couponDiscount:', couponDiscount);
-        console.log('fillOrderDetails: finalTotal:', finalTotal);
-        console.log('fillOrderDetails: order object:', order);
+
+        // Определяем номера шагов динамически (ПЕРЕД использованием)
+        let currentStepNumber = 1;
+        
+        // Шаг 1: Сумма товаров (всегда есть)
+        const itemsTotalStepNumber = currentStepNumber++;
+        
+        // Шаг 2: Скидка на товары (если есть)
+        const itemsDiscountStepNumber = itemsDiscount > 0 ? currentStepNumber++ : null;
+        
+        // Шаг 3: Товары со скидками (всегда есть)
+        const itemsAfterDiscountStepNumber = currentStepNumber++;
+        
+        // Шаг 4: Купон (если есть)
+        const couponStepNumber = couponDiscount > 0 ? currentStepNumber++ : null;
+        
+        // Шаг 5: Бонусы (если есть)
+        const bonusStepNumber = bonusDiscount > 0 ? currentStepNumber++ : null;
+        
+        // Шаг 6: Доставка (если есть и > 0)
+        const deliveryStepNumber = deliveryCost > 0 ? currentStepNumber++ : null;
+        
+        // Шаг N: Итоговая сумма
+        const finalStepNumber = currentStepNumber;
 
         // Шаг 1: Сумма товаров без скидок (промежуточный итог товаров)
         const itemsTotalEl = document.getElementById('orderItemsTotal');
-        if (itemsTotalEl) itemsTotalEl.textContent = `${subtotal} ${getCurrencyWithDot()}`;
+        if (itemsTotalEl) {
+            itemsTotalEl.textContent = `${subtotal} ${getCurrencyWithDot()}`;
+            // Обновляем номер шага
+            const itemsTotalLabel = itemsTotalEl.previousElementSibling;
+            if (itemsTotalLabel) {
+                itemsTotalLabel.textContent = `${itemsTotalStepNumber}. Вартість товарів:`;
+            }
+        }
 
         // Шаг 2: Скидка на товары (если есть)
         const discountRow = document.getElementById('orderDiscountRow');
@@ -8942,7 +9317,7 @@ function fillOrderDetails(order) {
                 // Обновляем метку перевода
                 const discountLabel = discountEl.previousElementSibling;
                 if (discountLabel) {
-                    discountLabel.textContent = getTranslation('step2ItemsDiscount', lang);
+                    discountLabel.textContent = `${itemsDiscountStepNumber}. Знижка на товари:`;
                 }
             }
         } else {
@@ -8953,11 +9328,11 @@ function fillOrderDetails(order) {
         const itemsAfterDiscountEl = document.getElementById('orderItemsAfterDiscount');
         const itemsAfterDiscountRow = document.getElementById('orderItemsAfterDiscountRow');
         if (itemsAfterDiscountEl) {
-            itemsAfterDiscountEl.textContent = `${itemsTotal} ${getCurrencyWithDot()}`;
+            itemsAfterDiscountEl.textContent = `${itemsAfterDiscount} ${getCurrencyWithDot()}`;
             // Обновляем метку перевода
             const itemsAfterDiscountLabel = itemsAfterDiscountEl.previousElementSibling;
             if (itemsAfterDiscountLabel) {
-                itemsAfterDiscountLabel.textContent = getTranslation('step3ItemsAfterDiscount', lang);
+                itemsAfterDiscountLabel.textContent = `${itemsAfterDiscountStepNumber}. Вартість товарів зі знижками:`;
             }
         }
         if (itemsAfterDiscountRow) itemsAfterDiscountRow.style.display = 'flex';
@@ -8982,7 +9357,7 @@ function fillOrderDetails(order) {
             // Перевод метки купона
             const couponLabel = couponRow.querySelector('.order-total-label');
             if (couponLabel) {
-                const couponText = order.couponCode ? `4. Купон ${order.couponCode}:` : '4. Купон:';
+                const couponText = order.couponCode ? `${couponStepNumber}. Купон ${order.couponCode}:` : `${couponStepNumber}. Купон:`;
                 couponLabel.textContent = couponText;
             }
 
@@ -9005,7 +9380,7 @@ function fillOrderDetails(order) {
             // Перевод метки бонусов
             const bonusesLabel = bonusesRow.querySelector('.order-total-label');
             if (bonusesLabel) {
-                bonusesLabel.textContent = '5. Бонусы:';
+                bonusesLabel.textContent = `${bonusStepNumber}. Бонусы:`;
             }
 
             console.log('fillOrderDetails: Показываем строку с бонусами, скидка:', bonusDiscount);
@@ -9022,7 +9397,7 @@ function fillOrderDetails(order) {
             // Обновляем метку доставки
             const deliveryCostLabel = deliveryCostElement.previousElementSibling;
             if (deliveryCostLabel) {
-                deliveryCostLabel.textContent = '6. Вартість доставки:';
+                deliveryCostLabel.textContent = `${deliveryStepNumber}. Вартість доставки:`;
             }
             if (deliveryCostRow) deliveryCostRow.style.display = 'flex';
             console.log('fillOrderDetails: Показали строку доставки с cost:', deliveryCost);
@@ -9032,8 +9407,6 @@ function fillOrderDetails(order) {
             console.log('fillOrderDetails: Скрыли строку доставки, cost = 0 или элемент не найден');
         }
 
-        // Определяем номер шага для итоговой суммы в зависимости от того, показывается ли доставка
-        const finalStepNumber = deliveryCost > 0 ? 7 : 6;
 
         // Скрываем промежуточный итог
         const subtotalRow = document.getElementById('orderSubtotalRow');
@@ -9051,7 +9424,7 @@ function fillOrderDetails(order) {
 
         if (finalTotalEl) finalTotalEl.textContent = `${finalTotal} ${getCurrencyWithDot()}`;
 
-        console.log('fillOrderDetails: Итоговый расчет - itemsTotal:', itemsTotal, 'deliveryCost:', deliveryCost, 'bonusesUsed:', bonusesUsed, 'couponDiscount:', couponDiscount, 'finalTotal:', finalTotal);
+        console.log('fillOrderDetails: Итоговый расчет - subtotal:', subtotal, 'deliveryCost:', deliveryCost, 'bonusesUsed:', bonusesUsed, 'couponDiscount:', couponDiscount, 'finalTotal:', finalTotal);
 
         // Добавляем информацию о начисленных бонусах за этот заказ
         const bonusEarned = Math.round(finalTotal * 0.01);
@@ -9097,12 +9470,12 @@ function fillOrderDetails(order) {
         console.log('fillOrderDetails: order object keys:', Object.keys(order));
         console.log('fillOrderDetails: order.customer keys:', order.customer ? Object.keys(order.customer) : 'no customer');
 
-        // Принудительно создаем элементы, если они не найдены
+        // Заполняем данные покупателя с правильными селекторами
         if (!nameEl) {
-            console.log('fillOrderDetails: nameEl not found, creating...');
-            const nameRow = document.querySelector('.order-info-section .info-row:nth-child(1)');
+            console.log('fillOrderDetails: nameEl not found, trying alternative selector...');
+            const nameRow = document.querySelector('.order-info-section .info-compact-item:nth-child(3)'); // 3-й элемент (после способа оплаты и доставки)
             if (nameRow) {
-                const valueEl = nameRow.querySelector('.info-value') || nameRow.querySelector('span:last-child');
+                const valueEl = nameRow.querySelector('.info-value');
                 if (valueEl) {
                     valueEl.textContent = order.customer?.name || '-';
                     console.log('fillOrderDetails: name set via alternative method:', valueEl.textContent);
@@ -9114,10 +9487,10 @@ function fillOrderDetails(order) {
         }
 
         if (!phoneEl) {
-            console.log('fillOrderDetails: phoneEl not found, creating...');
-            const phoneRow = document.querySelector('.order-info-section .info-row:nth-child(2)');
+            console.log('fillOrderDetails: phoneEl not found, trying alternative selector...');
+            const phoneRow = document.querySelector('.order-info-section .info-compact-item:nth-child(4)'); // 4-й элемент
             if (phoneRow) {
-                const valueEl = phoneRow.querySelector('.info-value') || phoneRow.querySelector('span:last-child');
+                const valueEl = phoneRow.querySelector('.info-value');
                 if (valueEl) {
                     valueEl.textContent = order.customer?.phone || '-';
                     console.log('fillOrderDetails: phone set via alternative method:', valueEl.textContent);
@@ -9129,10 +9502,10 @@ function fillOrderDetails(order) {
         }
 
         if (!settlementEl) {
-            console.log('fillOrderDetails: settlementEl not found, creating...');
-            const settlementRow = document.querySelector('.order-info-section .info-row:nth-child(3)');
+            console.log('fillOrderDetails: settlementEl not found, trying alternative selector...');
+            const settlementRow = document.querySelector('.order-info-section .info-compact-item:nth-child(5)'); // 5-й элемент
             if (settlementRow) {
-                const valueEl = settlementRow.querySelector('.info-value') || settlementRow.querySelector('span:last-child');
+                const valueEl = settlementRow.querySelector('.info-value');
                 if (valueEl) {
                     valueEl.textContent = order.customer?.settlement || '-';
                     console.log('fillOrderDetails: settlement set via alternative method:', valueEl.textContent);
@@ -9144,10 +9517,10 @@ function fillOrderDetails(order) {
         }
 
         if (!regionEl) {
-            console.log('fillOrderDetails: regionEl not found, creating...');
-            const regionRow = document.querySelector('.order-info-section .info-row:nth-child(4)');
+            console.log('fillOrderDetails: regionEl not found, trying alternative selector...');
+            const regionRow = document.querySelector('.order-info-section .info-compact-item:nth-child(6)'); // 6-й элемент (область)
             if (regionRow) {
-                const valueEl = regionRow.querySelector('.info-value') || regionRow.querySelector('span:last-child');
+                const valueEl = regionRow.querySelector('.info-value');
                 if (valueEl) {
                     valueEl.textContent = order.customer?.region || '-';
                     console.log('fillOrderDetails: region set via alternative method:', valueEl.textContent);
@@ -9168,10 +9541,10 @@ function fillOrderDetails(order) {
             if (lang === 'uk') branchLabelText = 'Адреса самовивозу';
             else if (lang === 'en') branchLabelText = 'Pickup address';
         } else if (order.deliveryMethod === 'ukrposhta') {
-            // Для Укрпошты меняем метку на "Индекс"
-            branchLabelText = 'Индекс';
-            if (lang === 'uk') branchLabelText = 'Індекс';
-            else if (lang === 'en') branchLabelText = 'Index';
+            // Для Укрпошты оставляем "Адрес доставки" (индекс будет в отдельном поле)
+            branchLabelText = 'Адрес доставки';
+            if (lang === 'uk') branchLabelText = 'Адреса доставки';
+            else if (lang === 'en') branchLabelText = 'Delivery address';
         } else {
             if (lang === 'uk') branchLabelText = 'Номер відділення';
             else if (lang === 'en') branchLabelText = 'Branch number';
@@ -9181,23 +9554,35 @@ function fillOrderDetails(order) {
 
         const branchEl = document.getElementById('orderDetailBranch');
         if (branchEl) {
+            // Найдем родительский элемент для скрытия
+            const branchRow = branchEl.closest('.info-compact-item');
+            
             if (order.deliveryMethod === 'pickup') {
                 // Для самовывоза показываем адрес
                 branchEl.textContent = 'Троїцька кут Канатної, місце зустрічі біля входу в "китайське кафе" по Троїцькій.';
+                if (branchRow) branchRow.style.display = 'flex';
             } else if (order.deliveryMethod === 'ukrposhta') {
-                // Для Укрпочты показываем индекс в поле branch (так как поле переименовано)
-                branchEl.textContent = order.customer?.index || '-';
+                // Для Укрпочты скрываем поле branch (индекс будет в отдельном поле)
+                if (branchRow) branchRow.style.display = 'none';
             } else {
                 // Для других способов доставки показываем номер отделения
                 branchEl.textContent = order.customer?.branch || '-';
+                if (branchRow) branchRow.style.display = 'flex';
             }
         }
 
-        // Для Укрпочты индекс показывается в поле branch, поэтому скрываем отдельное поле индекса
+        // Для Укрпочты показываем отдельное поле индекса
         const indexRow = document.getElementById('orderDetailIndexRow');
-        if (indexRow) {
+        const indexEl = document.getElementById('orderDetailIndex');
+        if (indexRow && indexEl) {
+            if (order.deliveryMethod === 'ukrposhta') {
+                indexRow.style.display = 'block';
+                indexEl.textContent = order.customer?.index || '-';
+                console.log('fillOrderDetails: Показали поле индекса для Укрпочты:', indexEl.textContent);
+            } else {
             indexRow.style.display = 'none';
-            console.log('fillOrderDetails: Скрыли отдельное поле индекса для всех способов доставки');
+                console.log('fillOrderDetails: Скрыли поле индекса для других способов доставки');
+            }
         }
 
 
@@ -9240,7 +9625,43 @@ function fillOrderItems(items) {
             const itemEl = document.createElement('div');
             itemEl.className = 'order-item';
 
-            const imageUrl = item.image || item.photo || '/static/images/no-image.png';
+            // Определяем изображение товара
+            let imageUrl = item.image || item.photo;
+            
+            // Если есть внешний URL, используем его
+            if (imageUrl && (imageUrl.startsWith('http://') || imageUrl.startsWith('https://'))) {
+                console.log('fillOrderItems: Используем внешний URL изображения:', imageUrl);
+            } 
+            // Если нет изображения или оно локальное, попробуем определить по названию
+            else if (!imageUrl || !imageUrl.startsWith('http')) {
+                const name = (item.name || '').toLowerCase();
+                console.log('fillOrderItems: Определяем изображение по названию:', name);
+                
+                if (name.includes('ernie ball 2221')) {
+                    imageUrl = 'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46.jpg';
+                } else if (name.includes('ernie ball')) {
+                    imageUrl = 'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46.jpg';
+                } else if (name.includes("d'addario") || name.includes('daddario')) {
+                    imageUrl = 'Goods/Electric_guitar_strings/2221/Ernie_Ball_2221_10-46.jpg';
+                } else if (name.includes('orphee')) {
+                    // Для Orphee товаров определяем изображение по модели
+                    if (name.includes('rx17')) {
+                        imageUrl = 'Goods/Electric_guitar_strings/orphee/orphee_rx17_10-46.jpg';
+                    } else if (name.includes('rx19')) {
+                        imageUrl = 'Goods/Electric_guitar_strings/orphee/orphee_rx19_11-50.jpg';
+                    } else {
+                        imageUrl = 'Goods/Electric_guitar_strings/orphee/orphee_rx19_11-50.jpg'; // По умолчанию
+                    }
+                } else {
+                    imageUrl = '/static/images/no-image.png';
+                }
+                console.log('fillOrderItems: Определено изображение:', imageUrl);
+            }
+            
+            if (!imageUrl) {
+                imageUrl = '/static/images/no-image.png';
+            }
+            
             const name = item.name || item.title || 'Без названия';
             const quantity = item.quantity || 1;
             const newPrice = parseInt(item.newPrice || item.price || 0);
@@ -9470,9 +9891,19 @@ function printOrder() {
         // Создаем новое окно для печати
         const printWindow = window.open('', '_blank', 'width=800,height=600');
 
-        // Получаем данные заказа
-        const orders = JSON.parse(localStorage.getItem('userOrders') || '[]');
-        const order = orders.find(o => o.id === orderId);
+        // Получаем данные заказа из правильного ключа
+        const currentUser = window.__authState && window.__authState.profile ?
+            (window.__authState.profile.username || window.__authState.profile.displayName || 'guest') : 'guest';
+        const userOrdersKey = `userOrders_${currentUser}`;
+        
+        let orders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
+        let order = orders.find(o => o.id === orderId);
+        
+        // Если не найден в ключе текущего пользователя, ищем в старом ключе
+        if (!order) {
+            orders = JSON.parse(localStorage.getItem('userOrders') || '[]');
+            order = orders.find(o => o.id === orderId);
+        }
 
         if (!order) {
             alert('Заказ не найден');
@@ -9609,9 +10040,10 @@ function printOrder() {
                             }
 
                             // Шаг 3: Стоимость товаров со скидками
+                            const itemsAfterDiscount = (order.itemsTotal || order.subtotal || 0) - (order.itemsDiscount || 0);
                             calculationHTML += `<div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                                 <span>${stepNumber++}. Товари зі знижками:</span>
-                                <span>${order.itemsTotal || order.total || 0} ${getCurrencyWithDot()}</span>
+                                <span>${itemsAfterDiscount} ${getCurrencyWithDot()}</span>
                             </div>`;
 
                             // Шаг 4: Купон
@@ -9623,7 +10055,8 @@ function printOrder() {
                             }
 
                             // Шаг 5: Бонусы
-                            const bonusDiscount = order.bonusDiscount || order.bonusesUsed || 0;
+                            // Используем bonusDiscount (сумма в гривнах), а не bonusesUsed (количество бонусов)
+                            const bonusDiscount = order.bonusDiscount || 0;
                             if (bonusDiscount > 0) {
                                 calculationHTML += `<div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                                     <span>${stepNumber++}. Бонусы:</span>
