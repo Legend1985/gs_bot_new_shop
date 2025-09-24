@@ -1,0 +1,412 @@
+[
+  {
+    "id": "GS1101",
+    "date": "2025-09-23T16:31:11.788Z",
+    "userId": "just_a_legend",
+    "customer": {
+      "name": "Vladimir",
+      "phone": "+380682540441",
+      "settlement": "тест",
+      "region": "Одеська",
+      "branch": "",
+      "index": "65014"
+    },
+    "paymentMethod": "privat24",
+    "deliveryMethod": "ukrposhta",
+    "items": [
+      {
+        "availability": "В наличии",
+        "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/orphee_rx19_11-50_0x170.png",
+        "name": "Orphee RX19 Nickel Alloy Medium 11-50",
+        "newPrice": "100",
+        "oldPrice": "173",
+        "rating": "4.5",
+        "status": "В наличии",
+        "subtitle": "",
+        "quantity": 10
+      }
+    ],
+    "amount": 926,
+    "itemsTotal": 1730,
+    "itemsDiscount": 730,
+    "subtotal": 1730,
+    "deliveryCost": 80,
+    "bonusesUsed": 537,
+    "bonusDiscount": 54,
+    "couponDiscount": 100,
+    "couponCode": "test10",
+    "finalTotal": 926,
+    "comment": "икикеке",
+    "pickupTime": "",
+    "status": "принят"
+  },
+  {
+    "id": "GS1102",
+    "date": "2025-09-24T07:05:41.929Z",
+    "userId": "just_a_legend",
+    "customer": {
+      "name": "Vladimir",
+      "phone": "+380682540441",
+      "settlement": "тест",
+      "region": "",
+      "branch": "22",
+      "index": ""
+    },
+    "paymentMethod": "wayforpay",
+    "deliveryMethod": "nova",
+    "items": [
+      {
+        "availability": "В наличии",
+        "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/musicians_gear_10-46_0x170.jpg",
+        "name": "Musicians Gear MG10-46 Nickel-Plated Electric Guitar Strings 10-46",
+        "newPrice": "225",
+        "oldPrice": "280",
+        "rating": "4.0",
+        "status": "В наличии",
+        "subtitle": "",
+        "quantity": 5
+      }
+    ],
+    "amount": 927,
+    "itemsTotal": 1400,
+    "itemsDiscount": 275,
+    "subtotal": 1400,
+    "deliveryCost": 0,
+    "bonusesUsed": 846,
+    "bonusDiscount": 85,
+    "couponDiscount": 113,
+    "couponCode": "test10",
+    "finalTotal": 927,
+    "comment": "купукп",
+    "pickupTime": "",
+    "status": "принят"
+  },
+  {
+    "id": "GS1103",
+    "date": "2025-09-24T11:30:45.604Z",
+    "userId": "just_a_legend",
+    "customer": {
+      "name": "купукп",
+      "phone": "+380682540441",
+      "settlement": "тест",
+      "region": "Одеська",
+      "branch": "",
+      "index": "65014"
+    },
+    "paymentMethod": "privat24",
+    "deliveryMethod": "ukrposhta",
+    "items": [
+      {
+        "availability": "В наличии",
+        "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/orphee_rx15-9-42_0x170.png",
+        "name": "Orphee RX15 Nickel Alloy Super Light 9-42",
+        "newPrice": "100",
+        "oldPrice": "173",
+        "rating": "4.5",
+        "status": "В наличии",
+        "subtitle": "",
+        "quantity": 10
+      }
+    ],
+    "amount": 979,
+    "itemsTotal": 1730,
+    "itemsDiscount": 730,
+    "subtotal": 1730,
+    "deliveryCost": 80,
+    "bonusesUsed": 9,
+    "bonusDiscount": 1,
+    "couponDiscount": 100,
+    "couponCode": "test10",
+    "finalTotal": 979,
+    "comment": "нгонглгн",
+    "pickupTime": "",
+    "status": "принят"
+  },
+  {
+    "id": "GS1104",
+    "date": "2025-09-24T11:35:29.619Z",
+    "userId": "just_a_legend",
+    "customer": {
+      "name": "купукп",
+      "phone": "+380682540441",
+      "settlement": "тест",
+      "region": "Одеська",
+      "branch": "кен",
+      "index": ""
+    },
+    "paymentMethod": "privat24",
+    "deliveryMethod": "nova",
+    "items": [
+      {
+        "availability": "В наличии",
+        "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/orphee_rx15-9-42_0x170.png",
+        "name": "Orphee RX15 Nickel Alloy Super Light 9-42",
+        "newPrice": "100",
+        "oldPrice": "173",
+        "rating": "4.5",
+        "status": "В наличии",
+        "subtitle": "",
+        "quantity": 10
+      }
+    ],
+    "amount": 1000,
+    "itemsTotal": 1730,
+    "itemsDiscount": 730,
+    "subtotal": 1730,
+    "deliveryCost": 0,
+    "bonusesUsed": 0,
+    "bonusDiscount": 0,
+    "couponDiscount": 0,
+    "couponCode": "",
+    "finalTotal": 1000,
+    "comment": "нгонглгн",
+    "pickupTime": "",
+    "status": "принят"
+  },
+  {
+    "id": "GS1105",
+    "date": "2025-09-24T12:56:47.928Z",
+    "userId": "just_a_legend",
+    "customer": {
+      "name": "ht",
+      "phone": "+380682540441",
+      "settlement": "тест",
+      "region": "Одеська",
+      "branch": "",
+      "index": "65014"
+    },
+    "paymentMethod": "wayforpay",
+    "deliveryMethod": "ukrposhta",
+    "items": [
+      {
+        "availability": "В наличии",
+        "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/orphee_rx19_11-50_0x170.png",
+        "name": "Orphee RX19 Nickel Alloy Medium 11-50",
+        "newPrice": "100",
+        "oldPrice": "173",
+        "rating": "4.5",
+        "status": "В наличии",
+        "subtitle": "",
+        "quantity": 10
+      }
+    ],
+    "amount": 970,
+    "itemsTotal": 1730,
+    "itemsDiscount": 730,
+    "subtotal": 1730,
+    "deliveryCost": 80,
+    "bonusesUsed": 100,
+    "bonusDiscount": 10,
+    "couponDiscount": 100,
+    "couponCode": "test10",
+    "finalTotal": 970,
+    "comment": "tjrjrtjrtjtr",
+    "pickupTime": "",
+    "status": "принят"
+  },
+  {
+    "id": "GS1106",
+    "date": "2025-09-24T13:32:02.566Z",
+    "userId": "just_a_legend",
+    "customer": {
+      "name": "Vladimir",
+      "phone": "+380682540441",
+      "settlement": "тест",
+      "region": "",
+      "branch": "22",
+      "index": ""
+    },
+    "paymentMethod": "wayforpay",
+    "deliveryMethod": "nova",
+    "items": [
+      {
+        "availability": "В наличии",
+        "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/orphee_rx19_11-50_0x170.png",
+        "name": "Orphee RX19 Nickel Alloy Medium 11-50",
+        "newPrice": "100",
+        "oldPrice": "173",
+        "rating": "4.5",
+        "status": "В наличии",
+        "subtitle": "",
+        "quantity": 10
+      }
+    ],
+    "amount": 890,
+    "itemsTotal": 1730,
+    "itemsDiscount": 730,
+    "subtotal": 1730,
+    "deliveryCost": 0,
+    "bonusesUsed": 100,
+    "bonusDiscount": 10,
+    "couponDiscount": 100,
+    "couponCode": "test10",
+    "finalTotal": 890,
+    "comment": "шгдгшдгшдгш",
+    "pickupTime": "",
+    "status": "принят"
+  },
+  {
+    "id": "GS1107",
+    "date": "2025-09-24T13:52:11.910Z",
+    "userId": "just_a_legend",
+    "customer": {
+      "name": "Vladimir",
+      "phone": "+380682540441",
+      "settlement": "еуые",
+      "region": "",
+      "branch": "22",
+      "index": ""
+    },
+    "paymentMethod": "wayforpay",
+    "deliveryMethod": "nova",
+    "items": [
+      {
+        "availability": "В наличии",
+        "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/orphee_rx15-9-42_0x170.png",
+        "name": "Orphee RX15 Nickel Alloy Super Light 9-42",
+        "newPrice": "100",
+        "oldPrice": "173",
+        "rating": "4.5",
+        "status": "В наличии",
+        "subtitle": "",
+        "quantity": 10
+      }
+    ],
+    "amount": 890,
+    "itemsTotal": 1730,
+    "itemsDiscount": 730,
+    "subtotal": 1730,
+    "deliveryCost": 0,
+    "bonusesUsed": 100,
+    "bonusDiscount": 10,
+    "couponDiscount": 100,
+    "couponCode": "test10",
+    "finalTotal": 890,
+    "comment": "",
+    "pickupTime": "",
+    "status": "принят"
+  },
+  {
+    "id": "GS1108",
+    "date": "2025-09-24T13:54:06.954Z",
+    "userId": "just_a_legend",
+    "customer": {
+      "name": "Vladimir",
+      "phone": "+380682540441",
+      "settlement": "тест",
+      "region": "",
+      "branch": "45е45",
+      "index": ""
+    },
+    "paymentMethod": "wayforpay",
+    "deliveryMethod": "nova",
+    "items": [
+      {
+        "availability": "В наличии",
+        "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/orphee_rx19_11-50_0x170.png",
+        "name": "Orphee RX19 Nickel Alloy Medium 11-50",
+        "newPrice": "100",
+        "oldPrice": "173",
+        "rating": "4.5",
+        "status": "В наличии",
+        "subtitle": "",
+        "quantity": 10
+      }
+    ],
+    "amount": 890,
+    "itemsTotal": 1730,
+    "itemsDiscount": 730,
+    "subtotal": 1730,
+    "deliveryCost": 0,
+    "bonusesUsed": 100,
+    "bonusDiscount": 10,
+    "couponDiscount": 100,
+    "couponCode": "test10",
+    "finalTotal": 890,
+    "comment": "шщжшщжшщж",
+    "pickupTime": "",
+    "status": "принят"
+  },
+  {
+    "id": "GS1109",
+    "date": "2025-09-24T14:05:41.136Z",
+    "userId": "just_a_legend",
+    "customer": {
+      "name": "Vladimir",
+      "phone": "+380682540441",
+      "settlement": "тест",
+      "region": "",
+      "branch": "22",
+      "index": ""
+    },
+    "paymentMethod": "wayforpay",
+    "deliveryMethod": "nova",
+    "items": [
+      {
+        "availability": "В наличии",
+        "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/orphee_rx19_11-50_0x170.png",
+        "name": "Orphee RX19 Nickel Alloy Medium 11-50",
+        "newPrice": "100",
+        "oldPrice": "173",
+        "rating": "4.5",
+        "status": "В наличии",
+        "subtitle": "",
+        "quantity": 10
+      }
+    ],
+    "amount": 890,
+    "itemsTotal": 1730,
+    "itemsDiscount": 730,
+    "subtotal": 1730,
+    "deliveryCost": 0,
+    "bonusesUsed": 100,
+    "bonusDiscount": 10,
+    "couponDiscount": 100,
+    "couponCode": "test10",
+    "finalTotal": 890,
+    "comment": "еноеноен",
+    "pickupTime": "",
+    "status": "принят"
+  },
+  {
+    "id": "GS1110",
+    "date": "2025-09-24T14:12:16.003Z",
+    "userId": "just_a_legend",
+    "customer": {
+      "name": "Vladimir",
+      "phone": "+380682540441",
+      "settlement": "тест",
+      "region": "",
+      "branch": "22",
+      "index": ""
+    },
+    "paymentMethod": "wayforpay",
+    "deliveryMethod": "nova",
+    "items": [
+      {
+        "availability": "В наличии",
+        "image": "https://guitarstrings.com.ua/images/stories/virtuemart/product/resized/orphee_rx15-9-42_0x170.png",
+        "name": "Orphee RX15 Nickel Alloy Super Light 9-42",
+        "newPrice": "100",
+        "oldPrice": "173",
+        "rating": "4.5",
+        "status": "В наличии",
+        "subtitle": "",
+        "quantity": 10
+      }
+    ],
+    "amount": 900,
+    "itemsTotal": 1730,
+    "itemsDiscount": 730,
+    "subtotal": 1730,
+    "deliveryCost": 0,
+    "bonusesUsed": 0,
+    "bonusDiscount": 0,
+    "couponDiscount": 100,
+    "couponCode": "test10",
+    "finalTotal": 900,
+    "comment": "еноеноен",
+    "pickupTime": "",
+    "status": "принят"
+  }
+]
