@@ -4217,25 +4217,48 @@ function setupEventHandlers() {
 
         async function fetchCaptcha(target) {
             try {
+                console.log(`fetchCaptcha: Загружаем капчу для ${target}`);
                 const resp = await fetch(getApiUrl('captcha'));
                 const data = await resp.json();
-                if (!data.success) return;
+                console.log(`fetchCaptcha: Ответ сервера для ${target}:`, data);
+                
+                if (!data.success) {
+                    console.warn(`fetchCaptcha: Сервер вернул ошибку для ${target}:`, data);
+                    return;
+                }
+                
                 if (target === 'login') {
                     loginCaptchaId = data.captchaId;
                     const row = document.getElementById('loginCaptchaRow');
                     const label = document.getElementById('loginCaptchaQuestion');
-                    const currentLang = localStorage.getItem('selectedLanguage') || 'uk';
+                    const currentLang = localStorage.getItem('selectedLanguage') || 'ru';
                     const prefix = getTranslation('captchaCheck', currentLang);
-                    if (row && label) { row.style.display = 'block'; label.textContent = `${prefix}: ${data.question}`; }
+                    
+                    if (row && label) { 
+                        row.style.display = 'block'; 
+                        label.textContent = `${prefix}: ${data.question}`;
+                        console.log(`fetchCaptcha: Капча для логина обновлена: ${data.question}`);
+                    } else {
+                        console.warn('fetchCaptcha: Не найдены элементы формы логина');
+                    }
                 } else if (target === 'register') {
                     registerCaptchaId = data.captchaId;
                     const row = document.getElementById('registerCaptchaRow');
                     const label = document.getElementById('registerCaptchaQuestion');
-                    const currentLang = localStorage.getItem('selectedLanguage') || 'uk';
+                    const currentLang = localStorage.getItem('selectedLanguage') || 'ru';
                     const prefix = getTranslation('captchaCheck', currentLang);
-                    if (row && label) { row.style.display = 'block'; label.textContent = `${prefix}: ${data.question}`; }
+                    
+                    if (row && label) { 
+                        row.style.display = 'block'; 
+                        label.textContent = `${prefix}: ${data.question}`;
+                        console.log(`fetchCaptcha: Капча для регистрации обновлена: ${data.question}`);
+                    } else {
+                        console.warn('fetchCaptcha: Не найдены элементы формы регистрации');
+                    }
                 }
-            } catch (e) { /* ignore */ }
+            } catch (e) { 
+                console.error(`fetchCaptcha: Ошибка загрузки капчи для ${target}:`, e);
+            }
         }
 
         // Переключение UI
@@ -4300,7 +4323,8 @@ function setupEventHandlers() {
                         loginSection.classList.add('show');
                     }
                 loginMessage.textContent = '';
-                fetchCaptcha('login');
+                // ИСПРАВЛЕНИЕ: Убираем дублирующий вызов капчи
+                // fetchCaptcha('login'); - убрано для избежания конфликтов
                 }, 10);
             });
         }
@@ -4354,8 +4378,8 @@ function setupEventHandlers() {
                     dropdownLoginSection.classList.add('show');
                     dropdownLoginSection.style.visibility = 'visible';
                     dropdownLoginSection.style.opacity = '1';
-                    // Загружаем капчу сразу при открытии формы
-                    fetchCaptcha('login');
+                    // ИСПРАВЛЕНИЕ: Убираем дублирующий вызов капчи, она уже загружается в showLoginDropdown
+                    // fetchCaptcha('login'); - убрано для избежания конфликтов
                 }
             loginMessage.textContent = '';
             }, 10);
@@ -4598,6 +4622,14 @@ function setupEventHandlers() {
                     if (searchInput) searchInput.value = '';
                 } catch (e) {}
                 try { clearCategoryFilter(); } catch (e) {}
+                // ИСПРАВЛЕНИЕ: Перезагружаем капчу после выхода из аккаунта
+                try {
+                    console.log('logout: Перезагружаем капчу после выхода');
+                    setTimeout(() => fetchCaptcha('login'), 100);
+                } catch (e) {
+                    console.warn('logout: Ошибка перезагрузки капчи:', e);
+                }
+                
                 // Переключаемся в товары и подсвечиваем нижнюю навигацию
                 showProductsView();
                 try { setActiveBottomNav('products'); } catch (e) {}
@@ -6545,23 +6577,155 @@ async function showAccountView() {
         // Теперь оставляем её видимой везде (в т.ч. в Telegram WebApp), по запросу пользователя.
     } catch (e) {}
 
-    // Применяем язык к только что добавленным узлам и настраиваем выпадающий список
+    // ОПТИМИЗАЦИЯ: Применяем язык к только что добавленным узлам и настраиваем выпадающий список
+    // Избегаем повторных вызовов switchLanguage
     const lang = getCurrentLanguage();
-    if (typeof switchLanguage === 'function') switchLanguage(lang);
     setupAccountLanguageDropdown();
+    
+    // switchLanguage будет вызван только один раз в конце функции для оптимизации
 
     try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {}
+    
+    // ИСПРАВЛЕНИЕ: Загружаем актуальные данные с сервера ДО рендеринга интерфейса
+    // Проверяем авторизацию более надежным способом
+    let isUserAuthenticated = false;
+    let currentUserName = null;
+    
+    // Проверяем различные источники авторизации
+    if (window.__authState) {
+        if (window.__authState.profile && (window.__authState.profile.displayName || window.__authState.profile.username)) {
+            isUserAuthenticated = true;
+            currentUserName = window.__authState.profile.displayName || window.__authState.profile.username;
+        } else if (window.__authState.isAuthenticated) {
+            isUserAuthenticated = true;
+        }
+    }
+    
+    // Дополнительная проверка через localStorage
+    if (!isUserAuthenticated) {
+        const storedProfile = localStorage.getItem('userProfile');
+        if (storedProfile) {
+            try {
+                const profile = JSON.parse(storedProfile);
+                if (profile && (profile.displayName || profile.username)) {
+                    isUserAuthenticated = true;
+                    currentUserName = profile.displayName || profile.username;
+                }
+            } catch (e) {
+                console.warn('showAccountView: Ошибка парсинга профиля из localStorage:', e);
+            }
+        }
+    }
+    
+    if (isUserAuthenticated && currentUserName) {
+        console.log('showAccountView: Предварительная загрузка данных с сервера...');
+        console.log('showAccountView: Пользователь:', currentUserName);
+        await preloadAccountData();
+    } else {
+        console.log('showAccountView: Пропускаем предварительную загрузку - пользователь не авторизован');
+        console.log('showAccountView: window.__authState:', window.__authState);
+    }
+    
     console.log('showAccountView: вызываем renderAccountPage');
     await renderAccountPage();
     // Заголовок всегда остается GuitarStrings.com.ua
     console.log('showAccountView: renderAccountPage завершён');
 
-    // Исправляем суммы в существующих заказах при открытии кабинета
-    if (window.__authState && window.__authState.profile) {
-    }
-
-    // Рендерим заказы из localStorage
+    // Рендерим заказы (теперь уже с актуальными данными)
     await renderAccountOrders();
+    
+    // ОПТИМИЗАЦИЯ: Применяем язык только один раз в конце для всех элементов
+    if (typeof switchLanguage === 'function') {
+        switchLanguage(lang);
+    }
+}
+
+// ИСПРАВЛЕНИЕ: Функция предварительной загрузки данных с сервера для устранения мелькания
+async function preloadAccountData() {
+    try {
+        const currentUser = window.__authState && window.__authState.profile ?
+            (window.__authState.profile.username || window.__authState.profile.displayName || 'guest') : 'guest';
+        
+        console.log('preloadAccountData: Загружаем данные для пользователя:', currentUser);
+        
+        // Загружаем заказы с сервера для just_a_legend
+        if (currentUser === 'just_a_legend') {
+            try {
+                const ordersResp = await fetch('/api/user_orders', { credentials: 'include' });
+                const serverOrders = await ordersResp.json();
+                
+                if (serverOrders.success && serverOrders.orders) {
+                    const userOrdersKey = `userOrders_${currentUser}`;
+                    
+                    // Преобразуем и сохраняем заказы в localStorage
+                    const orders = serverOrders.orders.filter(order => {
+                        const orderId = order.orderId || order.id;
+                        return orderId && orderId !== 'undefined' && orderId !== undefined;
+                    }).map(order => {
+                        return {
+                            id: order.orderId || order.id,
+                            date: order.date,
+                            customer: {
+                                name: order.customerName || order.customer?.name || currentUser,
+                                phone: order.customer?.phone || '',
+                                settlement: order.customer?.settlement || (order.address ? order.address.split(',')[0] || '' : ''),
+                                region: order.customer?.region || '',
+                                branch: order.customer?.branch || (order.address ? order.address.split(',')[1] || '' : ''),
+                                index: order.customer?.index || ''
+                            },
+                            total: order.total || order.amount || 0,
+                            finalTotal: order.finalTotal || order.amount || 0,
+                            status: order.status || 'unknown',
+                            items: order.items || [],
+                            paymentMethod: order.paymentMethod || '',
+                            deliveryMethod: order.deliveryMethod || '',
+                            comment: order.comment || '',
+                            pickupTime: order.pickupTime || '',
+                            bonusesUsed: order.bonusesUsed || 0,
+                            couponDiscount: order.couponDiscount || 0,
+                            deliveryCost: order.deliveryCost || 0,
+                            itemsTotal: order.itemsTotal || order.total || 0,
+                            itemsDiscount: order.itemsDiscount || 0,
+                            subtotal: order.subtotal || order.itemsTotal || order.total || 0,
+                            bonusDiscount: Math.floor((order.bonusesUsed || 0) * 0.1)
+                        };
+                    });
+                    
+                    localStorage.setItem(userOrdersKey, JSON.stringify(orders));
+                    console.log('preloadAccountData: Заказы обновлены в localStorage:', orders.length);
+                    
+                    // Обновляем summary данные если доступны
+                    if (serverOrders.summary) {
+                        const bonuses = serverOrders.summary.bonuses || 0;
+                        if (window.__authState && window.__authState.profile) {
+                            window.__authState.profile.bonuses = bonuses;
+                        }
+                        localStorage.setItem('userBonuses', bonuses.toString());
+                        console.log('preloadAccountData: Бонусы обновлены:', bonuses);
+                    }
+                }
+            } catch (error) {
+                console.error('preloadAccountData: Ошибка загрузки заказов:', error);
+            }
+        }
+        
+        // Загружаем актуальные бонусы для всех пользователей
+        try {
+            if (currentUser !== 'guest') {
+                const serverBonuses = await loadUserBonusesFromServer(currentUser);
+                if (serverBonuses !== null) {
+                    console.log('preloadAccountData: Серверные бонусы загружены:', serverBonuses);
+                }
+            }
+        } catch (error) {
+            console.error('preloadAccountData: Ошибка загрузки бонусов:', error);
+        }
+        
+        console.log('preloadAccountData: Предварительная загрузка завершена');
+        
+    } catch (error) {
+        console.error('preloadAccountData: Общая ошибка:', error);
+    }
 }
 
 function setupCabinetNav() {
@@ -6723,7 +6887,10 @@ async function renderAccountPage() {
             let usedBonusesTotal = 0;
 
             (localOrders || []).forEach(order => {
-                console.log('renderAccountPage: Заказ:', order.id, 'статус:', order.status, 'сумма:', order.amount, 'использованные бонусы:', order.bonusesUsed || order.bonusDiscount || 0);
+                // ИСПРАВЛЕНИЕ: Правильно определяем сумму заказа для логирования
+                const orderAmount = order.finalTotal || order.total || order.amount || 0;
+                const orderStatus = order.status || 'не указан';
+                console.log('renderAccountPage: Заказ:', order.id, 'статус:', orderStatus, 'сумма:', orderAmount, 'использованные бонусы:', order.bonusesUsed || order.bonusDiscount || 0);
 
                 // Всегда вычитаем использованные бонусы из баланса, независимо от статуса заказа
                 let usedBonusesInOrder = 0;
@@ -6863,8 +7030,24 @@ async function renderAccountPage() {
             console.log('renderAccountPage: Синхронизация бонусов с сервером:', bonuses, 'vs', serverBonuses);
         }
 
-        // Инициализируем баланс бонусов после загрузки данных
-        initializeUserBonus();
+        // ИСПРАВЛЕНИЕ: Загружаем бонусы только если предварительная загрузка не была выполнена
+        const hasProfile = window.__authState && window.__authState.profile && 
+                          (window.__authState.profile.displayName || window.__authState.profile.username);
+        
+        if (!hasProfile) {
+            // Для неавторизованных пользователей или если предзагрузка не работала
+            console.log('renderAccountPage: Пользователь не авторизован, используем initializeUserBonus');
+            initializeUserBonus();
+        } else {
+            // Для авторизованных пользователей - проверяем, нужно ли обновить бонусы
+            const currentUser = window.__authState.profile.username || window.__authState.profile.displayName || 'guest';
+            if (currentUser === 'just_a_legend' && bonuses !== serverBonuses && serverBonuses === 0) {
+                console.log('renderAccountPage: Серверные бонусы не загружены, загружаем асинхронно');
+                initializeUserBonus();
+            } else {
+                console.log('renderAccountPage: Бонусы уже актуальны или загружены в preloadAccountData');
+            }
+        }
         // Таблица заказов
         const body = document.getElementById('ordersTableBody');
         if (body) {
@@ -6988,73 +7171,13 @@ async function renderAccountOrders(loadMore = false) {
         
         let orders = [];
 
-        // Для just_a_legend всегда загружаем заказы с сервера для обеспечения синхронизации
-        if (currentUser === 'just_a_legend' && !loadMore) {
-            console.log('renderAccountOrders: Загружаем заказы just_a_legend с сервера для синхронизации');
-            try {
-                const ordersResp = await fetch('/api/user_orders', { credentials: 'include' });
-                const serverOrders = await ordersResp.json();
-                
-                console.log('renderAccountOrders: Ответ сервера:', serverOrders);
-                
-                if (serverOrders.success && serverOrders.orders) {
-                    console.log('renderAccountOrders: Сервер вернул', serverOrders.orders.length, 'заказов');
-                    
-                    // Используем поле orderId из API ответа как id для фильтрации
-                    orders = serverOrders.orders.filter(order => {
-                        const orderId = order.orderId || order.id;
-                        return orderId && orderId !== 'undefined' && orderId !== undefined;
-                    }).map(order => {
-                        // Преобразуем формат API в формат приложения
-                        return {
-                            id: order.orderId || order.id,
-                            date: order.date,
-                            customer: {
-                                name: order.customerName || order.customer?.name || 'just_a_legend',
-                                phone: order.customer?.phone || '',
-                                settlement: order.customer?.settlement || (order.address ? order.address.split(',')[0] || '' : ''),
-                                region: order.customer?.region || '',
-                                branch: order.customer?.branch || (order.address ? order.address.split(',')[1] || '' : ''),
-                                index: order.customer?.index || ''
-                            },
-                            total: order.total || order.amount || 0,
-                            finalTotal: order.finalTotal || order.amount || 0,
-                            status: order.status || 'unknown',
-                            items: order.items || [],
-                            paymentMethod: order.paymentMethod || '',
-                            deliveryMethod: order.deliveryMethod || '',
-                            comment: order.comment || '',
-                            pickupTime: order.pickupTime || '',
-                            bonusesUsed: order.bonusesUsed || 0,
-                            couponDiscount: order.couponDiscount || 0,
-                            deliveryCost: order.deliveryCost || 0,
-                            itemsTotal: order.itemsTotal || order.total || 0, // Используем itemsTotal из API
-                            itemsDiscount: order.itemsDiscount || 0, // Добавляем itemsDiscount
-                            subtotal: order.subtotal || order.itemsTotal || order.total || 0, // Используем subtotal из API
-                            bonusDiscount: Math.floor((order.bonusesUsed || 0) * 0.1) // 10% от использованных бонусов
-                        };
-                    });
-                    
-                    // Сохраняем в localStorage для быстрого доступа
-                    localStorage.setItem(userOrdersKey, JSON.stringify(orders));
-                    console.log('renderAccountOrders: Загружено и преобразовано', orders.length, 'заказов для just_a_legend');
-                } else {
-                    console.warn('renderAccountOrders: Не удалось загрузить заказы с сервера:', serverOrders);
-                    orders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
-                }
-            } catch (error) {
-                console.error('renderAccountOrders: Ошибка загрузки заказов с сервера:', error);
-                orders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
-            }
-        } else {
-            // Для других пользователей или при loadMore используем localStorage
-            orders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
-            
-            // Фильтруем только валидные заказы
-            if (currentUser === 'just_a_legend') {
-                orders = orders.filter(order => order.id && order.id !== 'undefined' && order.id !== undefined);
-            }
-        }
+        // ИСПРАВЛЕНИЕ: Теперь используем данные из localStorage для всех пользователей,
+        // так как актуальные данные уже загружены в preloadAccountData()
+        orders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
+        console.log('renderAccountOrders: Используем заказы из localStorage (уже обновленные):', orders.length);
+        
+        // Фильтруем только валидные заказы
+        orders = orders.filter(order => order.id && order.id !== 'undefined' && order.id !== undefined);
 
         console.log('renderAccountOrders: Получаем заказы для пользователя:', currentUser, 'ключ:', userOrdersKey, 'заказов:', orders.length);
         console.log('renderAccountOrders: Проверяем localStorage ключи:', Object.keys(localStorage).filter(key => key.includes('userOrders')));
@@ -7125,10 +7248,25 @@ async function renderAccountOrders(loadMore = false) {
             // Используем сохраненные суммы из объекта заказа
             const finalAmount = order.finalTotal || order.total || 0;
 
+            // ИСПРАВЛЕНИЕ: Правильное формирование адреса для устранения мелькания
+            let deliveryAddress = '';
+            if (order.customer && (order.customer.settlement || order.customer.branch)) {
+                // Если есть customer данные, используем их
+                const settlement = order.customer.settlement || '';
+                const branch = order.customer.branch || '';
+                deliveryAddress = `${settlement}${settlement && branch ? ', ' : ''}${branch}`;
+            } else if (order.address) {
+                // Если нет customer данных, но есть address - используем его
+                deliveryAddress = order.address;
+            } else {
+                // Fallback - пустой адрес
+                deliveryAddress = '';
+            }
+
             row.innerHTML = `
                 <div>${order.id || ''}</div>
                 <div>${orderDate}</div>
-                <div>${(order.customer && order.customer.settlement) || ''}, ${(order.customer && order.customer.branch) || ''}</div>
+                <div>${deliveryAddress}</div>
                 <div class="order-amount" data-amount="${finalAmount}">${finalAmount} ${getCurrencyWithDot()}</div>
                 <div class="order-status" data-original-status="${order.status || ''}">${statusText}</div>
             `;
@@ -8074,15 +8212,15 @@ function getUserBonusBalance() {
     return localBonus;
 }
 
-// Функция для загрузки бонусов с сервера
+// ИСПРАВЛЕНИЕ: Функция для загрузки бонусов с сервера через endpoint user_orders
 async function loadUserBonusesFromServer(userId) {
     try {
-        console.log(`loadUserBonusesFromServer: Загружаем бонусы для ${userId}`);
-        const response = await fetch(`/api/user_bonuses/${userId}`);
+        console.log(`loadUserBonusesFromServer: Загружаем бонусы для ${userId} через /api/user_orders`);
+        const response = await fetch('/api/user_orders', { credentials: 'include' });
         const data = await response.json();
         
-        if (data.success) {
-            const serverBonuses = data.bonuses;
+        if (data.success && data.summary && typeof data.summary.bonuses !== 'undefined') {
+            const serverBonuses = data.summary.bonuses;
             console.log(`loadUserBonusesFromServer: Получены серверные бонусы: ${serverBonuses}`);
             
             // Обновляем профиль и localStorage
@@ -8094,7 +8232,7 @@ async function loadUserBonusesFromServer(userId) {
             
             return serverBonuses;
         } else {
-            console.warn('loadUserBonusesFromServer: Не удалось загрузить серверные бонусы');
+            console.warn('loadUserBonusesFromServer: Не удалось загрузить серверные бонусы из user_orders');
             return null;
         }
     } catch (error) {
@@ -8412,8 +8550,17 @@ function showLoginDropdown() {
             loginSection.classList.add('show');
             console.log('showLoginDropdown: Показали секцию логина');
 
-            // Загружаем капчу сразу при открытии формы
-            setTimeout(() => fetchCaptcha('login'), 100);
+            // ИСПРАВЛЕНИЕ: Загружаем капчу с увеличенной задержкой и повторными попытками
+            setTimeout(async () => {
+                console.log('showLoginDropdown: Загружаем капчу...');
+                try {
+                    await fetchCaptcha('login');
+                    console.log('showLoginDropdown: Капча загружена успешно');
+                } catch (error) {
+                    console.warn('showLoginDropdown: Ошибка загрузки капчи, повторная попытка через 500ms');
+                    setTimeout(() => fetchCaptcha('login'), 500);
+                }
+            }, 200);
         }
 
         // Агрессивно скрываем остальные секции

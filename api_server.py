@@ -1013,6 +1013,15 @@ def api_user_orders():
             saved_bonuses = user.get('bonuses', 0)
             if saved_bonuses > bonuses:
                 bonuses = saved_bonuses  # Используем сохраненное значение, если оно больше
+        
+        # ИСПРАВЛЕНИЕ: Также проверяем бонусы из файла user_bonuses.db.json
+        try:
+            file_bonuses = get_user_bonus_balance(user_identifier)
+            if file_bonuses > bonuses:
+                bonuses = file_bonuses
+                print(f"API user_orders: Используем бонусы из файла для {user_identifier}: {file_bonuses}")
+        except Exception as e:
+            print(f"API user_orders: Ошибка чтения бонусов из файла: {e}")
 
         payload = {
             'success': True,
